@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-palette="oriel" data-mode="dark">
+<head>
+  <meta charset="utf-8">
+  <title>Lintel</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="bar.css">
+</head>
+<body>
+  <nav id="bar" aria-label="Menu bar">
+    <div class="side left">
+      <button class="item logo" data-menu="system" title="Lintel"></button>
+      <button class="item app" data-menu="app"><span id="app-name"></span></button>
+    </div>
+    <div class="side right">
+      <button class="item media" data-menu="media" hidden><span class="glyph"></span><span class="text"></span></button>
+      <button class="item stats" data-menu="stats" hidden>
+        <span class="stat"><small>CPU</small><span id="cpu">–</span></span>
+        <span class="stat"><small>MEM</small><span id="mem">–</span></span>
+      </button>
+      <button class="item volume" data-menu="volume" hidden></button>
+      <button class="item network" data-menu="network" hidden></button>
+      <button class="item battery" data-menu="battery" hidden><span class="glyph"></span><span class="text"></span></button>
+      <button class="item clock" data-menu="clock"><span id="date"></span><span id="time"></span></button>
+    </div>
+  </nav>
+  <script src="common.js"></script>
+  <script src="bar.js"></script>
+</body>
+</html>

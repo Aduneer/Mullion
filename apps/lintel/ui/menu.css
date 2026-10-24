@@ -1,0 +1,122 @@
+/* The dropdown under a bar item. The window is sized to #menu (see menu.js), and Windows 11 rounds
+   its corners and draws its shadow. Colors are tokens from themes.css. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+:focus { outline: none; }
+
+html, body { overflow: hidden; background: var(--surface); }
+body {
+  color: var(--ink);
+  font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Shrinks to its content, so menu.js can measure it; the window is then sized to match. */
+#menu { display: inline-flex; flex-direction: column; min-width: 230px; max-width: 540px; padding: 5px; }
+#menu.wide { width: 300px; }
+
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic .fill { fill: currentColor; stroke: none; }
+.ic .dim { opacity: 0.3; }
+
+/* Items: highlighted in the accent color under the pointer or the arrow keys, as on a Mac. */
+.mi {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 26px; padding: 3px 10px; border-radius: 5px;
+  white-space: nowrap;
+}
+.mi:hover, .mi.kb { background: var(--accent); color: var(--on-accent); }
+.mi:hover .muted, .mi.kb .muted { color: inherit; opacity: 0.8; }
+.mi .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.mi .tick { width: 14px; display: inline-grid; place-items: center; }
+.mi .tick .ic { width: 13px; height: 13px; stroke-width: 2.4; }
+.mi[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.sep { height: 1px; margin: 5px 10px; background: var(--border); }
+
+.head { padding: 6px 10px 4px; font-weight: 650; }
+.head .sub, .muted { color: var(--muted); font-weight: 400; }
+.note { padding: 2px 10px 6px; color: var(--ink-2); white-space: normal; }
+.section { padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; }
+.section h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; }
+.row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.big { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Confirm (Restart, Shut down, Sign out) */
+.confirm { padding: 10px; display: flex; flex-direction: column; gap: 10px; width: 260px; }
+.confirm p { color: var(--ink-2); white-space: normal; }
+.buttons { display: flex; gap: 8px; justify-content: flex-end; }
+.btn {
+  padding: 5px 14px; border-radius: 6px; background: var(--surface-hi); border: 1px solid var(--border);
+  text-align: center;
+}
+.btn:hover, .btn.kb { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+
+/* Graphs */
+.spark { width: 100%; height: 40px; display: block; }
+.spark .area { fill: color-mix(in srgb, var(--hue, var(--cpu)) 22%, transparent); }
+.spark .line { fill: none; stroke: var(--hue, var(--cpu)); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.meter { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.meter > div { height: 100%; background: var(--hue, var(--mem)); border-radius: 3px; }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+
+/* Now playing */
+.player { padding: 8px 10px; display: flex; flex-direction: column; gap: 10px; width: 290px; }
+.player .cover { width: 100%; aspect-ratio: 1; border-radius: 8px; background: var(--surface-hi) center / cover; display: grid; place-items: center; color: var(--muted); }
+.player .cover .ic { width: 40px; height: 40px; stroke-width: 1.2; }
+.player .title { font-weight: 650; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player .artist { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.progress .meter { flex: 1; height: 4px; }
+.progress .meter > div { background: var(--ink-2); }
+.controls { display: flex; justify-content: center; gap: 18px; }
+.controls button { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; }
+.controls button:hover { background: var(--surface-hi); }
+.controls button:disabled { opacity: 0.35; }
+.controls .ic { width: 20px; height: 20px; }
+.controls .main .ic { width: 26px; height: 26px; }
+
+/* Volume */
+.slider { display: flex; align-items: center; gap: 8px; }
+.slider .mute { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+.slider .mute:hover { background: var(--surface-hi); }
+.slider .mute.on { color: var(--crit); }
+input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); height: 18px; }
+.slider .pct { width: 34px; text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.slider .name { width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+
+/* Calendar */
+.cal { padding: 6px 10px 8px; width: 260px; }
+.cal header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal header strong { font-weight: 650; }
+.cal header button { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+.cal header button:hover { background: var(--surface-hi); color: var(--ink); }
+.cal .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-variant-numeric: tabular-nums; }
+.cal .dow { font-size: 10.5px; color: var(--muted); padding-bottom: 3px; }
+.cal .day { height: 28px; display: grid; place-items: center; border-radius: 50%; }
+.cal .day.other { color: var(--muted); opacity: 0.55; }
+.cal .day.today { background: var(--accent); color: var(--on-accent); font-weight: 650; }
+.cal .today-btn { font-size: 12px; color: var(--accent); padding: 0 4px; width: auto; }
+
+/* Settings */
+.form { padding: 4px 10px 8px; display: flex; flex-direction: column; gap: 10px; width: 320px; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.field > span { color: var(--ink-2); }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--page); border: 1px solid var(--border); }
+.seg button { padding: 3px 10px; border-radius: 5px; color: var(--muted); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--surface-hi); color: var(--ink); box-shadow: 0 1px 2px var(--shadow); }
+.swatches { display: flex; gap: 6px; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 2px; }
+.swatch span { display: block; width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 50%, var(--page) 50%); }
+.swatch[aria-pressed="true"] { border-color: var(--ink-2); }
+.toggle { display: flex; align-items: center; gap: 8px; cursor: default; }
+.toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.foot { padding: 6px 10px 4px; font-size: 11px; color: var(--muted); white-space: normal; word-break: break-all; }

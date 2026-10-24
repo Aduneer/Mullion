@@ -1,0 +1,427 @@
+"use strict";
+// The dropdowns. One window serves every menu: the bar asks the backend to open one, the backend
+// sends us its id, we lay it out, measure it and say how big it is (`menu_ready`), and the backend
+// sizes the window to match and shows it under the bar item.
+{
+const { invoke, listen, applyTheme, esc, bytes, rate, clock, duration, player, program, icons } = Lintel;
+const root = document.getElementById("menu");
+
+let settings, info, sample, front;
+/** The menu on screen (its bar item's id), and the view inside it (the same, or "settings", "confirm-…"). */
+let current = null, view = null;
+/** Handlers for the [data-act] elements of the current render, by index. */
+let acts = [];
+/** Last minute of CPU and network, so the graphs have a past when the menu opens. */
+const HISTORY = 60;
+const hist = { cpu: [], down: [] };
+
+// --- plumbing -------------------------------------------------------------------------
+
+/** Close the menu; `restore` hands the focus back to the app that had it. */
+const done = (restore = true) => invoke("close_menu", { restore });
+const run = name => () => { done(false); invoke("run_action", { name }).catch(e => console.warn(e)); };
+const act = (fn) => { acts.push(fn); return acts.length - 1; };
+
+/** A menu item. `fn` returns "keep" to leave the menu open. */
+function item(label, fn, { hint = "", tick = null, disabled = false, sub = "" } = {}) {
+  const t = tick === null ? "" : `<span class="tick">${tick ? icons.check() : ""}</span>`;
+  return `<button class="mi" role="menuitem" data-act="${act(fn)}"${disabled ? ' aria-disabled="true"' : ""}>${t}<span class="label">${esc(label)}${sub ? ` <span class="muted">${esc(sub)}</span>` : ""}</span>${hint ? `<span class="muted">${esc(hint)}</span>` : ""}</button>`;
+}
+const sep = `<div class="sep"></div>`;
+
+let lastSize = "";
+function measure() {
+  if (!current) return;
+  const r = root.getBoundingClientRect();
+  const size = `${Math.ceil(r.width)}x${Math.ceil(r.height)}`;
+  if (size === lastSize) return;
+  lastSize = size;
+  invoke("menu_ready", { id: current, width: Math.ceil(r.width), height: Math.ceil(r.height) });
+}
+new ResizeObserver(measure).observe(root);
+
+async function render() {
+  const id = current;
+  const build = VIEWS[view] ?? VIEWS[view.split(":")[0]];
+  if (!build) return;
+  const fresh = [];
+  acts = fresh;
+  const html = await build(view);
+  if (current !== id || acts !== fresh) return; // another menu (or render) started meanwhile
+  root.className = WIDE.has(view) ? "wide" : "";
+  root.innerHTML = html;
+  kb = -1;
+  measure();
+}
+
+root.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]");
+  if (!el || el.getAttribute("aria-disabled") === "true") return;
+  const r = acts[Number(el.dataset.act)]?.(el, e);
+  if (r === undefined) done();
+});
+
+// Arrow keys move through the items, Enter picks one, Escape closes, as in any menu.
+let kb = -1;
+function moveKb(step) {
+  const els = [...root.querySelectorAll(".mi[data-act]:not([aria-disabled]), .btn[data-act]")];
+  if (!els.length) return;
+  els[kb]?.classList.remove("kb");
+  kb = kb < 0 ? (step > 0 ? 0 : els.length - 1) : (kb + step + els.length) % els.length;
+  els[kb].classList.add("kb");
+  els[kb].scrollIntoView({ block: "nearest" });
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (view !== current) { view = current; render(); } else done();
+  } else if (e.key === "ArrowDown") { moveKb(1); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { moveKb(-1); e.preventDefault(); }
+  else if (e.key === "Enter") root.querySelector(".kb")?.click();
+});
+root.addEventListener("pointermove", () => {
+  root.querySelector(".kb")?.classList.remove("kb");
+  kb = -1;
+});
+
+// --- the menus --------------------------------------------------------------------------
+
+/** Views whose content follows the samples: rebuilt every tick while open. */
+const LIVE = new Set(["stats", "network", "battery"]);
+const WIDE = new Set(["stats", "volume", "network", "battery"]);
+
+const VIEWS = {
+  system() {
+    return [
+      item("About This PC", run("ms-settings:about"), { sub: info.host }),
+      sep,
+      item("System Settings…", run("ms-settings:")),
+      item("Task Manager", run("task-manager"), { hint: "Ctrl+Shift+Esc" }),
+      info.oriel ? item("Oriel", run("oriel")) : "",
+      sep,
+      item("Sleep", () => { done(false); invoke("power", { action: "sleep" }); }),
+      item("Restart…", () => confirm("restart")),
+      item("Shut Down…", () => confirm("shutdown")),
+      sep,
+      item("Lock Screen", () => { done(false); invoke("power", { action: "lock" }); }, { hint: "Win+L" }),
+      item("Sign Out…", () => confirm("signout")),
+      sep,
+      item("Menu Bar Settings…", () => { view = "settings"; render(); return "keep"; }),
+      item("Quit Lintel", () => invoke("quit")),
+    ].join("");
+  },
+
+  "confirm"(v) {
+    const what = v.split(":")[1];
+    const [question, verb] = {
+      restart: ["Restart this PC now?", "Restart"],
+      shutdown: ["Shut down this PC now?", "Shut Down"],
+      signout: ["Sign out now?", "Sign Out"],
+    }[what];
+    return `<div class="confirm">
+      <strong>${question}</strong>
+      <p>Open apps will be asked to close. Ones with unsaved work may stop to ask, or lose it.</p>
+      <div class="buttons">
+        <button class="btn" data-act="${act(() => { view = current; render(); return "keep"; })}">Cancel</button>
+        <button class="btn primary" data-act="${act(() => { done(false); invoke("power", { action: what }).catch(e => console.warn(e)); })}">${verb}</button>
+      </div>
+    </div>`;
+  },
+
+  async app() {
+    if (!front || front.desktop) {
+      return `<div class="head">Desktop</div>` + [
+        item("File Explorer", run("explorer"), { hint: "Win+E" }),
+        sep,
+        item("Display Settings…", run("ms-settings:display")),
+        item("Personalize…", run("ms-settings:personalization")),
+      ].join("");
+    }
+    const f = front;
+    const wins = await invoke("app_windows", { pid: f.pid }).catch(() => []);
+    const frontWin = wins.find(w => w.front) ?? wins[0];
+    const winItem = (w, a) => item(w.title, () => { done(false); invoke("window_action", { action: "focus", hwnd: w.hwnd, pid: w.pid }); }, { tick: w.front, sub: w.minimized ? "minimized" : "" });
+    return `<div class="head">${esc(f.name)}</div>` + [
+      ...wins.slice(0, 15).map(winItem),
+      wins.length > 15 ? `<div class="note muted">and ${wins.length - 15} more</div>` : "",
+      wins.length ? "" : `<div class="note muted">No windows open</div>`,
+      sep,
+      item("Minimize", () => { done(false); invoke("window_action", { action: "minimize", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Win+↓" }),
+      item("Close Window", () => { done(false); invoke("window_action", { action: "close", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Alt+F4" }),
+      sep,
+      item(`Quit ${f.name}`, () => { done(false); invoke("quit_app", { pid: f.pid }).catch(e => console.warn(e)); }, { disabled: !wins.length }),
+    ].join("");
+  },
+
+  async media() {
+    const m = sample?.media;
+    if (!m || !m.title) return `<div class="note muted">Nothing playing</div>`;
+    const art = await coverFor(m);
+    const progress = m.duration ? `<div class="progress"><span class="num" id="pos">${clock(position(m))}</span><div class="meter"><div id="bar" style="width:${(position(m) / m.duration) * 100}%"></div></div><span class="num">${clock(m.duration)}</span></div>` : "";
+    const ctl = (name, icon, enabled, cls = "") => `<button class="${cls}" data-act="${act(() => { invoke("media_control", { action: name }); return "keep"; })}"${enabled ? "" : " disabled"}>${icon}</button>`;
+    return `<div class="player">
+      <div class="cover"${art ? ` style="background-image:url('${art}')"` : ""}>${art ? "" : icons.note()}</div>
+      <div><div class="title">${esc(m.title)}</div><div class="artist">${esc([m.artist, m.album].filter(Boolean).join(" — "))}</div></div>
+      ${progress}
+      <div class="controls">
+        ${ctl("previous", icons.prev(), m.can_prev)}
+        ${ctl("toggle", m.playing ? icons.pause() : icons.play(), m.can_toggle, "main")}
+        ${ctl("next", icons.next(), m.can_next)}
+      </div>
+      <div class="muted">Playing in ${esc(player(m.app) || "an app")}</div>
+    </div>`;
+  },
+
+  stats() {
+    const s = sample?.stats;
+    if (!s) return `<div class="note muted">Waiting for the first reading…</div>`;
+    const lvl = (p) => (p >= 92 ? "crit" : p >= 80 ? "warn" : "");
+    return `
+      <div class="section">
+        <h3>CPU</h3>
+        <div class="row"><span class="big ${lvl(s.cpu)}">${Math.round(s.cpu)}%</span></div>
+        ${spark(hist.cpu, 100, "var(--cpu)")}
+      </div>
+      <div class="section">
+        <h3>Memory</h3>
+        <div class="row"><span class="grow num">${bytes(s.mem.used)} of ${bytes(s.mem.total, 0)}</span><span class="num ${lvl(s.mem.pct)}">${Math.round(s.mem.pct)}%</span></div>
+        <div class="meter" style="--hue:var(--mem)"><div style="width:${s.mem.pct}%"></div></div>
+      </div>
+      <div class="section">
+        <h3>Network</h3>
+        <div class="row num"><span class="grow">↓ ${rate(s.net.down)}</span><span>↑ ${rate(s.net.up)}</span></div>
+        ${spark(hist.down, null, "var(--s2)")}
+      </div>
+      ${sep}
+      ${info.oriel ? item("Open Oriel", run("oriel")) : ""}
+      ${item("Task Manager", run("task-manager"), { hint: "Ctrl+Shift+Esc" })}`;
+  },
+
+  volume() {
+    const a = sample?.audio;
+    if (!a) return `<div class="note muted">No sound output</div>` + sep + item("Sound Settings…", run("ms-settings:sound"));
+    const slider = (pid, name, vol, muted) => `
+      <div class="slider" data-pid="${pid ?? ""}">
+        ${name ? `<span class="name" title="${esc(name)}">${esc(name)}</span>` : ""}
+        <button class="mute${muted ? " on" : ""}" title="${muted ? "Unmute" : "Mute"}" data-act="${act(() => { invoke("set_volume", { pid, muted: !muted }); return "keep"; })}">${icons.speaker(vol, muted || vol === 0)}</button>
+        <input type="range" min="0" max="100" value="${vol}" aria-label="${esc(name || "Volume")}">
+        <span class="pct">${vol}%</span>
+      </div>`;
+    const apps = a.apps.filter(x => x.pid !== 0).concat(a.apps.filter(x => x.pid === 0));
+    mixerKey = mixerShape(a);
+    return `
+      <div class="head">Sound <span class="sub">${esc(a.device)}</span></div>
+      <div class="section">${slider(null, "", a.volume, a.muted)}</div>
+      ${apps.length ? `<div class="section"><h3>Apps</h3>${apps.map(x => slider(x.pid, x.pid === 0 ? "System sounds" : x.title || program(x.exe), x.volume, x.muted)).join("")}</div>` : ""}
+      ${sep}
+      ${item("Sound Settings…", run("ms-settings:sound"))}
+      ${item("Volume Mixer…", run("ms-settings:apps-volume"))}`;
+  },
+
+  network() {
+    const l = sample?.stats.link;
+    if (!l) return `<div class="note muted">Checking…</div>`;
+    const status = l.kind === "offline" ? "Not connected" : l.internet ? "Connected" : "Connected, no internet";
+    const body = l.kind === "wifi"
+      ? `<div class="head">Wi-Fi</div><div class="section"><div class="row">${icons.wifi(l.signal ?? 100)}<span class="grow"><strong>${esc(l.ssid || "Connected")}</strong></span>${l.signal == null ? "" : `<span class="muted num">${l.signal}%</span>`}</div><div class="muted">${status}</div></div>`
+      : `<div class="head">${l.kind === "wired" ? "Network" : "Offline"}</div><div class="section"><div class="row">${l.kind === "wired" ? icons.wired() : icons.offline()}<span class="grow">${status}</span></div></div>`;
+    return body + sep + item("Wi-Fi Networks…", run("ms-availablenetworks:")) + item("Network & Internet Settings…", run("ms-settings:network"));
+  },
+
+  battery() {
+    const b = sample?.stats.battery;
+    if (!b) return `<div class="note muted">No battery</div>`;
+    const status = b.plugged ? (b.pct >= 100 ? "Fully charged" : "Charging") : b.secs_left ? `On battery · ${duration(b.secs_left)} left` : "On battery";
+    return `
+      <div class="head">Battery</div>
+      <div class="section">
+        <div class="row"><span class="big">${b.pct}%</span></div>
+        <div class="meter" style="--hue:${b.pct <= 20 && !b.plugged ? "var(--crit)" : "var(--mem)"}"><div style="width:${b.pct}%"></div></div>
+        <div class="muted">${status}</div>
+      </div>
+      ${sep}
+      ${item("Power & Battery Settings…", run("ms-settings:powersleep"))}`;
+  },
+
+  clock() {
+    const now = new Date();
+    return `<div class="head">${esc(now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</div>`
+      + calendar() + sep
+      + item("Notification Centre", run("notifications"), { hint: "Win+N" })
+      + item("Date & Time Settings…", run("ms-settings:dateandtime"));
+  },
+
+  settings() {
+    const s = settings;
+    const save = patch => () => { invoke("save_settings", { settings: { ...settings, ...patch } }); return "keep"; };
+    const seg = (key, options) => `<div class="seg">${options.map(([v, label]) => `<button aria-pressed="${s[key] === v}" data-act="${act(save({ [key]: v }))}">${label}</button>`).join("")}</div>`;
+    const check = (key, label) => `<label class="toggle"><input type="checkbox" data-act="${act(save({ [key]: !s[key] }))}"${s[key] ? " checked" : ""}>${label}</label>`;
+    const PALETTES = [["oriel", "Oriel"], ["catppuccin", "Catppuccin"], ["nord", "Nord"], ["gruvbox", "Gruvbox"], ["rose-pine", "Rosé Pine"], ["solarized", "Solarized"]];
+    const mode = document.documentElement.dataset.mode;
+    return `
+      <div class="head">Menu Bar Settings</div>
+      <div class="form">
+        <div class="field"><span>Appearance</span>${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]])}</div>
+        <div class="field"><span>Palette</span><div class="swatches">${PALETTES.map(([v, label]) => `<button class="swatch" title="${label}" data-palette="${v}" data-mode="${mode}" aria-pressed="${s.palette === v}" data-act="${act(save({ palette: v }))}"><span></span></button>`).join("")}</div></div>
+        <div class="field"><span>Position</span>${seg("edge", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]])}</div>
+        <div class="field"><span>Size</span>${seg("height", [[26, "Compact"], [30, "Standard"], [36, "Large"]])}</div>
+        <div class="field"><span>Clock</span>${seg("clock", [["auto", "Auto"], ["12", "12-hour"], ["24", "24-hour"]])}</div>
+        <div class="checks">${check("date", "Show the date")}${check("seconds", "Show seconds")}</div>
+        <h3 class="muted" style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-top:4px">Show in the bar</h3>
+        <div class="checks">
+          ${check("media", "Now playing")}${check("stats", "CPU & memory")}
+          ${check("volume", "Volume")}${check("network", "Network")}
+          ${info.has_battery ? check("battery", "Battery") : ""}
+        </div>
+        <label class="toggle"><input type="checkbox" data-act="${act(el => { invoke("set_autostart", { enabled: el.checked }).then(on => { info.autostart = on; el.checked = on; }); return "keep"; })}"${info.autostart ? " checked" : ""}>Start Lintel when I sign in</label>
+      </div>
+      ${sep}
+      ${item("Back", () => { view = current; render(); return "keep"; })}
+      <div class="foot">Lintel ${esc(info.version)} · settings in ${esc(info.settings_path)}</div>`;
+  },
+};
+
+function confirm(what) {
+  view = `confirm:${what}`;
+  render();
+  return "keep";
+}
+
+// --- pieces --------------------------------------------------------------------------
+
+function spark(values, max, hue) {
+  if (values.length < 2) return `<svg class="spark"></svg>`;
+  const top = max ?? Math.max(1, ...values) * 1.15;
+  const n = HISTORY - 1;
+  const pts = values.map((v, i) => `${((HISTORY - values.length + i) / n) * 100},${40 - (Math.min(v, top) / top) * 38}`);
+  const first = pts[0].split(",")[0];
+  return `<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" style="--hue:${hue}">
+    <path class="area" d="M${first},40 L${pts.join(" L")} L100,40 Z"/><path class="line" d="M${pts.join(" L")}"/></svg>`;
+}
+
+/** Where the track is now: players report a position and when, and it moves on while playing. */
+function position(m) {
+  const p = (m.position ?? 0) + (m.playing ? Date.now() / 1000 - m.at : 0);
+  return Math.min(m.duration ?? p, Math.max(0, p));
+}
+
+let cover = { id: 0, url: null };
+async function coverFor(m) {
+  if (!m.art) return null;
+  if (cover.id !== m.art) cover = { id: m.art, url: await invoke("media_art").catch(() => null) };
+  return cover.url;
+}
+
+// The month shown; the arrows move it, "Today" (and reopening the menu) brings it back.
+let month = null;
+function calendar() {
+  const today = new Date();
+  month ??= new Date(today.getFullYear(), today.getMonth(), 1);
+  // Windows numbers days from Monday (0); Date from Sunday (0).
+  const first = (info.first_day + 1) % 7;
+  const start = new Date(month);
+  start.setDate(1 - ((month.getDay() - first + 7) % 7));
+  const dows = [...Array(7)].map((_, i) => new Date(2024, 0, 7 + first + i).toLocaleDateString(undefined, { weekday: "narrow" }));
+  const days = [...Array(42)].map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const cls = ["day", d.getMonth() !== month.getMonth() ? "other" : "", d.toDateString() === today.toDateString() ? "today" : ""].join(" ");
+    return `<div class="${cls}">${d.getDate()}</div>`;
+  });
+  const go = delta => () => { month = new Date(month.getFullYear(), month.getMonth() + delta, 1); render(); return "keep"; };
+  const isThisMonth = month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth();
+  return `<div class="cal">
+    <header>
+      <strong>${esc(month.toLocaleDateString(undefined, { month: "long", year: "numeric" }))}</strong>
+      <span class="row">
+        ${isThisMonth ? "" : `<button class="today-btn" data-act="${act(() => { month = null; render(); return "keep"; })}">Today</button>`}
+        <button title="Previous month" data-act="${act(go(-1))}">${icons.chevron("left")}</button>
+        <button title="Next month" data-act="${act(go(1))}">${icons.chevron("right")}</button>
+      </span>
+    </header>
+    <div class="grid">${dows.map(d => `<div class="dow">${esc(d)}</div>`).join("")}${days.join("")}</div>
+  </div>`;
+}
+
+// The mixer is rebuilt only when its rows change, so a slider being dragged isn't replaced under the pointer.
+let mixerKey = "";
+const mixerShape = a => `${a.device}|${a.apps.map(x => x.pid).join(",")}`;
+let dragging = false;
+root.addEventListener("pointerdown", e => { dragging = e.target.matches("input[type=range]"); });
+document.addEventListener("pointerup", () => { dragging = false; });
+root.addEventListener("input", e => {
+  const el = e.target;
+  if (!el.matches("input[type=range]")) return;
+  const row = el.closest(".slider");
+  const pid = row.dataset.pid === "" ? null : Number(row.dataset.pid);
+  row.querySelector(".pct").textContent = `${el.value}%`;
+  invoke("set_volume", { pid, volume: Number(el.value) });
+});
+
+function updateVolume() {
+  const a = sample?.audio;
+  if (!a || mixerShape(a) !== mixerKey) return render();
+  if (dragging) return;
+  const rows = root.querySelectorAll(".slider");
+  const values = [{ volume: a.volume, muted: a.muted }, ...a.apps.filter(x => x.pid !== 0), ...a.apps.filter(x => x.pid === 0)];
+  rows.forEach((row, i) => {
+    const v = values[i];
+    if (!v) return;
+    row.querySelector("input").value = v.volume;
+    row.querySelector(".pct").textContent = `${v.volume}%`;
+    const mute = row.querySelector(".mute");
+    if (mute.classList.contains("on") !== v.muted) render();
+  });
+}
+
+let lastMedia = "";
+function updateMedia() {
+  const m = sample?.media;
+  const key = m ? `${m.title}|${m.artist}|${m.playing}|${m.art}|${m.can_prev}|${m.can_next}` : "";
+  if (key !== lastMedia) { lastMedia = key; return render(); }
+}
+setInterval(() => {
+  const m = sample?.media;
+  if (view !== "media" || !m?.duration) return;
+  const pos = document.getElementById("pos"), bar = document.getElementById("bar");
+  if (pos) pos.textContent = clock(position(m));
+  if (bar) bar.style.width = `${(position(m) / m.duration) * 100}%`;
+}, 500);
+
+// --- data ----------------------------------------------------------------------------
+
+listen("menu", id => {
+  current = view = id;
+  month = null;
+  lastSize = "";
+  lastMedia = "";
+  render();
+});
+listen("menu-closed", () => {
+  current = view = null;
+  root.innerHTML = "";
+  lastSize = "";
+});
+listen("sample", s => {
+  sample = s;
+  for (const [k, v] of [["cpu", s.stats.cpu], ["down", s.stats.net.down]]) {
+    hist[k].push(v);
+    if (hist[k].length > HISTORY) hist[k].shift();
+  }
+  if (!current) return;
+  if (LIVE.has(view)) render();
+  else if (view === "volume") updateVolume();
+  else if (view === "media") updateMedia();
+});
+listen("front", f => { front = f; });
+listen("settings", s => {
+  settings = s;
+  applyTheme(s);
+  if (view === "settings") render();
+});
+
+invoke("hello").then(h => {
+  ({ settings, sample, front } = h);
+  info = h;
+  applyTheme(settings);
+});
+}

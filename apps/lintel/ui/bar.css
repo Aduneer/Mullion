@@ -1,0 +1,91 @@
+/* The bar: one row, as tall as the window (the height setting). Colors are tokens from themes.css. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+
+html, body { height: 100%; overflow: hidden; background: var(--page); }
+body {
+  color: var(--ink);
+  font: 13px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#bar {
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+.side { display: flex; align-items: center; gap: 1px; min-width: 0; height: 100%; }
+.side.right { flex: none; }
+.side.left { flex: 1 1 auto; }
+
+.item {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: calc(100% - 6px); padding: 0 8px; border-radius: 6px;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+  transition: background 0.12s;
+}
+.item:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.item.open { background: color-mix(in srgb, var(--ink) 15%, transparent); }
+
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ic .fill { fill: currentColor; stroke: none; }
+.ic .dim { opacity: 0.3; }
+
+.logo .ic { width: 17px; height: 17px; }
+.logo .ic .fill { fill: var(--ink); }
+.logo .ic .cut { fill: var(--page); }
+
+.app { font-weight: 650; min-width: 0; max-width: 40vw; }
+#app-name { overflow: hidden; text-overflow: ellipsis; }
+
+.media { max-width: 300px; color: var(--ink-2); }
+.media .text { overflow: hidden; text-overflow: ellipsis; }
+.media .ic { width: 13px; height: 13px; }
+.media.paused { color: var(--muted); }
+
+.stats { gap: 10px; }
+.stat { display: inline-flex; align-items: baseline; gap: 4px; }
+.stat small { font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); }
+.stat .warn { color: var(--warn); }
+.stat .crit { color: var(--crit); }
+
+.battery .ic { width: 22px; height: 22px; stroke-width: 1.5; }
+.battery .ic .low { fill: var(--crit); }
+.battery .ic .bolt { stroke: var(--page); stroke-width: 2.4; }
+
+.clock { gap: 7px; }
+#date { color: var(--ink-2); }
+
+/* Along the bottom: the hairline goes on the inside edge. */
+[data-edge="bottom"] #bar { border-bottom: 0; border-top: 1px solid var(--border); }
+
+/* On the left or right: the bar stands on its side. Items stack, text items get their own short
+   forms (bar.js), the app's name runs up the bar, and the track shows as just its note. */
+.vertical #bar { flex-direction: column; padding: 4px 0; border-bottom: 0; }
+[data-edge="left"] #bar { border-right: 1px solid var(--border); }
+[data-edge="right"] #bar { border-left: 1px solid var(--border); }
+.vertical .side { flex-direction: column; width: 100%; height: auto; gap: 2px; }
+.vertical .side.left { flex: 0 1 auto; min-height: 0; }
+.vertical .item {
+  width: calc(100% - 6px); height: auto; min-height: 30px; padding: 6px 0;
+  flex-direction: column; justify-content: center; gap: 3px; text-align: center;
+}
+.vertical .app { max-width: none; max-height: 40vh; padding: 10px 0; }
+.vertical #app-name { writing-mode: vertical-rl; transform: rotate(180deg); }
+.vertical .media { max-width: none; }
+.vertical .media .text { display: none; }
+.vertical .media .ic { width: 15px; height: 15px; }
+.vertical .stats { gap: 7px; }
+.vertical .stat { flex-direction: column; align-items: center; gap: 1px; font-size: 12px; }
+.vertical .battery { font-size: 11.5px; gap: 1px; }
+.vertical .clock { gap: 5px; line-height: 1.15; }
+.vertical #time, .vertical #date { display: flex; flex-direction: column; align-items: center; }
+.vertical #time { font-weight: 600; }
+.vertical .clock small { font-size: 10px; font-weight: 500; color: var(--muted); }
