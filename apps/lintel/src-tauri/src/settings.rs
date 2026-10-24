@@ -14,6 +14,10 @@ pub struct Settings {
     pub palette: String,
     /// Translucent bar and menus that blur what's behind them (acrylic), rather than solid ones.
     pub glass: bool,
+    /// Which screens get a bar: "main", "all", or one screen by its device name (`\\.\DISPLAY2`).
+    pub screens: String,
+    /// With bars on several screens, each shows only the apps with a window on its own screen.
+    pub apps_per_screen: bool,
     /// The screen edge the bar sits on: "top", "bottom", "left" or "right".
     pub edge: String,
     /// The bar's height at 100% scaling, in pixels; a bar on the left or right is a little wider
@@ -40,6 +44,8 @@ impl Default for Settings {
             theme: "auto".into(),
             palette: "oriel".into(),
             glass: false,
+            screens: "main".into(),
+            apps_per_screen: true,
             edge: "top".into(),
             height: 30,
             clock: "auto".into(),
@@ -80,6 +86,9 @@ impl Settings {
     /// Anything a hand-edited file got wrong goes back to its default.
     pub fn clamp(mut self) -> Self {
         let d = Settings::default();
+        if !(["main", "all"].contains(&self.screens.as_str()) || self.screens.starts_with(r"\\.\")) {
+            self.screens = d.screens.clone();
+        }
         if !["auto", "dark", "light"].contains(&self.theme.as_str()) {
             self.theme = d.theme;
         }

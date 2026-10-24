@@ -35,12 +35,19 @@ struct SettingsState(Mutex<Settings>);
 struct LatestSample(Mutex<Option<Sample>>);
 #[derive(Default)]
 struct MenuState {
-    /// The menu on screen, and the bar item it hangs from.
-    open: Option<(String, Anchor)>,
+    /// The menu on screen, the bar item it hangs from, and that item's bar.
+    open: Option<(String, Anchor, String)>,
     /// The menu that last closed because the focus went elsewhere, and when.
     closed: Option<(String, Instant)>,
 }
 struct OpenMenu(Mutex<MenuState>);
+/// The bar windows: which screen each is on, by label ("bar" for the first, then "bar-2" …).
+#[derive(Default)]
+struct Bars {
+    windows: Mutex<Vec<(String, String)>>,
+    /// Held while bars are added or removed, so two changes don't cross.
+    syncing: Mutex<()>,
+}
 
 /// A bar item's box, in the bar's CSS pixels.
 #[derive(Deserialize, Clone, Copy, Debug)]
@@ -89,6 +96,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             wallpaper,
             wallpaper_image,
+            bar_info, screens,
             hello, save_settings, set_autostart, open_menu, menu_ready, close_menu, media_control, media_art, set_volume,
             app_windows, window_action, launch_app, quit_app, power, run_action, quit
         ])
@@ -104,32 +112,32 @@ fn main() {
             app.manage(LatestSample(Mutex::new(None)));
             app.manage(OpenMenu(Mutex::new(MenuState::default())));
             app.manage(wallpaper::Image::new());
+            app.manage(Bars::default());
 
-            let bar = create_bar(app.handle())?;
             create_menu(app.handle())?;
             apply_look(app.handle(), &settings);
-            let handle = app.handle().clone();
-            let backdrop = app.handle().clone();
-            appbar::on_backdrop(move || {
-                let _ = backdrop.emit_to("bar", "backdrop", ());
-            });
-            appbar::register(bar.hwnd()?.0 as isize, appbar::edge(&settings.edge), settings.thickness(), move |full| {
-                // A game or a video went fullscreen: the bar has hidden itself; so does an open menu.
-                if full {
-                    hide_menu(&handle, false);
-                }
-            });
-            let _ = bar.show();
+            let (full, backdrop, displays) = (app.handle().clone(), app.handle().clone(), app.handle().clone());
+            appbar::on_events(
+                // A game or a video went fullscreen: its bar has hidden itself; so does an open menu.
+                move |hidden| {
+                    if hidden {
+                        hide_menu(&full, false);
+                    }
+                },
+                move || emit_bars(&backdrop, "backdrop", ()),
+                // A screen came or went: bars follow (with "all screens", or a screen of its own).
+                move || sync_bars_later(&displays),
+            );
+            sync_bars_later(app.handle());
 
-            let handle = app.handle().clone();
-            let running = app.handle().clone();
+            let (handle, running) = (app.handle().clone(), app.handle().clone());
             apps::start(
                 move |front| {
-                    let _ = handle.emit_to("bar", "front", front);
+                    emit_bars(&handle, "front", front);
                     let _ = handle.emit_to("menu", "front", front);
                 },
                 move |apps| {
-                    let _ = running.emit_to("bar", "apps", apps);
+                    emit_bars(&running, "apps", apps);
                     let _ = running.emit_to("menu", "apps", apps);
                 },
             );
@@ -152,7 +160,7 @@ fn main() {
         .expect("error while building Lintel")
         .run(|_app, event| {
             if let RunEvent::Exit = event {
-                appbar::unregister();
+                appbar::unregister_all();
             }
         });
 }
@@ -178,7 +186,7 @@ fn start_sampler(app: AppHandle, media: MediaWatch, audio: AudioWatch) {
                         audio: audio.latest(),
                     };
                     // The menu gets them while hidden too, so the CPU and network graphs have history when it opens.
-                    let _ = app.emit_to("bar", "sample", &sample);
+                    emit_bars(&app, "sample", &sample);
                     let _ = app.emit_to("menu", "sample", &sample);
                     *app.state::<LatestSample>().0.lock().unwrap() = Some(sample);
                 }
@@ -225,6 +233,9 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
         apply_look(&app, &settings);
     }
     appbar::set_layout(appbar::edge(&settings.edge), settings.thickness());
+    if previous.screens != settings.screens {
+        sync_bars_later(&app);
+    }
     let _ = app.emit("settings", &settings);
     Ok(settings)
 }
@@ -239,9 +250,10 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
 /// A bar item was clicked (or hovered while another menu is open). `item` is where it is, in
 /// the bar's CSS pixels. Clicking the item of the open menu closes it.
 #[tauri::command]
-fn open_menu(app: AppHandle, open: State<OpenMenu>, id: String, item: Anchor, toggle: bool) {
+fn open_menu(app: AppHandle, window: WebviewWindow, open: State<OpenMenu>, id: String, item: Anchor, toggle: bool) {
+    let bar = window.label().to_string();
     let mut state = open.0.lock().unwrap();
-    if state.open.as_ref().is_some_and(|(o, _)| *o == id) {
+    if state.open.as_ref().is_some_and(|(o, _, b)| *o == id && *b == bar) {
         if toggle {
             drop(state);
             hide_menu(&app, true);
@@ -260,7 +272,11 @@ fn open_menu(app: AppHandle, open: State<OpenMenu>, id: String, item: Anchor, to
         // Room to lay out any menu while it's still hidden; menu_ready then sets its real size.
         let _ = menu.set_size(LogicalSize::new(MENU_ROOM.0, MENU_ROOM.1));
     }
-    state.open = Some((id.clone(), item));
+    if state.open.as_ref().is_some_and(|(_, _, b)| *b != bar) {
+        // Another bar's menu: that bar stops showing its item as open.
+        let _ = app.emit_to(state.open.as_ref().unwrap().2.as_str(), "menu-closed", ());
+    }
+    state.open = Some((id.clone(), item, bar));
     drop(state);
     let _ = app.emit_to("menu", "menu", &id);
 }
@@ -270,8 +286,8 @@ fn open_menu(app: AppHandle, open: State<OpenMenu>, id: String, item: Anchor, to
 /// kept a few pixels inside the bar's length.
 #[tauri::command]
 fn menu_ready(app: AppHandle, open: State<OpenMenu>, settings: State<SettingsState>, id: String, width: f64, height: f64) {
-    let Some(item) = open.0.lock().unwrap().open.as_ref().filter(|(o, _)| *o == id).map(|(_, a)| *a) else { return };
-    let (Some(bar), Some(menu)) = (app.get_webview_window("bar"), app.get_webview_window("menu")) else { return };
+    let Some((item, label)) = open.0.lock().unwrap().open.as_ref().filter(|(o, _, _)| *o == id).map(|(_, a, b)| (*a, b.clone())) else { return };
+    let (Some(bar), Some(menu)) = (app.get_webview_window(&label), app.get_webview_window("menu")) else { return };
     let (Ok(pos), Ok(size), Ok(scale)) = (bar.outer_position(), bar.outer_size(), bar.scale_factor()) else { return };
     let edge = settings.0.lock().unwrap().edge.clone();
     let (w, h) = (width.clamp(80.0, MENU_ROOM.0), height.clamp(20.0, MENU_ROOM.1));
@@ -283,7 +299,7 @@ fn menu_ready(app: AppHandle, open: State<OpenMenu>, settings: State<SettingsSta
         let _ = menu.show();
     }
     let _ = menu.set_focus();
-    let _ = app.emit_to("bar", "menu-opened", &id);
+    let _ = app.emit_to(label.as_str(), "menu-opened", &id);
 }
 
 /// Physical pixels on the screen.
@@ -321,7 +337,7 @@ fn hide_menu(app: &AppHandle, restore: bool) {
     if let Some(menu) = app.get_webview_window("menu") {
         let _ = menu.hide();
     }
-    let _ = app.emit_to("bar", "menu-closed", ());
+    emit_bars(app, "menu-closed", ());
     let _ = app.emit_to("menu", "menu-closed", ());
     if restore {
         apps::restore_focus();
@@ -331,7 +347,7 @@ fn hide_menu(app: &AppHandle, restore: bool) {
 /// The menu lost the focus: to another app (close, and leave that app in front), or to the bar
 /// itself, when one of its items was clicked (close, and remember which, see `open_menu`).
 fn menu_blurred(app: &AppHandle) {
-    let id = app.state::<OpenMenu>().0.lock().unwrap().open.as_ref().map(|(o, _)| o.clone());
+    let id = app.state::<OpenMenu>().0.lock().unwrap().open.as_ref().map(|(o, _, _)| o.clone());
     let Some(id) = id else { return };
     let ours = apps::foreground_is_ours();
     hide_menu(app, ours);
@@ -351,20 +367,43 @@ fn media_control(media: State<MediaWatch>, action: String) -> Result<(), String>
     Ok(())
 }
 
-/// The current track's cover as a data: URL, fetched when a sample's `media.art` changes.
-/// Where the wallpaper behind the bar is, for the glass look; the picture itself comes from
+/// Where the wallpaper behind this bar is, for the glass look; the picture itself comes from
 /// `wallpaper_image`, and only when its `key` changes.
 #[tauri::command]
-fn wallpaper() -> Option<wallpaper::Wallpaper> {
-    wallpaper::current(appbar::rect()?).map(|(w, _)| w)
+fn wallpaper(window: WebviewWindow) -> Option<wallpaper::Wallpaper> {
+    wallpaper::current(appbar::rect(window.hwnd().ok()?.0 as isize)?).map(|(w, _)| w)
 }
 
 #[tauri::command]
-fn wallpaper_image(image: State<wallpaper::Image>) -> Option<String> {
-    let (w, path) = wallpaper::current(appbar::rect()?)?;
+fn wallpaper_image(window: WebviewWindow, image: State<wallpaper::Image>) -> Option<String> {
+    let (w, path) = wallpaper::current(appbar::rect(window.hwnd().ok()?.0 as isize)?)?;
     image.get(&w.key, path.as_deref())
 }
 
+/// Which screen a bar is on (as the running apps' windows give theirs), and how many bars there
+/// are, so each can show the apps on its own screen.
+#[derive(Serialize)]
+struct BarInfo {
+    monitor: u64,
+    bars: usize,
+}
+
+#[tauri::command]
+fn bar_info(window: WebviewWindow, bars: State<Bars>) -> Option<BarInfo> {
+    let hwnd = window.hwnd().ok()?.0 as isize;
+    Some(BarInfo {
+        monitor: unsafe { ffi::MonitorFromWindow(hwnd, ffi::MONITOR_DEFAULTTONEAREST) } as u64,
+        bars: bars.windows.lock().unwrap().len(),
+    })
+}
+
+/// The screens, for Menu Bar Settings.
+#[tauri::command]
+fn screens() -> Vec<appbar::Screen> {
+    appbar::screens()
+}
+
+/// The current track's cover as a data: URL, fetched when a sample's `media.art` changes.
 #[tauri::command]
 fn media_art(media: State<MediaWatch>) -> Option<String> {
     media.art()
@@ -488,7 +527,7 @@ fn send_win_key(key: u16) {
 
 #[tauri::command]
 fn quit(app: AppHandle) {
-    appbar::unregister();
+    appbar::unregister_all();
     app.exit(0);
 }
 
@@ -499,8 +538,81 @@ fn quit(app: AppHandle) {
 /// text doesn't need one, and it's the biggest part of a WebView's memory.
 const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu";
 
-fn create_bar(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, "bar", WebviewUrl::App("index.html".into()))
+/// Every bar window, for what they all show.
+fn emit_bars<S: Serialize + Clone>(app: &AppHandle, event: &str, payload: S) {
+    for (label, _) in app.webview_windows() {
+        if label.starts_with("bar") {
+            let _ = app.emit_to(label.as_str(), event, payload.clone());
+        }
+    }
+}
+
+/// The screens that get a bar: "main", "all", or one screen by its id (the main one while that
+/// screen isn't connected).
+fn wanted_screens(setting: &str, screens: &[appbar::Screen]) -> Vec<String> {
+    match setting {
+        "all" => screens.iter().map(|s| s.id.clone()).collect(),
+        id if id != "main" && screens.iter().any(|s| s.id == id) => vec![id.to_string()],
+        _ => screens.first().map(|s| vec![s.id.clone()]).unwrap_or_default(),
+    }
+}
+
+/// Add and remove bar windows so each wanted screen has one. Off the main thread: building a
+/// WebView waits on the main thread, which may be what asked (a command, or a window message).
+fn sync_bars_later(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || sync_bars(&app));
+}
+
+fn sync_bars(app: &AppHandle) {
+    let bars = app.state::<Bars>();
+    let _syncing = bars.syncing.lock().unwrap();
+    let settings = app.state::<SettingsState>().0.lock().unwrap().clone();
+    let wanted = wanted_screens(&settings.screens, &appbar::screens());
+    let current = bars.windows.lock().unwrap().clone();
+    let mut changed = false;
+    for (screen, label) in &current {
+        if !wanted.contains(screen) {
+            if let Some(w) = app.get_webview_window(label) {
+                if let Ok(hwnd) = w.hwnd() {
+                    let hwnd = hwnd.0 as isize;
+                    let _ = app.run_on_main_thread(move || appbar::unregister(hwnd));
+                }
+                let _ = w.destroy();
+            }
+            bars.windows.lock().unwrap().retain(|(_, l)| l != label);
+            changed = true;
+        }
+    }
+    for screen in wanted {
+        if bars.windows.lock().unwrap().iter().any(|(s, _)| *s == screen) {
+            continue;
+        }
+        let taken: Vec<String> = bars.windows.lock().unwrap().iter().map(|(_, l)| l.clone()).collect();
+        let label = std::iter::once("bar".to_string())
+            .chain((2..).map(|n| format!("bar-{n}")))
+            .find(|l| !taken.contains(l) && app.get_webview_window(l).is_none())
+            .unwrap();
+        let Ok(bar) = create_bar(app, &label) else { continue };
+        bars.windows.lock().unwrap().push((screen.clone(), label));
+        apply_look(app, &settings);
+        let (edge, thickness) = (appbar::edge(&settings.edge), settings.thickness());
+        let _ = app.run_on_main_thread(move || {
+            if let Ok(hwnd) = bar.hwnd() {
+                appbar::register(hwnd.0 as isize, &screen, edge, thickness);
+            }
+            let _ = bar.show();
+        });
+        changed = true;
+    }
+    if changed {
+        // Each bar asks again which screen it's on and how many there are.
+        emit_bars(app, "backdrop", ());
+    }
+}
+
+fn create_bar(app: &AppHandle, label: &str) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title("Lintel")
         .inner_size(1280.0, 30.0)
         .decorations(false)
@@ -542,8 +654,9 @@ fn apply_look(app: &AppHandle, settings: &Settings) {
         "light" => (Some(Theme::Light), Color(0xf9, 0xf9, 0xf7, 255), Color(0xfc, 0xfc, 0xfb, 255)),
         _ => (None, Color(0x0d, 0x0d, 0x0d, 255), Color(0x1a, 0x1a, 0x19, 255)),
     };
-    for (label, bg) in [("bar", bar_bg), ("menu", menu_bg)] {
-        if let Some(w) = app.get_webview_window(label) {
+    for (label, w) in app.webview_windows() {
+        let bg = if label == "menu" { menu_bg } else { bar_bg };
+        {
             let _ = w.set_theme(native);
             // The menu floats over other windows, and has the focus while it's open, so Windows'
             // own acrylic works for it. The bar never has the focus, and Windows draws an
@@ -561,6 +674,18 @@ fn apply_look(app: &AppHandle, settings: &Settings) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bars_go_on_the_screens_asked_for() {
+        let screen = |id: &str, primary| appbar::Screen { id: id.into(), primary, rect: [0, 0, 1920, 1080] };
+        let screens = [screen(r"\\.\DISPLAY2", true), screen(r"\\.\DISPLAY1", false)];
+        assert_eq!(wanted_screens("main", &screens), [r"\\.\DISPLAY2"]);
+        assert_eq!(wanted_screens("all", &screens), [r"\\.\DISPLAY2", r"\\.\DISPLAY1"]);
+        assert_eq!(wanted_screens(r"\\.\DISPLAY1", &screens), [r"\\.\DISPLAY1"]);
+        // A screen that isn't connected: the main one meanwhile.
+        assert_eq!(wanted_screens(r"\\.\DISPLAY9", &screens), [r"\\.\DISPLAY2"]);
+        assert!(wanted_screens("main", &[]).is_empty());
+    }
 
     #[test]
     fn menus_open_beside_their_item_and_stay_on_screen() {

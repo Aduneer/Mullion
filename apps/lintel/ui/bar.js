@@ -5,8 +5,10 @@ const $ = sel => document.querySelector(sel);
 const items = Object.fromEntries([...document.querySelectorAll(".item")].map(b => [b.dataset.menu, b]));
 
 let settings, info, sample, front;
-/** The running apps, for the icons in the middle of the bar. */
-let running = [];
+/** The running apps, for the icons in the middle of the bar, and those this bar shows. */
+let running = [], shown = [];
+/** This bar's screen, and how many bars there are: with several, each shows its own screen's apps. */
+let place = { monitor: 0, bars: 1 };
 /** The menu on screen, if any: its bar item gets the pressed look, and hovering another item switches to it. */
 let openMenu = null;
 
@@ -64,7 +66,12 @@ items.media.addEventListener("auxclick", e => {
 // for a new window.
 
 const dock = $("#apps");
-const appOf = el => running.find(a => a.key === el.dataset.key);
+const appOf = el => shown.find(a => a.key === el.dataset.key);
+
+async function refreshPlace() {
+  place = (await invoke("bar_info").catch(() => null)) ?? place;
+  renderApps();
+}
 
 dock.addEventListener("pointerdown", e => {
   const el = e.target.closest(".dock-app");
@@ -89,9 +96,13 @@ dock.addEventListener("pointerover", e => {
 });
 
 function renderApps() {
-  dock.hidden = !settings.apps || !running.length;
+  const own = settings.apps_per_screen && place.bars > 1;
+  shown = own
+    ? running.map(a => ({ ...a, windows: a.windows.filter(w => w.monitor === place.monitor) })).filter(a => a.windows.length)
+    : running;
+  dock.hidden = !settings.apps || !shown.length;
   const old = new Map([...dock.children].map(b => [b.dataset.key, b]));
-  running.forEach((a, i) => {
+  shown.forEach((a, i) => {
     let b = old.get(a.key);
     old.delete(a.key);
     if (!b) {
@@ -288,7 +299,7 @@ function drawBackdrop() {
 let backdropTimer = 0;
 const backdropSoon = () => { clearTimeout(backdropTimer); backdropTimer = setTimeout(refreshBackdrop, 150); };
 window.addEventListener("resize", backdropSoon);
-listen("backdrop", backdropSoon);
+listen("backdrop", () => { backdropSoon(); refreshPlace(); });
 
 // --- data ----------------------------------------------------------------------------
 
@@ -333,5 +344,6 @@ invoke("hello").then(h => {
   renderAll();
   tick();
   refreshBackdrop();
+  refreshPlace();
 });
 }

@@ -26,7 +26,7 @@
   const GB = 1024 ** 3;
   let settings = {
     theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
-    clock: "auto", seconds: false, date: true, apps: q.get("apps") !== "off", media: true, stats: true, volume: true, network: true, battery: true,
+    clock: "auto", seconds: false, date: true, apps: q.get("apps") !== "off", apps_per_screen: true, screens: "main", media: true, stats: true, volume: true, network: true, battery: true,
   };
   let autostart = false;
   const hasBattery = q.get("battery") !== "off";
@@ -145,6 +145,8 @@
       if (muted != null) target.muted = muted;
     },
     app_windows: () => windows,
+    screens: () => [{ id: String.raw`\\.\DISPLAY1`, primary: true, rect: [0, 0, 2560, 1440] }],
+    bar_info: () => ({ monitor: 1, bars: 1 }),
     window_action: a => log(`window: ${a.action} ${a.hwnd}`),
     quit_app: a => log(`quit app ${a.pid}`),
     power: a => log(`power: ${a.action}`),

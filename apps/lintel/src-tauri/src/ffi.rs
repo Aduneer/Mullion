@@ -242,6 +242,14 @@ pub struct MONITORINFO {
 }
 
 #[repr(C)]
+pub struct MONITORINFOEXW {
+    pub info: MONITORINFO,
+    pub szDevice: [u16; 32],
+}
+pub const MONITORINFOF_PRIMARY: u32 = 1;
+pub type MONITORENUMPROC = unsafe extern "system" fn(monitor: isize, dc: isize, rect: *mut RECT, lparam: isize) -> i32;
+
+#[repr(C)]
 #[derive(Default)]
 pub struct MSG {
     pub hwnd: isize,
@@ -300,6 +308,7 @@ extern "system" {
     pub fn MonitorFromWindow(hwnd: isize, flags: u32) -> isize;
     pub fn MonitorFromPoint(pt: POINT, flags: u32) -> isize;
     pub fn GetMonitorInfoW(monitor: isize, info: *mut MONITORINFO) -> i32;
+    pub fn EnumDisplayMonitors(dc: isize, clip: *const RECT, proc_: MONITORENUMPROC, lparam: isize) -> i32;
     pub fn GetDpiForWindow(hwnd: isize) -> u32;
     pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
     pub fn KillTimer(hwnd: isize, id: usize) -> i32;

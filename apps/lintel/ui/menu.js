@@ -250,8 +250,13 @@ const VIEWS = {
       + item("Date & Time Settings…", run("ms-settings:dateandtime"));
   },
 
-  settings() {
+  async settings() {
     const s = settings;
+    const screens = await invoke("screens").catch(() => []);
+    // Screens by number, as Windows' Display settings does: the main one is 1.
+    const screenSeg = screens.length > 1
+      ? `<div class="field"><span>Screens</span>${seg("screens", [["main", "Main"], ["all", "All"], ...screens.slice(1).map((x, i) => [x.id, `Screen ${i + 2}`])])}</div>`
+      : "";
     const save = patch => () => { invoke("save_settings", { settings: { ...settings, ...patch } }); return "keep"; };
     const seg = (key, options) => `<div class="seg">${options.map(([v, label]) => `<button aria-pressed="${s[key] === v}" data-act="${act(save({ [key]: v }))}">${label}</button>`).join("")}</div>`;
     const check = (key, label) => `<label class="toggle"><input type="checkbox" data-act="${act(save({ [key]: !s[key] }))}"${s[key] ? " checked" : ""}>${label}</label>`;
@@ -263,13 +268,14 @@ const VIEWS = {
         <div class="field"><span>Appearance</span>${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]])}</div>
         <div class="field"><span>Material</span>${seg("glass", [[false, "Solid"], [true, "Glass"]])}</div>
         <div class="field"><span>Palette</span><div class="swatches">${PALETTES.map(([v, label]) => `<button class="swatch" title="${label}" data-palette="${v}" data-mode="${mode}" aria-pressed="${s.palette === v}" data-act="${act(save({ palette: v }))}"><span></span></button>`).join("")}</div></div>
+        ${screenSeg}
         <div class="field"><span>Position</span>${seg("edge", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]])}</div>
         <div class="field"><span>Size</span>${seg("height", [[26, "Compact"], [30, "Standard"], [36, "Large"]])}</div>
         <div class="field"><span>Clock</span>${seg("clock", [["auto", "Auto"], ["12", "12-hour"], ["24", "24-hour"]])}</div>
         <div class="checks">${check("date", "Show the date")}${check("seconds", "Show seconds")}</div>
         <h3 class="muted" style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-top:4px">Show in the bar</h3>
         <div class="checks">
-          ${check("apps", "Open apps")}${check("media", "Now playing")}${check("stats", "CPU & memory")}
+          ${check("apps", "Open apps")}${screens.length > 1 && s.screens === "all" ? check("apps_per_screen", "Only this screen's apps") : ""}${check("media", "Now playing")}${check("stats", "CPU & memory")}
           ${check("volume", "Volume")}${check("network", "Network")}
           ${info.has_battery ? check("battery", "Battery") : ""}
         </div>
