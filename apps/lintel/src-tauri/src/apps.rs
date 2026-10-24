@@ -1,8 +1,9 @@
-//! The app in front, for the bar's app name and the app menu, and acting on that app's windows.
+//! The app in front, for the bar's app name and the app menu; the running apps, for the bar's row
+//! of app icons; and acting on their windows.
 //!
-//! Windows says when the foreground window changes (a WinEvent hook), so nothing is polled: the
-//! hook runs on a thread of its own that just waits for messages. The bar and its menus are left
-//! out, so opening a menu doesn't change the name next to the logo.
+//! Windows says when the foreground window changes and when windows come and go (WinEvent hooks),
+//! so nothing is polled: the hooks run on a thread of its own that just waits for messages. The
+//! bar and its menus are left out, so opening a menu doesn't change the name next to the logo.
 
 use crate::ffi::*;
 use serde::Serialize;
@@ -34,27 +35,83 @@ pub struct Win {
     front: bool,
 }
 
+/// A running app, for the bar: a program with windows Alt+Tab would list.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct App {
+    /// The program's path, lowercased: the same app, whichever process a window belongs to.
+    pub key: String,
+    pub name: String,
+    pub exe: String,
+    /// A process of the app, for its menu and Quit.
+    pub pid: u32,
+    /// Its windows, top-most first.
+    pub windows: Vec<AppWin>,
+    /// Its icon, as a data: URL.
+    pub icon: Option<String>,
+    /// What to open for a new window: the program, or the Store app by its id.
+    #[serde(skip)]
+    pub launch: String,
+}
+
+/// One of a running app's windows, as the bar needs it (the titles come with the app menu).
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct AppWin {
+    pub hwnd: u64,
+    pub pid: u32,
+    pub minimized: bool,
+    pub front: bool,
+    /// The screen it's on (HMONITOR), so a bar can show only its own screen's apps.
+    pub monitor: u64,
+}
+
 static LATEST: Mutex<Option<Front>> = Mutex::new(None);
+static RUNNING: Mutex<Vec<App>> = Mutex::new(Vec::new());
 
 thread_local! {
     static WATCH: RefCell<Option<Watch>> = const { RefCell::new(None) };
+    static TIMER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 struct Watch {
     on_change: Box<dyn Fn(&Front)>,
+    on_apps: Box<dyn Fn(&[App])>,
+    /// Display names by program path.
     names: HashMap<String, String>,
+    /// Icons by app key, made once per app.
+    icons: HashMap<String, Option<String>>,
+    /// The apps' keys in the order they first had a window, which the bar keeps, as a taskbar does.
+    order: Vec<String>,
 }
 
-/// Start following the foreground window. `on_change` runs on the watcher's thread.
-pub fn start(on_change: impl Fn(&Front) + Send + 'static) {
-    let _ = std::thread::Builder::new().name("front".into()).spawn(move || unsafe {
-        WATCH.with(|w| *w.borrow_mut() = Some(Watch { on_change: Box::new(on_change), names: HashMap::new() }));
-        // What's in front already, before anything changes.
+/// Start following the foreground window and the running apps. The callbacks run on the
+/// watcher's thread.
+pub fn start(on_change: impl Fn(&Front) + Send + 'static, on_apps: impl Fn(&[App]) + Send + 'static) {
+    let _ = std::thread::Builder::new().name("apps".into()).spawn(move || unsafe {
+        // The shell's icons are COM objects.
+        let _ = windows::Win32::System::Com::CoInitializeEx(None, windows::Win32::System::Com::COINIT_APARTMENTTHREADED);
+        WATCH.with(|w| {
+            *w.borrow_mut() = Some(Watch {
+                on_change: Box::new(on_change),
+                on_apps: Box::new(on_apps),
+                names: HashMap::new(),
+                icons: HashMap::new(),
+                order: Vec::new(),
+            })
+        });
+        // What's there already, before anything changes.
         changed(GetForegroundWindow());
+        refresh_apps();
         let flags = WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS;
-        SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, 0, hook, 0, 0, flags);
-        // Restoring a minimized window doesn't always count as a foreground change.
-        SetWinEventHook(EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZEEND, 0, hook, 0, 0, flags);
+        for (from, to) in [
+            (EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND),
+            (EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZEEND),
+            (EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND),
+            (EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE),
+            (EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE),
+            (EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED),
+        ] {
+            SetWinEventHook(from, to, 0, hook, 0, 0, flags);
+        }
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, 0, 0, 0) > 0 {
             DispatchMessageW(&msg);
@@ -66,11 +123,96 @@ pub fn latest() -> Option<Front> {
     LATEST.lock().unwrap().clone()
 }
 
-unsafe extern "system" fn hook(_hook: isize, _event: u32, hwnd: isize, object: i32, _child: i32, _thread: u32, _time: u32) {
-    // OBJID_WINDOW: the window itself, not a part of it.
-    if object == 0 {
-        changed(hwnd);
+/// The running apps, as last sent to the bar.
+pub fn running() -> Vec<App> {
+    RUNNING.lock().unwrap().clone()
+}
+
+unsafe extern "system" fn hook(_hook: isize, event: u32, hwnd: isize, object: i32, child: i32, _thread: u32, _time: u32) {
+    // OBJID_WINDOW and CHILDID_SELF: the window itself, not a part of it.
+    if object != 0 || child != 0 {
+        return;
     }
+    match event {
+        EVENT_SYSTEM_FOREGROUND | EVENT_SYSTEM_MINIMIZEEND => changed(hwnd),
+        // Every window's title changes count, but only a top-level one's matter here (an
+        // untitled window getting a title is how some appear in Alt+Tab).
+        EVENT_OBJECT_NAMECHANGE if root(hwnd) != hwnd => return,
+        _ => {}
+    }
+    // Windows come and go in bursts (an app opening, a tab torn off): look once it settles.
+    TIMER.with(|t| {
+        if t.get() != 0 {
+            KillTimer(0, t.get());
+        }
+        t.set(SetTimer(0, 0, 120, settled));
+    });
+}
+
+unsafe extern "system" fn settled(_hwnd: isize, _msg: u32, _id: usize, _time: u32) {
+    TIMER.with(|t| {
+        KillTimer(0, t.replace(0));
+    });
+    refresh_apps();
+}
+
+fn refresh_apps() {
+    WATCH.with(|w| {
+        let mut w = w.borrow_mut();
+        let Some(w) = w.as_mut() else { return };
+        let apps = list_apps(w);
+        let mut running = RUNNING.lock().unwrap();
+        if *running != apps {
+            *running = apps.clone();
+            drop(running);
+            (w.on_apps)(&apps);
+        }
+    });
+}
+
+/// The listed windows grouped into apps, in the order the apps started.
+fn list_apps(w: &mut Watch) -> Vec<App> {
+    let own = std::process::id();
+    let front = latest().map(|f| f.hwnd as isize).unwrap_or(0);
+    let mut paths: HashMap<u32, Option<String>> = HashMap::new();
+    let mut apps: Vec<App> = Vec::new();
+    for raw in enumerate().into_iter().filter(|r| listed(r, own)) {
+        let Some(path) = paths.entry(raw.pid).or_insert_with(|| image_path(raw.pid)).clone() else { continue };
+        let key = path.to_lowercase();
+        let win = AppWin {
+            hwnd: raw.hwnd as u64,
+            pid: raw.pid,
+            minimized: raw.minimized,
+            front: raw.hwnd == front,
+            monitor: unsafe { MonitorFromWindow(raw.hwnd, MONITOR_DEFAULTTONEAREST) } as u64,
+        };
+        if let Some(app) = apps.iter_mut().find(|a| a.key == key) {
+            app.windows.push(win);
+            continue;
+        }
+        let exe = std::path::Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        if SHELL_EXES.contains(&exe.to_lowercase().as_str()) {
+            continue;
+        }
+        let name = w.names.entry(path.clone()).or_insert_with(|| display_name(&exe, file_description(&path).as_deref())).clone();
+        // Store apps are known by their app id; their program files often have no icon of their own.
+        let packaged = raw.class == "ApplicationFrameWindow" || key.contains(r"\windowsapps\");
+        let launch = packaged
+            .then(|| crate::icons::app_id(raw.hwnd))
+            .flatten()
+            .map(|id| format!(r"shell:AppsFolder\{id}"))
+            .unwrap_or_else(|| path.clone());
+        let icon = w.icons.entry(key.clone()).or_insert_with(|| crate::icons::icon(&launch).or_else(|| crate::icons::icon(&path))).clone();
+        apps.push(App { key, name, exe, pid: raw.pid, windows: vec![win], icon, launch });
+    }
+    w.order.retain(|k| apps.iter().any(|a| &a.key == k));
+    for a in &apps {
+        if !w.order.contains(&a.key) {
+            w.order.push(a.key.clone());
+        }
+    }
+    apps.sort_by_key(|a| w.order.iter().position(|k| k == &a.key));
+    apps
 }
 
 fn changed(hwnd: isize) {
@@ -308,6 +450,18 @@ pub fn quit(pid: u32) -> Result<usize, String> {
         }
     }
     Ok(n)
+}
+
+/// Open a new window of a running app, as a middle click on the taskbar does.
+pub fn launch(key: &str) -> Result<(), String> {
+    let target = running().into_iter().find(|a| a.key == key).map(|a| a.launch).ok_or("that app isn't running")?;
+    let (op, file) = (wide("open"), wide(&target));
+    let r = unsafe { ShellExecuteW(0, op.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) };
+    if r > 32 {
+        Ok(())
+    } else {
+        Err(format!("couldn't open it (error {r})"))
+    }
 }
 
 /// Whether the window in front is one of ours (the bar took the focus when it was clicked).

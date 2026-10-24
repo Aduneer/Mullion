@@ -5,6 +5,8 @@ const $ = sel => document.querySelector(sel);
 const items = Object.fromEntries([...document.querySelectorAll(".item")].map(b => [b.dataset.menu, b]));
 
 let settings, info, sample, front;
+/** The running apps, for the icons in the middle of the bar. */
+let running = [];
 /** The menu on screen, if any: its bar item gets the pressed look, and hovering another item switches to it. */
 let openMenu = null;
 
@@ -12,8 +14,8 @@ items.system.innerHTML = icons.logo();
 
 // --- menus -------------------------------------------------------------------------
 
-function open(id, toggle) {
-  const { left, top } = items[id].getBoundingClientRect();
+function open(id, toggle, el = items[id]) {
+  const { left, top } = el.getBoundingClientRect();
   invoke("open_menu", { id, item: { left, top }, toggle });
 }
 
@@ -31,13 +33,14 @@ $("#bar").addEventListener("pointerdown", e => {
   if (openMenu && !e.target.closest(".item")) invoke("close_menu", { restore: true });
 });
 
+const menuItems = () => [...Object.entries(items), ...[...dock.children].map(b => [`dock:${b.dataset.key}`, b])];
 listen("menu-opened", id => {
   openMenu = id;
-  for (const [k, item] of Object.entries(items)) item.classList.toggle("open", k === id);
+  for (const [k, item] of menuItems()) item.classList.toggle("open", k === id);
 });
 listen("menu-closed", () => {
   openMenu = null;
-  for (const item of Object.values(items)) item.classList.remove("open");
+  for (const [, item] of menuItems()) item.classList.remove("open");
 });
 
 // The scroll wheel on the speaker changes the volume, two steps at a time.
@@ -54,6 +57,66 @@ items.volume.addEventListener("wheel", e => {
 items.media.addEventListener("auxclick", e => {
   if (e.button === 1) invoke("media_control", { action: "toggle" });
 });
+
+// --- running apps -------------------------------------------------------------------
+// As on the taskbar: a click brings the app forward, or minimizes it if it's already in front;
+// an app in front with several windows lists them instead. Right click for its menu, middle click
+// for a new window.
+
+const dock = $("#apps");
+const appOf = el => running.find(a => a.key === el.dataset.key);
+
+dock.addEventListener("pointerdown", e => {
+  const el = e.target.closest(".dock-app");
+  const a = el && appOf(el);
+  if (!a) return;
+  const id = `dock:${a.key}`;
+  if (e.button === 2) return open(id, true, el);
+  if (e.button !== 0) return;
+  const inFront = a.windows.find(w => w.front);
+  if (openMenu === id || (inFront && a.windows.length > 1)) return open(id, true, el);
+  if (openMenu) invoke("close_menu", { restore: false });
+  const w = inFront ?? a.windows[0];
+  invoke("window_action", { action: inFront ? "minimize" : "focus", hwnd: w.hwnd, pid: w.pid }).catch(err => console.warn(err));
+});
+dock.addEventListener("auxclick", e => {
+  const el = e.target.closest(".dock-app");
+  if (e.button === 1 && el) invoke("launch_app", { key: el.dataset.key }).catch(err => console.warn(err));
+});
+dock.addEventListener("pointerover", e => {
+  const el = e.target.closest(".dock-app");
+  if (el && openMenu && openMenu !== `dock:${el.dataset.key}`) open(`dock:${el.dataset.key}`, false, el);
+});
+
+function renderApps() {
+  dock.hidden = !settings.apps || !running.length;
+  const old = new Map([...dock.children].map(b => [b.dataset.key, b]));
+  running.forEach((a, i) => {
+    let b = old.get(a.key);
+    old.delete(a.key);
+    if (!b) {
+      b = document.createElement("button");
+      b.className = "item dock-app";
+      b.dataset.key = a.key;
+      b.innerHTML = `<img alt=""><span class="initial"></span><span class="dots"></span>`;
+    }
+    const img = b.querySelector("img");
+    if (a.icon && b.dataset.icon !== a.icon.slice(-32)) {
+      img.src = a.icon;
+      b.dataset.icon = a.icon.slice(-32);
+    }
+    img.hidden = !a.icon;
+    b.querySelector(".initial").textContent = a.icon ? "" : a.name.slice(0, 1);
+    const n = a.windows.length;
+    b.title = n > 1 ? `${a.name} (${n} windows)` : a.name;
+    b.classList.toggle("front", a.windows.some(w => w.front));
+    b.classList.toggle("minimized", a.windows.every(w => w.minimized));
+    b.classList.toggle("open", openMenu === `dock:${a.key}`);
+    b.querySelector(".dots").innerHTML = "<i></i>".repeat(Math.min(n, 3));
+    if (dock.children[i] !== b) dock.insertBefore(b, dock.children[i] ?? null);
+  });
+  for (const b of old.values()) b.remove();
+}
 
 // --- rendering ---------------------------------------------------------------------
 
@@ -146,9 +209,11 @@ function renderMedia() {
 
 function renderAll() {
   document.body.dataset.edge = settings.edge;
+  document.body.style.setProperty("--h", `${settings.height}px`);
   document.body.classList.toggle("vertical", vertical());
   items.stats.hidden = !settings.stats;
   renderFront();
+  renderApps();
   renderClock();
   renderStats();
   renderMedia();
@@ -239,6 +304,10 @@ listen("front", f => {
   front = f;
   renderFront();
 });
+listen("apps", a => {
+  running = a;
+  renderApps();
+});
 listen("settings", s => {
   settings = s;
   applyTheme(s);
@@ -258,6 +327,7 @@ function tick() {
 
 invoke("hello").then(h => {
   ({ settings, sample, front } = h);
+  running = h.apps ?? [];
   info = h;
   applyTheme(settings);
   renderAll();

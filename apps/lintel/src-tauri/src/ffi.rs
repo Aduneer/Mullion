@@ -201,6 +201,15 @@ pub const SWP_NOZORDER: u32 = 0x0004;
 
 pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
 pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
+pub const EVENT_SYSTEM_MOVESIZEEND: u32 = 0x000B;
+pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
+pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
+pub const EVENT_OBJECT_SHOW: u32 = 0x8002;
+pub const EVENT_OBJECT_HIDE: u32 = 0x8003;
+pub const EVENT_OBJECT_NAMECHANGE: u32 = 0x800C;
+pub const EVENT_OBJECT_CLOAKED: u32 = 0x8017;
+pub const EVENT_OBJECT_UNCLOAKED: u32 = 0x8018;
+pub const MONITOR_DEFAULTTONEAREST: u32 = 2;
 pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
 pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
 
@@ -265,6 +274,7 @@ pub struct INPUT {
 }
 
 pub type WNDENUMPROC = unsafe extern "system" fn(hwnd: isize, lparam: isize) -> i32;
+pub type TIMERPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, id: usize, time: u32);
 pub type WINEVENTPROC = unsafe extern "system" fn(hook: isize, event: u32, hwnd: isize, object: i32, child: i32, thread: u32, time: u32);
 pub type SUBCLASSPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, wparam: usize, lparam: isize, id: usize, data: usize) -> isize;
 
@@ -291,6 +301,8 @@ extern "system" {
     pub fn MonitorFromPoint(pt: POINT, flags: u32) -> isize;
     pub fn GetMonitorInfoW(monitor: isize, info: *mut MONITORINFO) -> i32;
     pub fn GetDpiForWindow(hwnd: isize) -> u32;
+    pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
+    pub fn KillTimer(hwnd: isize, id: usize) -> i32;
     pub fn SetWinEventHook(min: u32, max: u32, module: isize, proc_: WINEVENTPROC, pid: u32, thread: u32, flags: u32) -> isize;
     pub fn GetMessageW(msg: *mut MSG, hwnd: isize, min: u32, max: u32) -> i32;
     pub fn DispatchMessageW(msg: *const MSG) -> isize;

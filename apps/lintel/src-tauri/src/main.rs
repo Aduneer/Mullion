@@ -5,6 +5,7 @@ mod appbar;
 mod apps;
 mod audio;
 mod ffi;
+mod icons;
 mod media;
 mod pdh;
 mod power;
@@ -67,6 +68,7 @@ struct Hello {
     settings: Settings,
     sample: Option<Sample>,
     front: Option<Front>,
+    apps: Vec<apps::App>,
     has_battery: bool,
     /// Oriel is installed, so the stats menu can offer to open it.
     oriel: bool,
@@ -88,7 +90,7 @@ fn main() {
             wallpaper,
             wallpaper_image,
             hello, save_settings, set_autostart, open_menu, menu_ready, close_menu, media_control, media_art, set_volume,
-            app_windows, window_action, quit_app, power, run_action, quit
+            app_windows, window_action, launch_app, quit_app, power, run_action, quit
         ])
         .setup(|app| {
             let settings = Settings::load().clamp();
@@ -120,10 +122,17 @@ fn main() {
             let _ = bar.show();
 
             let handle = app.handle().clone();
-            apps::start(move |front| {
-                let _ = handle.emit_to("bar", "front", front);
-                let _ = handle.emit_to("menu", "front", front);
-            });
+            let running = app.handle().clone();
+            apps::start(
+                move |front| {
+                    let _ = handle.emit_to("bar", "front", front);
+                    let _ = handle.emit_to("menu", "front", front);
+                },
+                move |apps| {
+                    let _ = running.emit_to("bar", "apps", apps);
+                    let _ = running.emit_to("menu", "apps", apps);
+                },
+            );
             start_sampler(app.handle().clone(), media, audio);
             Ok(())
         })
@@ -193,6 +202,7 @@ fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSam
         settings: settings.0.lock().unwrap().clone(),
         sample: latest.0.lock().unwrap().clone(),
         front: apps::latest(),
+        apps: apps::running(),
         has_battery: stats::battery().is_some(),
         oriel: oriel_exe().is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
@@ -391,6 +401,12 @@ fn window_action(action: String, hwnd: u64, pid: u32) -> Result<(), String> {
         "close" => apps::close(hwnd, pid),
         _ => Err(format!("unknown window action: {action}")),
     }
+}
+
+/// A new window of a running app, as a middle click on a taskbar button opens.
+#[tauri::command]
+fn launch_app(key: String) -> Result<(), String> {
+    apps::launch(&key)
 }
 
 #[tauri::command]

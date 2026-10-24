@@ -26,7 +26,7 @@
   const GB = 1024 ** 3;
   let settings = {
     theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
-    clock: "auto", seconds: false, date: true, media: true, stats: true, volume: true, network: true, battery: true,
+    clock: "auto", seconds: false, date: true, apps: q.get("apps") !== "off", media: true, stats: true, volume: true, network: true, battery: true,
   };
   let autostart = false;
   const hasBattery = q.get("battery") !== "off";

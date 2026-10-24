@@ -24,6 +24,8 @@ pub struct Settings {
     pub seconds: bool,
     /// The date beside the time.
     pub date: bool,
+    /// The running apps' icons, in the middle of the bar, as a taskbar shows them.
+    pub apps: bool,
     /// Which items the bar shows, right to left after the clock.
     pub media: bool,
     pub stats: bool,
@@ -43,6 +45,7 @@ impl Default for Settings {
             clock: "auto".into(),
             seconds: false,
             date: true,
+            apps: true,
             media: true,
             stats: true,
             volume: true,

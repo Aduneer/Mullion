@@ -7,6 +7,8 @@ const { invoke, listen, applyTheme, esc, bytes, rate, clock, duration, player, p
 const root = document.getElementById("menu");
 
 let settings, info, sample, front;
+/** The running apps, for their menus from the icons in the bar. */
+let running = [];
 /** The menu on screen (its bar item's id), and the view inside it (the same, or "settings", "confirm-…"). */
 let current = null, view = null;
 /** Handlers for the [data-act] elements of the current render, by index. */
@@ -138,20 +140,16 @@ const VIEWS = {
         item("Personalize…", run("ms-settings:personalization")),
       ].join("");
     }
-    const f = front;
-    const wins = await invoke("app_windows", { pid: f.pid }).catch(() => []);
-    const frontWin = wins.find(w => w.front) ?? wins[0];
-    const winItem = (w, a) => item(w.title, () => { done(false); invoke("window_action", { action: "focus", hwnd: w.hwnd, pid: w.pid }); }, { tick: w.front, sub: w.minimized ? "minimized" : "" });
-    return `<div class="head">${esc(f.name)}</div>` + [
-      ...wins.slice(0, 15).map(winItem),
-      wins.length > 15 ? `<div class="note muted">and ${wins.length - 15} more</div>` : "",
-      wins.length ? "" : `<div class="note muted">No windows open</div>`,
-      sep,
-      item("Minimize", () => { done(false); invoke("window_action", { action: "minimize", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Win+↓" }),
-      item("Close Window", () => { done(false); invoke("window_action", { action: "close", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Alt+F4" }),
-      sep,
-      item(`Quit ${f.name}`, () => { done(false); invoke("quit_app", { pid: f.pid }).catch(e => console.warn(e)); }, { disabled: !wins.length }),
-    ].join("");
+    const a = running.find(x => x.windows.some(w => w.hwnd === front.hwnd));
+    return appMenu({ name: front.name, pid: front.pid, key: a?.key });
+  },
+
+  /** A running app's menu, from its icon in the bar ("dock:<its key>"). */
+  async dock(v) {
+    const key = v.slice("dock:".length);
+    const a = running.find(x => x.key === key);
+    if (!a) return `<div class="note muted">${esc("That app has closed")}</div>`;
+    return appMenu({ name: a.name, pid: a.pid, key });
   },
 
   async media() {
@@ -271,7 +269,7 @@ const VIEWS = {
         <div class="checks">${check("date", "Show the date")}${check("seconds", "Show seconds")}</div>
         <h3 class="muted" style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-top:4px">Show in the bar</h3>
         <div class="checks">
-          ${check("media", "Now playing")}${check("stats", "CPU & memory")}
+          ${check("apps", "Open apps")}${check("media", "Now playing")}${check("stats", "CPU & memory")}
           ${check("volume", "Volume")}${check("network", "Network")}
           ${info.has_battery ? check("battery", "Battery") : ""}
         </div>
@@ -282,6 +280,24 @@ const VIEWS = {
       <div class="foot">Lintel ${esc(info.version)} · settings in ${esc(info.settings_path)}</div>`;
   },
 };
+
+/** An app's windows to switch to, a new window, and minimize, close and quit. */
+async function appMenu(f) {
+  const wins = await invoke("app_windows", { pid: f.pid }).catch(() => []);
+  const frontWin = wins.find(w => w.front) ?? wins[0];
+  const winItem = w => item(w.title, () => { done(false); invoke("window_action", { action: "focus", hwnd: w.hwnd, pid: w.pid }); }, { tick: w.front, sub: w.minimized ? "minimized" : "" });
+  return `<div class="head">${esc(f.name)}</div>` + [
+    ...wins.slice(0, 15).map(winItem),
+    wins.length > 15 ? `<div class="note muted">and ${wins.length - 15} more</div>` : "",
+    wins.length ? "" : `<div class="note muted">No windows open</div>`,
+    sep,
+    f.key ? item("New Window", () => { done(false); invoke("launch_app", { key: f.key }).catch(e => console.warn(e)); }, { hint: "Middle click" }) : "",
+    item("Minimize", () => { done(false); invoke("window_action", { action: "minimize", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Win+↓" }),
+    item("Close Window", () => { done(false); invoke("window_action", { action: "close", hwnd: frontWin.hwnd, pid: frontWin.pid }); }, { disabled: !frontWin, hint: "Alt+F4" }),
+    sep,
+    item(`Quit ${f.name}`, () => { done(false); invoke("quit_app", { pid: f.pid }).catch(e => console.warn(e)); }, { disabled: !wins.length }),
+  ].join("");
+}
 
 function confirm(what) {
   view = `confirm:${what}`;
@@ -453,6 +469,7 @@ listen("sample", s => {
   else if (view === "media") updateMedia();
 });
 listen("front", f => { front = f; });
+listen("apps", a => { running = a; });
 listen("settings", s => {
   settings = s;
   applyTheme(s);
@@ -461,6 +478,7 @@ listen("settings", s => {
 
 invoke("hello").then(h => {
   ({ settings, sample, front } = h);
+  running = h.apps ?? [];
   info = h;
   applyTheme(settings);
 });
