@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn bars_go_on_the_screens_asked_for() {
-        let screen = |id: &str, primary| appbar::Screen { id: id.into(), primary, rect: [0, 0, 1920, 1080] };
+        let screen = |id: &str, primary| appbar::Screen { id: id.into(), primary, rect: [0, 0, 1920, 1080], area: Default::default() };
         let screens = [screen(r"\\.\DISPLAY2", true), screen(r"\\.\DISPLAY1", false)];
         assert_eq!(wanted_screens("main", &screens), [r"\\.\DISPLAY2"]);
         assert_eq!(wanted_screens("all", &screens), [r"\\.\DISPLAY2", r"\\.\DISPLAY1"]);

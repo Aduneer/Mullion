@@ -39,7 +39,7 @@ pub struct Screen {
     pub primary: bool,
     pub rect: [i32; 4],
     #[serde(skip)]
-    area: RECT,
+    pub area: RECT,
 }
 
 /// The screens, the main one first, then from left to right.
