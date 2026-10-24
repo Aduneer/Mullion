@@ -91,7 +91,7 @@ root.addEventListener("pointermove", () => {
 
 /** Views whose content follows the samples: rebuilt every tick while open. */
 const LIVE = new Set(["stats", "network", "battery"]);
-const WIDE = new Set(["stats", "volume", "network", "battery"]);
+const WIDE = new Set(["stats", "volume", "network", "battery", "bluetooth", "control"]);
 
 const VIEWS = {
   system() {
@@ -196,6 +196,71 @@ const VIEWS = {
       ${item("Task Manager", run("task-manager"), { hint: "Ctrl+Shift+Esc" })}`;
   },
 
+  /** As on a Mac: the radios, the screens' brightness, sound and what's playing, in one place. */
+  async control() {
+    const r = sample?.radios ?? {};
+    const link = sample?.stats.link;
+    const a = sample?.audio, m = sample?.media;
+    const displays = await invoke("displays").catch(() => []);
+    const tile = (kind, label, sub, on, icon, detail) => `
+      <div class="tile${on ? " on" : ""}">
+        <button class="round" title="Turn ${label} ${on ? "off" : "on"}" data-act="${act(radio(kind, !on))}">${icon}</button>
+        <button class="text" data-act="${act(detail)}"><strong>${label}</strong><span>${esc(sub)}</span></button>
+      </div>`;
+    const wifiSub = !r.wifi ? "Off" : link?.kind === "wifi" ? (link.ssid || "Connected") : "Not connected";
+    const tiles = [
+      r.wifi != null ? tile("wifi", "Wi-Fi", wifiSub, r.wifi, icons.wifi(r.wifi ? (link?.signal ?? 100) : 0), run("ms-availablenetworks:")) : "",
+      r.bluetooth != null ? tile("bluetooth", "Bluetooth", r.bluetooth ? "On" : "Off", r.bluetooth, icons.bluetooth(r.bluetooth), () => { view = "bluetooth"; render(); return "keep"; }) : "",
+    ].join("");
+    const shortcut = (label, icon, fn, on, title) =>
+      `<button class="shortcut${on ? " on" : ""}"${title ? ` title="${esc(title)}"` : ""} data-act="${act(fn)}"><span class="round">${icon}</span><span>${label}</span></button>`;
+    const lit = displays.filter(d => d.brightness != null);
+    const brightness = lit.map(d => `
+      ${lit.length > 1 ? `<div class="caption">${esc(d.name)}</div>` : ""}
+      <div class="slider" data-display="${esc(d.id)}">
+        <span class="glyph">${icons.sun()}</span>
+        <input type="range" min="0" max="100" value="${d.brightness}" aria-label="${esc(d.name)} brightness" title="${esc(d.name)}">
+        <span class="pct">${d.brightness}%</span>
+      </div>`).join("");
+    const playing = m?.title ? `
+      <div class="now">
+        <button class="text" data-act="${act(() => { view = "media"; render(); return "keep"; })}"><strong>${esc(m.title)}</strong><span>${esc(m.artist || player(m.app))}</span></button>
+        <button class="round small" title="${m.playing ? "Pause" : "Play"}" data-act="${act(() => { invoke("media_control", { action: "toggle" }); return "keep"; })}">${m.playing ? icons.pause() : icons.play()}</button>
+      </div>` : "";
+    return `
+      ${tiles ? `<div class="tiles">${tiles}</div>` : ""}
+      <div class="shortcuts">
+        ${shortcut("Cast", icons.cast(), run("cast"))}
+        ${shortcut("Project", icons.project(), run("project"))}
+        ${shortcut("Night light", icons.moon(), run("ms-settings:nightlight"))}
+        ${shortcut("Energy saver", icons.leaf(), run("ms-settings:batterysaver"), sample?.energy_saver, "Energy saver settings")}
+      </div>
+      ${brightness ? `<div class="section"><h3>${lit.length > 1 ? "Displays" : "Display"}</h3>${brightness}</div>` : ""}
+      ${a ? `<div class="section"><h3>Sound</h3>
+        <div class="slider" data-pid=""><button class="mute${a.muted ? " on" : ""}" title="${a.muted ? "Unmute" : "Mute"}" data-act="${act(() => { invoke("set_volume", { pid: null, muted: !a.muted }); a.muted = !a.muted; render(); return "keep"; })}">${icons.speaker(a.volume, a.muted || a.volume === 0)}</button>
+        <input type="range" min="0" max="100" value="${a.volume}" aria-label="Volume"><span class="pct">${a.volume}%</span></div></div>` : ""}
+      ${playing}
+      ${sep}
+      ${item("Notifications", run("notifications"), { hint: "Win+N" })}
+      ${item("Quick Settings", run("quick-settings"), { hint: "Win+A" })}`;
+  },
+
+  async bluetooth() {
+    const on = sample?.radios?.bluetooth;
+    if (on == null) return `<div class="note muted">This PC has no Bluetooth</div>`;
+    const devices = on ? await invoke("bluetooth_devices").catch(() => []) : [];
+    const list = !on ? `<div class="note muted">Bluetooth is off</div>`
+      : devices.length ? `<div class="section"><h3>Devices</h3></div>` + devices.map(d => item(d.name, run("ms-settings:bluetooth"), { tick: d.connected, sub: d.connected ? "Connected" : "" })).join("")
+      : `<div class="note muted">No paired devices</div>`;
+    return `
+      <div class="head row"><span class="grow">Bluetooth</span>
+        <label class="switch" title="Turn Bluetooth ${on ? "off" : "on"}"><input type="checkbox" data-act="${act(radio("bluetooth", !on))}"${on ? " checked" : ""}><span></span></label>
+      </div>
+      ${list}
+      ${sep}
+      ${item("Bluetooth Settings…", run("ms-settings:bluetooth"))}`;
+  },
+
   volume() {
     const a = sample?.audio;
     if (!a) return `<div class="note muted">No sound output</div>` + sep + item("Sound Settings…", run("ms-settings:sound"));
@@ -252,14 +317,14 @@ const VIEWS = {
 
   async settings() {
     const s = settings;
-    const screens = await invoke("screens").catch(() => []);
+    const [screens, canHide] = await Promise.all([invoke("screens").catch(() => []), invoke("taskbar_can_hide").catch(() => true)]);
+    const save = patch => () => { invoke("save_settings", { settings: { ...settings, ...patch } }); return "keep"; };
+    const seg = (key, options) => `<div class="seg">${options.map(([v, label]) => `<button aria-pressed="${s[key] === v}" data-act="${act(save({ [key]: v }))}">${label}</button>`).join("")}</div>`;
+    const check = (key, label) => `<label class="toggle"><input type="checkbox" data-act="${act(save({ [key]: !s[key] }))}"${s[key] ? " checked" : ""}>${label}</label>`;
     // Screens by number, as Windows' Display settings does: the main one is 1.
     const screenSeg = screens.length > 1
       ? `<div class="field"><span>Screens</span>${seg("screens", [["main", "Main"], ["all", "All"], ...screens.slice(1).map((x, i) => [x.id, `Screen ${i + 2}`])])}</div>`
       : "";
-    const save = patch => () => { invoke("save_settings", { settings: { ...settings, ...patch } }); return "keep"; };
-    const seg = (key, options) => `<div class="seg">${options.map(([v, label]) => `<button aria-pressed="${s[key] === v}" data-act="${act(save({ [key]: v }))}">${label}</button>`).join("")}</div>`;
-    const check = (key, label) => `<label class="toggle"><input type="checkbox" data-act="${act(save({ [key]: !s[key] }))}"${s[key] ? " checked" : ""}>${label}</label>`;
     const PALETTES = [["oriel", "Oriel"], ["catppuccin", "Catppuccin"], ["nord", "Nord"], ["gruvbox", "Gruvbox"], ["rose-pine", "Rosé Pine"], ["solarized", "Solarized"]];
     const mode = document.documentElement.dataset.mode;
     return `
@@ -277,8 +342,11 @@ const VIEWS = {
         <div class="checks">
           ${check("apps", "Open apps")}${screens.length > 1 && s.screens === "all" ? check("apps_per_screen", "Only this screen's apps") : ""}${check("media", "Now playing")}${check("stats", "CPU & memory")}
           ${check("volume", "Volume")}${check("network", "Network")}
+          ${check("bluetooth", "Bluetooth")}${check("control", "Control Centre")}
           ${info.has_battery ? check("battery", "Battery") : ""}
         </div>
+        <label class="toggle" title="Windows' taskbar auto-hides while Lintel runs, and comes back when Lintel quits"><input type="checkbox" data-act="${act(save({ hide_taskbar: !s.hide_taskbar }))}"${s.hide_taskbar ? " checked" : ""}${canHide || s.hide_taskbar ? "" : " disabled"}>Hide the Windows taskbar</label>
+        ${canHide ? "" : `<div class="hint muted">Windows only hides a taskbar at the bottom of the screen</div>`}
         <label class="toggle"><input type="checkbox" data-act="${act(el => { invoke("set_autostart", { enabled: el.checked }).then(on => { info.autostart = on; el.checked = on; }); return "keep"; })}"${info.autostart ? " checked" : ""}>Start Lintel when I sign in</label>
       </div>
       ${sep}
@@ -303,6 +371,16 @@ async function appMenu(f) {
     sep,
     item(`Quit ${f.name}`, () => { done(false); invoke("quit_app", { pid: f.pid }).catch(e => console.warn(e)); }, { disabled: !wins.length }),
   ].join("");
+}
+
+/** Turn a radio on or off, showing it at once; the next samples confirm it. */
+function radio(kind, on) {
+  return () => {
+    if (sample?.radios) sample.radios[kind] = on;
+    invoke("set_radio", { kind, on }).catch(e => { console.warn(e); }).finally(() => render());
+    render();
+    return "keep";
+  };
 }
 
 function confirm(what) {
@@ -414,10 +492,26 @@ root.addEventListener("input", e => {
   const el = e.target;
   if (!el.matches("input[type=range]")) return;
   const row = el.closest(".slider");
-  const pid = row.dataset.pid === "" ? null : Number(row.dataset.pid);
   row.querySelector(".pct").textContent = `${el.value}%`;
+  if (row.dataset.display) return setBrightness(row.dataset.display, Number(el.value));
+  const pid = row.dataset.pid === "" ? null : Number(row.dataset.pid);
   invoke("set_volume", { pid, volume: Number(el.value) });
 });
+
+// A monitor takes a moment to change its brightness, so while a slider moves only the latest
+// value is sent, one at a time.
+let brightnessBusy = false, brightnessNext = null;
+async function setBrightness(id, value) {
+  brightnessNext = { id, value };
+  if (brightnessBusy) return;
+  brightnessBusy = true;
+  while (brightnessNext) {
+    const v = brightnessNext;
+    brightnessNext = null;
+    await invoke("set_brightness", v).catch(e => console.warn(e));
+  }
+  brightnessBusy = false;
+}
 
 function updateVolume() {
   const a = sample?.audio;
@@ -464,6 +558,8 @@ listen("menu-closed", () => {
   lastSize = "";
 });
 listen("sample", s => {
+  const toggles = s => JSON.stringify([s?.radios, s?.energy_saver]);
+  const was = toggles(sample);
   sample = s;
   for (const [k, v] of [["cpu", s.stats.cpu], ["mem", s.stats.mem.pct], ["down", s.stats.net.down], ["up", s.stats.net.up]]) {
     hist[k].push(v);
@@ -473,6 +569,8 @@ listen("sample", s => {
   if (LIVE.has(view)) render();
   else if (view === "volume") updateVolume();
   else if (view === "media") updateMedia();
+  // A radio turned on or off elsewhere (or by us, confirmed).
+  else if ((view === "control" || view === "bluetooth") && toggles(s) !== was) render();
 });
 listen("front", f => { front = f; });
 listen("apps", a => { running = a; });

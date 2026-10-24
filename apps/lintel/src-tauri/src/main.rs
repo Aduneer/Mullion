@@ -4,13 +4,16 @@
 mod appbar;
 mod apps;
 mod audio;
+mod brightness;
 mod ffi;
 mod icons;
 mod media;
 mod pdh;
 mod power;
+mod radios;
 mod settings;
 mod stats;
+mod taskbar;
 mod wallpaper;
 
 use apps::Front;
@@ -27,6 +30,8 @@ use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 const TICK: Duration = Duration::from_secs(1);
+/// Set when the Control Centre turns a radio on or off, so the next sample reads them again.
+static RADIOS_CHANGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 /// The menu window's size while it lays a menu out, before it says how big the menu is.
 const MENU_ROOM: (f64, f64) = (560.0, 900.0);
 const INTERNATIONAL: &str = r"Control Panel\International";
@@ -68,6 +73,10 @@ struct Sample {
     media: Option<Media>,
     #[serde(skip_serializing_if = "Option::is_none")]
     audio: Option<Audio>,
+    /// Wi-Fi and Bluetooth on or off, for the Control Centre and the Bluetooth item.
+    radios: radios::Radios,
+    /// Whether Energy saver is on, for the Control Centre.
+    energy_saver: bool,
 }
 
 #[derive(Serialize)]
@@ -96,7 +105,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             wallpaper,
             wallpaper_image,
-            bar_info, screens,
+            bar_info, screens, set_radio, bluetooth_devices, taskbar_can_hide, displays, set_brightness,
             hello, save_settings, set_autostart, open_menu, menu_ready, close_menu, media_control, media_art, set_volume,
             app_windows, window_action, launch_app, quit_app, power, run_action, quit
         ])
@@ -114,6 +123,8 @@ fn main() {
             app.manage(wallpaper::Image::new());
             app.manage(Bars::default());
 
+            // Also puts it back if a Lintel that hid it didn't get to quit cleanly.
+            taskbar::apply(settings.hide_taskbar);
             create_menu(app.handle())?;
             apply_look(app.handle(), &settings);
             let (full, backdrop, displays) = (app.handle().clone(), app.handle().clone(), app.handle().clone());
@@ -161,6 +172,7 @@ fn main() {
         .run(|_app, event| {
             if let RunEvent::Exit = event {
                 appbar::unregister_all();
+                taskbar::restore();
             }
         });
 }
@@ -173,17 +185,26 @@ fn start_sampler(app: AppHandle, media: MediaWatch, audio: AudioWatch) {
         .spawn(move || {
             let mut sampler = Sampler::new();
             let mut next = Instant::now();
+            // Radios are read every few ticks (and right after the Control Centre changes one).
+            let mut radios = radios::state();
+            let mut tick = 0u32;
             loop {
                 // Nothing to show while a fullscreen app has the bar hidden.
                 if !appbar::fullscreen() {
                     // The reads happen on their own threads, so these are the previous tick's: fine for a song.
                     media.poll();
                     audio.poll();
+                    tick += 1;
+                    if tick % 5 == 0 || RADIOS_CHANGED.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                        radios = radios::state();
+                    }
                     let sample = Sample {
                         t: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0),
                         stats: sampler.sample(),
                         media: media.latest(),
                         audio: audio.latest(),
+                        radios: radios.clone(),
+                        energy_saver: stats::energy_saver(),
                     };
                     // The menu gets them while hidden too, so the CPU and network graphs have history when it opens.
                     emit_bars(&app, "sample", &sample);
@@ -233,6 +254,9 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
         apply_look(&app, &settings);
     }
     appbar::set_layout(appbar::edge(&settings.edge), settings.thickness());
+    if previous.hide_taskbar != settings.hide_taskbar {
+        taskbar::apply(settings.hide_taskbar);
+    }
     if previous.screens != settings.screens {
         sync_bars_later(&app);
     }
@@ -403,6 +427,37 @@ fn screens() -> Vec<appbar::Screen> {
     appbar::screens()
 }
 
+/// Turn Wi-Fi or Bluetooth on or off, from the Control Centre.
+#[tauri::command]
+async fn set_radio(kind: String, on: bool) -> Result<(), String> {
+    let r = radios::set(&kind, on);
+    RADIOS_CHANGED.store(true, std::sync::atomic::Ordering::Relaxed);
+    r
+}
+
+/// Whether the taskbar can be hidden where it is, for Menu Bar Settings.
+#[tauri::command]
+fn taskbar_can_hide() -> bool {
+    taskbar::can_hide()
+}
+
+/// The paired Bluetooth devices, for the Bluetooth menu.
+#[tauri::command]
+async fn bluetooth_devices() -> Vec<radios::Device> {
+    radios::devices()
+}
+
+/// The screens and their brightness, for the Control Centre.
+#[tauri::command]
+async fn displays() -> Vec<brightness::Display> {
+    brightness::displays()
+}
+
+#[tauri::command]
+async fn set_brightness(id: String, value: u8) -> Result<(), String> {
+    brightness::set(&id, value)
+}
+
 /// The current track's cover as a data: URL, fetched when a sample's `media.art` changes.
 #[tauri::command]
 fn media_art(media: State<MediaWatch>) -> Option<String> {
@@ -491,9 +546,16 @@ fn action_target(name: &str) -> Option<String> {
 
 #[tauri::command]
 fn run_action(name: String) -> Result<(), String> {
-    if name == "notifications" {
-        // Windows has no API for its notification centre; Win+N is how everyone opens it.
-        send_win_key(b'N' as u16);
+    // Windows has no API for these panels; their shortcuts are how everyone opens them.
+    let key = match name.as_str() {
+        "notifications" => Some(b'N'),
+        "quick-settings" => Some(b'A'),
+        "cast" => Some(b'K'),
+        "project" => Some(b'P'),
+        _ => None,
+    };
+    if let Some(key) = key {
+        send_win_key(key as u16);
         return Ok(());
     }
     let target = action_target(&name).ok_or_else(|| format!("unknown action: {name}"))?;
@@ -528,6 +590,7 @@ fn send_win_key(key: u16) {
 #[tauri::command]
 fn quit(app: AppHandle) {
     appbar::unregister_all();
+    taskbar::restore();
     app.exit(0);
 }
 

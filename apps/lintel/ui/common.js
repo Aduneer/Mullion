@@ -87,7 +87,8 @@ const Lintel = (() => {
   // Icons: 24-unit boxes, drawn with currentColor so they follow the theme.
   const svg = (body, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
   const icons = {
-    logo: () => svg(`<rect x="3" y="3" width="18" height="18" rx="5" class="fill"/><rect x="7" y="7.2" width="10" height="2.6" rx="1.3" class="cut"/>`, "logo"),
+    // The app icon drawn as a line icon, like the bar's others: a window with its menu bar.
+    logo: () => svg(`<rect x="3.5" y="4" width="17" height="16" rx="3.5"/><path d="M3.5 7.5A3.5 3.5 0 0 1 7 4h10a3.5 3.5 0 0 1 3.5 3.5V9.5h-17z" class="fill"/>`, "logo"),
     play: () => svg(`<path d="M8 5.5v13l10.5-6.5z" class="fill"/>`),
     pause: () => svg(`<rect x="6.5" y="5.5" width="3.8" height="13" rx="1" class="fill"/><rect x="13.7" y="5.5" width="3.8" height="13" rx="1" class="fill"/>`),
     prev: () => svg(`<path d="M18 6v12l-8.5-6z" class="fill"/><rect x="5.5" y="6" width="2.6" height="12" rx="1" class="fill"/>`),
@@ -113,6 +114,15 @@ const Lintel = (() => {
       return svg(`<rect x="2.5" y="7" width="17" height="10" rx="2.6"/><path d="M21.5 10.5v3" /><rect x="4.5" y="9" width="${w}" height="6" rx="1.2" class="fill${pct <= 20 && !plugged ? " low" : ""}"/>${bolt}`, "battery");
     },
     check: () => svg(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
+    bluetooth: on => svg(`<path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9"${on === false ? ' class="dim"' : ""}/>`),
+    // Three sliders, for the menu of quick settings.
+    control: () => svg(`<path d="M4 6.5h9M17 6.5h3M4 12h2M10 12h10M4 17.5h7M15 17.5h5"/><circle cx="15" cy="6.5" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="17.5" r="2"/>`),
+    sun: () => svg(`<circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/>`),
+    moon: () => svg(`<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>`),
+    cast: () => svg(`<path d="M3.5 9V6.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H14"/><path d="M3.5 13a6.5 6.5 0 0 1 6.5 6.5M3.5 16.5a3 3 0 0 1 3 3"/><circle cx="3.9" cy="19.2" r="0.9" class="fill"/>`),
+    project: () => svg(`<rect x="2.5" y="5" width="11" height="8" rx="1.5"/><rect x="10.5" y="10" width="11" height="8" rx="1.5"/>`),
+    leaf: () => svg(`<path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19c3-4 6-7 9-9"/>`),
+    bell: () => svg(`<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>`),
     chevron: dir => svg(dir === "left" ? `<path d="M14.5 6l-6 6 6 6"/>` : `<path d="M9.5 6l6 6-6 6"/>`),
   };
 

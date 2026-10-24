@@ -157,6 +157,12 @@ pub fn battery() -> Option<Battery> {
     Some(Battery { pct: s.BatteryLifePercent, plugged: s.ACLineStatus == 1, secs_left: (s.BatteryLifeTime != u32::MAX).then_some(s.BatteryLifeTime) })
 }
 
+/// Whether Energy saver (Battery saver before 24H2) is on.
+pub fn energy_saver() -> bool {
+    let mut s = SYSTEM_POWER_STATUS::default();
+    unsafe { GetSystemPowerStatus(&mut s) != 0 && s.SystemStatusFlag == 1 }
+}
+
 /// The Wi-Fi service, for the network's name and signal. None on PCs without Wi-Fi.
 struct Wifi(HANDLE);
 

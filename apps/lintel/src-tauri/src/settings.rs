@@ -35,7 +35,12 @@ pub struct Settings {
     pub stats: bool,
     pub volume: bool,
     pub network: bool,
+    pub bluetooth: bool,
+    /// The Control Centre: Wi-Fi, Bluetooth, brightness, sound and shortcuts in one menu.
+    pub control: bool,
     pub battery: bool,
+    /// Set Windows' taskbar to auto-hide while Lintel runs (see `taskbar`).
+    pub hide_taskbar: bool,
 }
 
 impl Default for Settings {
@@ -56,7 +61,10 @@ impl Default for Settings {
             stats: true,
             volume: true,
             network: true,
+            bluetooth: true,
+            control: true,
             battery: true,
+            hide_taskbar: false,
         }
     }
 }

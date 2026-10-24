@@ -191,6 +191,20 @@ function renderNetwork() {
   item.title = l.kind === "wifi" ? `Wi-Fi${l.ssid ? `: ${l.ssid}` : ""}${l.internet ? "" : " (no internet)"}` : l.kind === "wired" ? `Wired${l.internet ? "" : " (no internet)"}` : "Not connected";
 }
 
+function renderBluetooth() {
+  const on = sample?.radios?.bluetooth;
+  const item = items.bluetooth;
+  item.hidden = !settings.bluetooth || on == null;
+  if (on == null) return;
+  item.innerHTML = icons.bluetooth(on);
+  item.title = `Bluetooth: ${on ? "on" : "off"}`;
+}
+
+function renderControl() {
+  items.control.hidden = !settings.control;
+  if (!items.control.firstChild) items.control.innerHTML = icons.control();
+}
+
 function renderBattery() {
   const b = sample?.stats.battery;
   const item = items.battery;
@@ -230,6 +244,8 @@ function renderAll() {
   renderMedia();
   renderVolume();
   renderNetwork();
+  renderBluetooth();
+  renderControl();
   renderBattery();
 }
 
@@ -309,6 +325,7 @@ listen("sample", s => {
   renderMedia();
   renderVolume();
   renderNetwork();
+  renderBluetooth();
   renderBattery();
 });
 listen("front", f => {

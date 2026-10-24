@@ -51,14 +51,13 @@ body {
 .ic .dim { opacity: 0.3; }
 
 .logo .ic { width: 17px; height: 17px; }
-.logo .ic .fill { fill: var(--ink); }
-.logo .ic .cut { fill: var(--page); }
 
 .app { font-weight: 650; min-width: 0; max-width: 40vw; }
-#app-name { overflow: hidden; text-overflow: ellipsis; }
+/* The bar's line-height is 1; text that clips its overflow needs room for descenders ("g"). */
+#app-name { overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
 
 .media { max-width: 300px; color: var(--ink-2); }
-.media .text { overflow: hidden; text-overflow: ellipsis; }
+.media .text { overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
 .media .ic { width: 13px; height: 13px; }
 .media.paused { color: var(--muted); }
 
@@ -73,6 +72,7 @@ body {
 .battery .ic .bolt { stroke: var(--page); stroke-width: 2.4; }
 
 .clock { gap: 7px; }
+.bluetooth .ic, .control .ic { width: 16px; height: 16px; }
 
 /* Running apps: their icons, a dot per window (up to three), the one in front marked. */
 .dock-app { position: relative; padding: 0 5px; }

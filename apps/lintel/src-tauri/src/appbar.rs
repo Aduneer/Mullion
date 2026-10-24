@@ -14,6 +14,9 @@ use std::sync::{Mutex, OnceLock};
 const CALLBACK: u32 = WM_APP + 1;
 /// Ours, to place the bar again once the window has finished handling a DPI change.
 const REPLACE: u32 = WM_APP + 2;
+/// A timer to place the bar once more after the shell has moved things around: while the taskbar
+/// hides or shows, the shell can answer with where things were a moment ago.
+const SETTLE: usize = 0x4c49;
 const SUBCLASS_ID: usize = 0x4c4e_544c; // "LNTL"
 
 #[derive(Clone, Debug)]
@@ -170,6 +173,12 @@ fn data(hwnd: isize, edge: u32) -> APPBARDATA {
 
 /// Ask the shell for the bar's strip and move the bar into it.
 fn place(hwnd: isize) {
+    place_if(hwnd, false);
+}
+
+/// Like `place`, but with `moved_only`, leave the bar alone if it's already where the shell says;
+/// each bar that moves tells the others, so they mustn't keep answering each other.
+fn place_if(hwnd: isize, moved_only: bool) {
     let Some(b) = bar(hwnd) else { return };
     let screens = screens();
     let Some(screen) = screens.iter().find(|s| s.id == b.screen).or_else(|| screens.first()) else { return };
@@ -181,11 +190,20 @@ fn place(hwnd: isize) {
         // Other app bars on the same edge (the taskbar, say) may push us inwards; the shell adjusts rc.
         SHAppBarMessage(ABM_QUERYPOS, &mut abd);
         abd.rc = strip(abd.rc, b.edge, depth);
+        let mut now = RECT::default();
+        if moved_only && GetWindowRect(hwnd, &mut now) != 0 && now == abd.rc {
+            return;
+        }
         SHAppBarMessage(ABM_SETPOS, &mut abd);
         let rc = abd.rc;
         SetWindowPos(hwnd, HWND_TOPMOST, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOACTIVATE);
     }
     backdrop_changed();
+}
+
+unsafe extern "system" fn settled(hwnd: isize, _msg: u32, id: usize, _time: u32) {
+    KillTimer(hwnd, id);
+    place_if(hwnd, true);
 }
 
 fn backdrop_changed() {
@@ -207,7 +225,10 @@ fn strip(area: RECT, edge: u32, depth: i32) -> RECT {
 unsafe extern "system" fn proc_(hwnd: isize, msg: u32, wparam: usize, lparam: isize, _id: usize, _data: usize) -> isize {
     match msg {
         CALLBACK => match wparam {
-            ABN_POSCHANGED => place(hwnd),
+            ABN_POSCHANGED => {
+                place(hwnd);
+                SetTimer(hwnd, SETTLE, 400, settled);
+            }
             ABN_FULLSCREENAPP => {
                 let full = lparam != 0;
                 let was = {

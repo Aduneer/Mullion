@@ -292,6 +292,7 @@ extern "system" {
     pub fn EnumWindows(callback: WNDENUMPROC, lparam: isize) -> i32;
     pub fn EnumChildWindows(parent: isize, callback: WNDENUMPROC, lparam: isize) -> i32;
     pub fn IsWindow(hwnd: isize) -> i32;
+    pub fn FindWindowW(class: *const u16, title: *const u16) -> isize;
     pub fn IsWindowVisible(hwnd: isize) -> i32;
     pub fn IsIconic(hwnd: isize) -> i32;
     pub fn GetWindow(hwnd: isize, cmd: u32) -> isize;

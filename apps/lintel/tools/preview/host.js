@@ -4,6 +4,7 @@
 // URL options, all optional:
 //   theme=auto|dark|light  palette=nord  height=30  edge=top|bottom|left|right  open=clock (a menu open at start)
 //   media=off  battery=off  wifi=off (wired)  offline=1  desktop=1 (the desktop in front)  hot=1 (high CPU and memory)
+//   screens=2 (a second screen)
 "use strict";
 (() => {
   const q = new URLSearchParams(location.search);
@@ -26,7 +27,7 @@
   const GB = 1024 ** 3;
   let settings = {
     theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
-    clock: "auto", seconds: false, date: true, apps: q.get("apps") !== "off", apps_per_screen: true, screens: "main", media: true, stats: true, volume: true, network: true, battery: true,
+    clock: "auto", seconds: false, date: true, bluetooth: true, control: true, apps: q.get("apps") !== "off", apps_per_screen: true, screens: "main", media: true, stats: true, volume: true, network: true, battery: true, hide_taskbar: false,
   };
   let autostart = false;
   const hasBattery = q.get("battery") !== "off";
@@ -51,6 +52,8 @@
     ],
   };
   const hot = q.get("hot");
+  const radios = { wifi: q.get("offline") ? false : true, bluetooth: true };
+  let displayLevel = 70;
   let t = 0;
   function sample() {
     t++;
@@ -69,6 +72,8 @@
       },
       media: media && { ...media },
       audio: structuredClone(audio),
+      radios: { ...radios },
+      energy_saver: false,
     };
   }
   let latest = sample();
@@ -145,7 +150,13 @@
       if (muted != null) target.muted = muted;
     },
     app_windows: () => windows,
-    screens: () => [{ id: String.raw`\\.\DISPLAY1`, primary: true, rect: [0, 0, 2560, 1440] }],
+    set_radio: ({ kind, on }) => { radios[kind] = on; },
+    bluetooth_devices: () => [{ name: "AirPods Pro", connected: true }, { name: "MX Master 3S", connected: true }, { name: "Keychron K2", connected: false }],
+    displays: () => [{ id: "built-in", name: "Built-in display", builtin: true, brightness: displayLevel }],
+    set_brightness: ({ value }) => { displayLevel = value; },
+    screens: () => [{ id: String.raw`\\.\DISPLAY1`, primary: true, rect: [0, 0, 2560, 1440] }]
+      .concat(q.get("screens") === "2" ? [{ id: String.raw`\\.\DISPLAY2`, primary: false, rect: [2560, 0, 1920, 1080] }] : []),
+    taskbar_can_hide: () => true,
     bar_info: () => ({ monitor: 1, bars: 1 }),
     window_action: a => log(`window: ${a.action} ${a.hwnd}`),
     quit_app: a => log(`quit app ${a.pid}`),
