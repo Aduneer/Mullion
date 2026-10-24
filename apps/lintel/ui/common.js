@@ -26,6 +26,7 @@ const Lintel = (() => {
     theme = settings.theme;
     const root = document.documentElement;
     root.dataset.palette = settings.palette;
+    root.dataset.glass = settings.glass ? "on" : "off";
     root.dataset.mode = theme === "auto" ? (dark.matches ? "dark" : "light") : theme;
   }
   dark.addEventListener("change", () => {

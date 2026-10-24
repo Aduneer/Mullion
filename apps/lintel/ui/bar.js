@@ -157,6 +157,74 @@ function renderAll() {
   renderBattery();
 }
 
+// --- glass -------------------------------------------------------------------------
+// Windows only blurs behind windows that have the focus, and the bar never does. But the bar
+// keeps its strip of the screen to itself, so only the wallpaper is ever behind it: it draws that
+// part of the wallpaper, blurred, and the palette's tint goes over it (bar.css).
+
+const backdrop = $("#backdrop");
+let wall = null, wallKey = null, wallImage = null;
+
+async function refreshBackdrop() {
+  backdrop.hidden = !settings.glass;
+  if (!settings.glass) return;
+  const w = await invoke("wallpaper").catch(() => null);
+  if (!w) return;
+  if (w.key !== wallKey) {
+    wallKey = w.key;
+    const url = await invoke("wallpaper_image").catch(() => null);
+    wallImage = url ? await new Promise(ok => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = () => ok(null);
+      img.src = url;
+    }) : null;
+  }
+  wall = w;
+  drawBackdrop();
+}
+
+/** The wallpaper as Windows lays it out, on a canvas whose origin is the screen's. */
+function paintWallpaper(g, w, img) {
+  const [mx, my, mw, mh] = w.position === "span" ? w.desktop : w.monitor;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (w.position === "stretch") return g.drawImage(img, mx, my, mw, mh);
+  if (w.position === "center") return g.drawImage(img, mx + (mw - iw) / 2, my + (mh - ih) / 2);
+  if (w.position === "tile") {
+    g.save();
+    g.translate(mx, my);
+    g.fillStyle = g.createPattern(img, "repeat");
+    g.fillRect(0, 0, mw, mh);
+    return g.restore();
+  }
+  const scale = w.position === "fit" ? Math.min(mw / iw, mh / ih) : Math.max(mw / iw, mh / ih);
+  g.drawImage(img, mx + (mw - iw * scale) / 2, my + (mh - ih * scale) / 2, iw * scale, ih * scale);
+}
+
+function drawBackdrop() {
+  const w = wall;
+  if (!w) return;
+  const [bx, by, bw, bh] = w.bar;
+  // The blur reaches past the bar's edges, so draw a margin of the wallpaper around it too.
+  const pad = Math.ceil(60 * devicePixelRatio);
+  const src = new OffscreenCanvas(bw + 2 * pad, bh + 2 * pad);
+  const g = src.getContext("2d");
+  g.fillStyle = w.color;
+  g.fillRect(0, 0, src.width, src.height);
+  g.translate(pad - bx, pad - by);
+  if (wallImage) paintWallpaper(g, w, wallImage);
+  backdrop.width = bw;
+  backdrop.height = bh;
+  const out = backdrop.getContext("2d");
+  out.filter = `blur(${Math.round(20 * devicePixelRatio)}px) saturate(1.6)`;
+  out.drawImage(src, -pad, -pad);
+}
+
+let backdropTimer = 0;
+const backdropSoon = () => { clearTimeout(backdropTimer); backdropTimer = setTimeout(refreshBackdrop, 150); };
+window.addEventListener("resize", backdropSoon);
+listen("backdrop", backdropSoon);
+
 // --- data ----------------------------------------------------------------------------
 
 listen("sample", s => {
@@ -176,6 +244,7 @@ listen("settings", s => {
   applyTheme(s);
   renderAll();
   tick();
+  backdropSoon();
 });
 
 // The clock ticks on the minute (or second), whatever the samples do.
@@ -193,5 +262,6 @@ invoke("hello").then(h => {
   applyTheme(settings);
   renderAll();
   tick();
+  refreshBackdrop();
 });
 }

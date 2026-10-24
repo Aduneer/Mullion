@@ -5,6 +5,15 @@
 button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
 
 html, body { height: 100%; overflow: hidden; background: var(--page); }
+/* Glass: a blurred copy of the wallpaper behind the bar (bar.js), with a tint of the palette over it. */
+#backdrop { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; }
+[data-glass="on"] body { background: transparent; }
+[data-glass="on"] #bar { background: color-mix(in srgb, var(--page) 35%, transparent); border-color: transparent; }
+/* Over a busy wallpaper the quieter grays get lost: on glass, text is full strength. */
+[data-glass="on"] .media, [data-glass="on"] .media.paused, [data-glass="on"] #date, [data-glass="on"] .stat small { color: var(--ink); }
+[data-glass="on"] .stat small { opacity: 0.75; }
+[data-glass="on"] #bar { text-shadow: 0 0 6px color-mix(in srgb, var(--page) 55%, transparent); }
+[data-glass="on"] .ic { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--page) 45%, transparent)); }
 body {
   color: var(--ink);
   font: 13px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;

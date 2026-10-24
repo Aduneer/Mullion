@@ -25,7 +25,7 @@
 
   const GB = 1024 ** 3;
   let settings = {
-    theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
+    theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
     clock: "auto", seconds: false, date: true, media: true, stats: true, volume: true, network: true, battery: true,
   };
   let autostart = false;
@@ -97,6 +97,9 @@
   // A cover for the fake track: a gradient, as an SVG data: URL.
   const art = "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7a59"/><stop offset=".5" stop-color="#b03ab8"/><stop offset="1" stop-color="#2b2d7a"/></linearGradient></defs><rect width="10" height="10" fill="url(#g)"/><circle cx="7" cy="3" r="1.4" fill="#ffd9a8" opacity=".9"/></svg>`);
 
+  // A made-up wallpaper with some detail, so the glass has something to blur.
+  const wallpaperArt = "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a62"/><stop offset=".45" stop-color="#7b4fc9"/><stop offset="1" stop-color="#1c2a6b"/></linearGradient></defs><rect width="1600" height="900" fill="url(#g)"/><circle cx="1180" cy="120" r="170" fill="#ffd27a" opacity=".85"/><circle cx="300" cy="60" r="120" fill="#5fd0ff" opacity=".7"/><path d="M0 700 Q400 520 800 690 T1600 640 V900 H0Z" fill="#14183a" opacity=".8"/></svg>`);
+
   const commands = {
     hello: () => ({
       settings, sample: latest, front, has_battery: hasBattery, oriel: true, autostart, clock24: true, first_day: 0,
@@ -129,6 +132,13 @@
       log(`media: ${action}`);
     },
     media_art: () => art,
+    // The harness page's own background stands in for the wallpaper behind the bar.
+    wallpaper() {
+      const r = barFrame.getBoundingClientRect(), d = devicePixelRatio;
+      const screen = [0, 0, innerWidth * d, innerHeight * d].map(Math.round);
+      return { key: "preview", color: "#1c2238", position: "fill", monitor: screen, desktop: screen, bar: [r.left, r.top, r.width, r.height].map(v => Math.round(v * d)) };
+    },
+    wallpaper_image: () => wallpaperArt,
     set_volume({ pid, volume, muted }) {
       const target = pid == null ? audio : audio.apps.find(a => a.pid === pid);
       if (volume != null) target.volume = Math.round(volume);
@@ -166,6 +176,8 @@
       : { width: "100%", height: `${depth}px`, left: "0", right: "auto", top: settings.edge === "top" ? "0" : "auto", bottom: settings.edge === "bottom" ? "0" : "auto" });
     const dark = settings.theme === "dark" || (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.body.classList.toggle("light", !dark);
+    document.body.classList.toggle("glass", settings.glass);
+    document.body.style.setProperty("--wallpaper", `url("${wallpaperArt}")`);
   }
   applySize();
   barFrame.src = "/ui/index.html";

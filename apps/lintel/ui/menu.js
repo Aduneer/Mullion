@@ -263,6 +263,7 @@ const VIEWS = {
       <div class="head">Menu Bar Settings</div>
       <div class="form">
         <div class="field"><span>Appearance</span>${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]])}</div>
+        <div class="field"><span>Material</span>${seg("glass", [[false, "Solid"], [true, "Glass"]])}</div>
         <div class="field"><span>Palette</span><div class="swatches">${PALETTES.map(([v, label]) => `<button class="swatch" title="${label}" data-palette="${v}" data-mode="${mode}" aria-pressed="${s.palette === v}" data-act="${act(save({ palette: v }))}"><span></span></button>`).join("")}</div></div>
         <div class="field"><span>Position</span>${seg("edge", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]])}</div>
         <div class="field"><span>Size</span>${seg("height", [[26, "Compact"], [30, "Standard"], [36, "Large"]])}</div>

@@ -10,6 +10,7 @@ mod pdh;
 mod power;
 mod settings;
 mod stats;
+mod wallpaper;
 
 use apps::Front;
 use audio::{Audio, AudioWatch};
@@ -20,6 +21,7 @@ use stats::{Sampler, Stats};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::window::Color;
+use tauri::window::{Effect, EffectsBuilder};
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent, State, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
@@ -83,6 +85,8 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
+            wallpaper,
+            wallpaper_image,
             hello, save_settings, set_autostart, open_menu, menu_ready, close_menu, media_control, media_art, set_volume,
             app_windows, window_action, quit_app, power, run_action, quit
         ])
@@ -97,11 +101,16 @@ fn main() {
             app.manage(SettingsState(Mutex::new(settings.clone())));
             app.manage(LatestSample(Mutex::new(None)));
             app.manage(OpenMenu(Mutex::new(MenuState::default())));
+            app.manage(wallpaper::Image::new());
 
             let bar = create_bar(app.handle())?;
             create_menu(app.handle())?;
-            apply_theme(app.handle(), &settings.theme);
+            apply_look(app.handle(), &settings);
             let handle = app.handle().clone();
+            let backdrop = app.handle().clone();
+            appbar::on_backdrop(move || {
+                let _ = backdrop.emit_to("bar", "backdrop", ());
+            });
             appbar::register(bar.hwnd()?.0 as isize, appbar::edge(&settings.edge), settings.thickness(), move |full| {
                 // A game or a video went fullscreen: the bar has hidden itself; so does an open menu.
                 if full {
@@ -202,8 +211,8 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     settings.save().map_err(|e| e.to_string())?;
     media.set_wanted(settings.media);
     audio.set_wanted(settings.volume);
-    if previous.theme != settings.theme {
-        apply_theme(&app, &settings.theme);
+    if (&previous.theme, previous.glass) != (&settings.theme, settings.glass) {
+        apply_look(&app, &settings);
     }
     appbar::set_layout(appbar::edge(&settings.edge), settings.thickness());
     let _ = app.emit("settings", &settings);
@@ -333,6 +342,19 @@ fn media_control(media: State<MediaWatch>, action: String) -> Result<(), String>
 }
 
 /// The current track's cover as a data: URL, fetched when a sample's `media.art` changes.
+/// Where the wallpaper behind the bar is, for the glass look; the picture itself comes from
+/// `wallpaper_image`, and only when its `key` changes.
+#[tauri::command]
+fn wallpaper() -> Option<wallpaper::Wallpaper> {
+    wallpaper::current(appbar::rect()?).map(|(w, _)| w)
+}
+
+#[tauri::command]
+fn wallpaper_image(image: State<wallpaper::Image>) -> Option<String> {
+    let (w, path) = wallpaper::current(appbar::rect()?)?;
+    image.get(&w.key, path.as_deref())
+}
+
 #[tauri::command]
 fn media_art(media: State<MediaWatch>) -> Option<String> {
     media.art()
@@ -488,15 +510,18 @@ fn create_menu(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .shadow(true)
         .skip_taskbar(true)
         .always_on_top(true)
+        .transparent(true)
         .visible(false)
         .background_color(Color(0x1a, 0x1a, 0x19, 255))
         .additional_browser_args(BROWSER_ARGS)
         .build()
 }
 
-/// The blank frame before a page paints, and the menu's border, follow the theme.
-fn apply_theme(app: &AppHandle, theme: &str) {
-    let (native, bar_bg, menu_bg) = match theme {
+/// The windows follow the theme: their native frame, and the blank frame before a page paints.
+/// With glass on, the menu is see-through and Windows blurs what's behind it (acrylic); the page
+/// then paints only a tint over it.
+fn apply_look(app: &AppHandle, settings: &Settings) {
+    let (native, bar_bg, menu_bg) = match settings.theme.as_str() {
         "dark" => (Some(Theme::Dark), Color(0x0d, 0x0d, 0x0d, 255), Color(0x1a, 0x1a, 0x19, 255)),
         "light" => (Some(Theme::Light), Color(0xf9, 0xf9, 0xf7, 255), Color(0xfc, 0xfc, 0xfb, 255)),
         _ => (None, Color(0x0d, 0x0d, 0x0d, 255), Color(0x1a, 0x1a, 0x19, 255)),
@@ -504,7 +529,15 @@ fn apply_theme(app: &AppHandle, theme: &str) {
     for (label, bg) in [("bar", bar_bg), ("menu", menu_bg)] {
         if let Some(w) = app.get_webview_window(label) {
             let _ = w.set_theme(native);
-            let _ = w.set_background_color(Some(bg));
+            // The menu floats over other windows, and has the focus while it's open, so Windows'
+            // own acrylic works for it. The bar never has the focus, and Windows draws an
+            // unfocused window's acrylic flat gray; only the wallpaper is ever behind the bar,
+            // though, so it paints a blurred copy of that itself (ui/bar.js).
+            let glass = settings.glass && label == "menu";
+            let _ = w.set_background_color(Some(if glass { Color(0, 0, 0, 0) } else { bg }));
+            if label == "menu" {
+                let _ = w.set_effects(glass.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build()));
+            }
         }
     }
 }

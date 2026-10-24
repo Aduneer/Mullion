@@ -190,6 +190,7 @@ pub const WM_WINDOWPOSCHANGED: u32 = 0x0047;
 pub const WM_DISPLAYCHANGE: u32 = 0x007E;
 pub const WM_DPICHANGED: u32 = 0x02E0;
 pub const WM_SETTINGCHANGE: u32 = 0x001A;
+pub const SPI_SETDESKWALLPAPER: usize = 0x0014;
 pub const WM_NCDESTROY: u32 = 0x0082;
 pub const WM_APP: u32 = 0x8000;
 pub const DWMWA_CLOAKED: u32 = 14;
@@ -269,6 +270,7 @@ pub type SUBCLASSPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, wparam:
 
 #[link(name = "user32", kind = "raw-dylib")]
 extern "system" {
+    pub fn GetWindowRect(hwnd: isize, rect: *mut RECT) -> i32;
     pub fn EnumWindows(callback: WNDENUMPROC, lparam: isize) -> i32;
     pub fn EnumChildWindows(parent: isize, callback: WNDENUMPROC, lparam: isize) -> i32;
     pub fn IsWindow(hwnd: isize) -> i32;

@@ -12,6 +12,8 @@ pub struct Settings {
     pub theme: String,
     /// One of Oriel's palettes, so the two look alike.
     pub palette: String,
+    /// Translucent bar and menus that blur what's behind them (acrylic), rather than solid ones.
+    pub glass: bool,
     /// The screen edge the bar sits on: "top", "bottom", "left" or "right".
     pub edge: String,
     /// The bar's height at 100% scaling, in pixels; a bar on the left or right is a little wider
@@ -35,6 +37,7 @@ impl Default for Settings {
         Settings {
             theme: "auto".into(),
             palette: "oriel".into(),
+            glass: false,
             edge: "top".into(),
             height: 30,
             clock: "auto".into(),

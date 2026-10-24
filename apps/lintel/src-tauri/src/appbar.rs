@@ -21,6 +21,7 @@ static EDGE: AtomicU32 = AtomicU32::new(ABE_TOP);
 static THICKNESS: AtomicU32 = AtomicU32::new(30);
 static FULLSCREEN: AtomicBool = AtomicBool::new(false);
 static ON_FULLSCREEN: OnceLock<Box<dyn Fn(bool) + Send + Sync>> = OnceLock::new();
+static ON_BACKDROP: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 
 /// The shell's number for an edge setting.
 pub fn edge(name: &str) -> u32 {
@@ -46,6 +47,24 @@ pub fn register(hwnd: isize, edge: u32, thickness: u32, on_fullscreen: impl Fn(b
         SHAppBarMessage(ABM_NEW, &mut abd);
     }
     place();
+}
+
+/// The bar's rectangle on screen, in physical pixels.
+pub fn rect() -> Option<RECT> {
+    let hwnd = HWND.load(Ordering::Relaxed);
+    let mut rc = RECT::default();
+    (hwnd != 0 && unsafe { GetWindowRect(hwnd, &mut rc) } != 0).then_some(rc)
+}
+
+/// `f` runs whenever what's behind the bar may have changed: it moved, or the wallpaper did.
+pub fn on_backdrop(f: impl Fn() + Send + Sync + 'static) {
+    let _ = ON_BACKDROP.set(Box::new(f));
+}
+
+fn backdrop_changed() {
+    if let Some(f) = ON_BACKDROP.get() {
+        f();
+    }
 }
 
 /// Give the strip back. Windows also does this when the window goes away, but only eventually.
@@ -108,6 +127,7 @@ fn place() {
         let rc = abd.rc;
         SetWindowPos(hwnd, HWND_TOPMOST, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOACTIVATE);
     }
+    backdrop_changed();
 }
 
 /// The `depth` pixels of `area` along `edge`.
@@ -146,6 +166,7 @@ unsafe extern "system" fn proc_(hwnd: isize, msg: u32, wparam: usize, lparam: is
             PostMessageW(hwnd, REPLACE, 0, 0);
             return r;
         }
+        WM_SETTINGCHANGE if wparam == SPI_SETDESKWALLPAPER => backdrop_changed(),
         // The shell asks app bars to pass these on, so it can keep their z-order right.
         WM_ACTIVATE => {
             let mut abd = data(hwnd);
