@@ -78,7 +78,9 @@ body {
   flex-direction: column; justify-content: center; gap: 3px; text-align: center;
 }
 .vertical .app { max-width: none; max-height: 40vh; padding: 10px 0; }
-.vertical #app-name { writing-mode: vertical-rl; transform: rotate(180deg); }
+/* The name reads with its top towards the screen's edge: upwards on the left, downwards on the right. */
+.vertical #app-name { writing-mode: vertical-rl; }
+[data-edge="left"] #app-name { transform: rotate(180deg); }
 .vertical .media { max-width: none; }
 .vertical .media .text { display: none; }
 .vertical .media .ic { width: 15px; height: 15px; }

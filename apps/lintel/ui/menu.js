@@ -11,9 +11,11 @@ let settings, info, sample, front;
 let current = null, view = null;
 /** Handlers for the [data-act] elements of the current render, by index. */
 let acts = [];
-/** Last minute of CPU and network, so the graphs have a past when the menu opens. */
+/** Last minute of CPU, memory and network, so the graphs have a past when the menu opens. */
 const HISTORY = 60;
-const hist = { cpu: [], down: [] };
+const hist = { cpu: [], mem: [], down: [], up: [] };
+/** The graph under the pointer and the second it points at (0 = the oldest slot), for its readout. */
+let hover = null;
 
 // --- plumbing -------------------------------------------------------------------------
 
@@ -179,17 +181,17 @@ const VIEWS = {
       <div class="section">
         <h3>CPU</h3>
         <div class="row"><span class="big ${lvl(s.cpu)}">${Math.round(s.cpu)}%</span></div>
-        ${spark(hist.cpu, 100, "var(--cpu)")}
+        ${graph("cpu")}
       </div>
       <div class="section">
         <h3>Memory</h3>
         <div class="row"><span class="grow num">${bytes(s.mem.used)} of ${bytes(s.mem.total, 0)}</span><span class="num ${lvl(s.mem.pct)}">${Math.round(s.mem.pct)}%</span></div>
-        <div class="meter" style="--hue:var(--mem)"><div style="width:${s.mem.pct}%"></div></div>
+        ${graph("mem")}
       </div>
       <div class="section">
         <h3>Network</h3>
         <div class="row num"><span class="grow">↓ ${rate(s.net.down)}</span><span>↑ ${rate(s.net.up)}</span></div>
-        ${spark(hist.down, null, "var(--s2)")}
+        ${graph("net")}
       </div>
       ${sep}
       ${info.oriel ? item("Open Oriel", run("oriel")) : ""}
@@ -288,15 +290,52 @@ function confirm(what) {
 
 // --- pieces --------------------------------------------------------------------------
 
-function spark(values, max, hue) {
-  if (values.length < 2) return `<svg class="spark"></svg>`;
+/** The graphs in the stats menu: which history each draws, its scale and color, and its readout. */
+const GRAPHS = {
+  cpu: { values: () => hist.cpu, max: 100, hue: "var(--cpu)", read: i => `${hist.cpu[i].toFixed(1)}%` },
+  mem: { values: () => hist.mem, max: 100, hue: "var(--mem)", read: i => `${hist.mem[i].toFixed(1)}%` },
+  net: { values: () => hist.down, max: null, hue: "var(--s2)", read: i => `↓ ${rate(hist.down[i])}  ↑ ${rate(hist.up[i])}` },
+};
+
+/** A graph of the last minute. Under the pointer it marks a second and says exactly what it was then. */
+function graph(key) {
+  const { values: get, max, hue, read } = GRAPHS[key];
+  const values = get();
+  if (values.length < 2) return `<div class="graph" data-graph="${key}"><svg class="spark"></svg></div>`;
   const top = max ?? Math.max(1, ...values) * 1.15;
   const n = HISTORY - 1;
-  const pts = values.map((v, i) => `${((HISTORY - values.length + i) / n) * 100},${40 - (Math.min(v, top) / top) * 38}`);
-  const first = pts[0].split(",")[0];
-  return `<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" style="--hue:${hue}">
-    <path class="area" d="M${first},40 L${pts.join(" L")} L100,40 Z"/><path class="line" d="M${pts.join(" L")}"/></svg>`;
+  const x = i => ((HISTORY - values.length + i) / n) * 100;
+  const y = v => 40 - (Math.min(v, top) / top) * 38;
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`);
+  let mark = "";
+  if (hover?.graph === key) {
+    const i = Math.max(0, Math.min(values.length - 1, hover.slot - (HISTORY - values.length)));
+    const ago = values.length - 1 - i;
+    const right = x(i) > 60;
+    mark = `<div class="mark" style="left:${x(i)}%"><i style="top:${y(values[i])}px"></i></div>
+      <div class="readout num" style="${right ? `right:${100 - x(i)}%` : `left:${x(i)}%`}">${esc(read(i))} <span class="muted">${ago ? `${ago}s ago` : "now"}</span></div>`;
+  }
+  return `<div class="graph" data-graph="${key}" style="--hue:${hue}">
+    <svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none">
+    <path class="area" d="M${x(0)},40 L${pts.join(" L")} L100,40 Z"/><path class="line" d="M${pts.join(" L")}"/></svg>${mark}</div>`;
 }
+
+root.addEventListener("pointermove", e => {
+  const el = e.target.closest(".graph");
+  const key = el?.dataset.graph;
+  if (!key) return;
+  const r = el.getBoundingClientRect();
+  const slot = Math.round(((e.clientX - r.left) / r.width) * (HISTORY - 1));
+  if (hover?.graph === key && hover.slot === slot) return;
+  hover = { graph: key, slot };
+  el.outerHTML = graph(key);
+});
+root.addEventListener("pointerout", e => {
+  const el = e.target.closest(".graph");
+  if (!el || el.contains(e.relatedTarget) || hover?.graph !== el.dataset.graph) return;
+  hover = null;
+  el.outerHTML = graph(el.dataset.graph);
+});
 
 /** Where the track is now: players report a position and when, and it moves on while playing. */
 function position(m) {
@@ -397,13 +436,13 @@ listen("menu", id => {
   render();
 });
 listen("menu-closed", () => {
-  current = view = null;
+  current = view = hover = null;
   root.innerHTML = "";
   lastSize = "";
 });
 listen("sample", s => {
   sample = s;
-  for (const [k, v] of [["cpu", s.stats.cpu], ["down", s.stats.net.down]]) {
+  for (const [k, v] of [["cpu", s.stats.cpu], ["mem", s.stats.mem.pct], ["down", s.stats.net.down], ["up", s.stats.net.up]]) {
     hist[k].push(v);
     if (hist[k].length > HISTORY) hist[k].shift();
   }

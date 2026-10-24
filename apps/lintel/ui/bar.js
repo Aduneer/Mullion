@@ -95,6 +95,8 @@ function renderStats() {
   cpu.className = level(s.cpu);
   mem.textContent = `${Math.round(s.mem.pct)}%`;
   mem.className = level(s.mem.pct);
+  items.stats.title = `CPU ${s.cpu.toFixed(1)}%
+Memory ${s.mem.pct.toFixed(1)}% (${Lintel.bytes(s.mem.used)} of ${Lintel.bytes(s.mem.total, 0)})`;
 }
 
 function renderVolume() {
