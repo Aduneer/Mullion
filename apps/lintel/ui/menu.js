@@ -1,10 +1,18 @@
 "use strict";
-// The dropdowns. One window serves every menu: the bar asks the backend to open one, the backend
-// sends us its id, we lay it out, measure it and say how big it is (`menu_ready`), and the backend
-// sizes the window to match and shows it under the bar item.
+// The menus. One window serves every menu: it lies along the bar, see-through, and the bar asks
+// the backend to open a menu, which sends us its id and the item it hangs from. We lay it out,
+// size the panel to it and place it against the bar under the item, then say so (`menu_ready`)
+// and the backend shows the window. The panel grows out of the bar as it opens, slides and
+// reshapes as other items' menus open, and folds back as it closes (menu.css).
 {
 const { invoke, listen, applyTheme, esc, bytes, rate, clock, duration, player, program, icons } = Lintel;
 const root = document.getElementById("menu");
+const panel = document.getElementById("panel");
+
+/** The bar item the menu hangs from (in this window's CSS pixels), and the bar's edge. */
+let anchor = { left: 0, top: 0, width: 0, height: 0 }, edge = "top";
+/** The menu the backend has been told is laid out, so it's told once per menu. */
+let readied = null;
 
 let settings, info, sample, front;
 /** The running apps, for their menus from the icons in the bar. */
@@ -33,14 +41,29 @@ function item(label, fn, { hint = "", tick = null, disabled = false, sub = "" } 
 }
 const sep = `<div class="sep"></div>`;
 
-let lastSize = "";
+/** Size the panel to the menu and place it against the bar, under its item but inside the
+ *  bar's length. The first time for a menu, it then opens; after that it slides and reshapes. */
 function measure() {
   if (!current) return;
-  const r = root.getBoundingClientRect();
-  const size = `${Math.ceil(r.width)}x${Math.ceil(r.height)}`;
-  if (size === lastSize) return;
-  lastSize = size;
-  invoke("menu_ready", { id: current, width: Math.ceil(r.width), height: Math.ceil(r.height) });
+  const GAP = 6;
+  const w = Math.ceil(root.offsetWidth), h = Math.ceil(root.offsetHeight);
+  const along = (from, len, size) => Math.max(GAP, Math.min(from, len - GAP - size));
+  const [x, y] = {
+    top: [along(anchor.left, innerWidth, w), 0],
+    bottom: [along(anchor.left, innerWidth, w), innerHeight - h],
+    left: [0, along(anchor.top, innerHeight, h)],
+    right: [innerWidth - w, along(anchor.top, innerHeight, h)],
+  }[edge];
+  const opening = !panel.classList.contains("open");
+  panel.classList.toggle("moving", !opening);
+  Object.assign(panel.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+  if (readied === current) return;
+  readied = current;
+  const id = current;
+  // Once the window is on screen, the menu grows out of the bar (from closed, at its place).
+  invoke("menu_ready", { id }).then(() => requestAnimationFrame(() => {
+    if (opening && current === id) panel.classList.add("open");
+  }));
 }
 new ResizeObserver(measure).observe(root);
 
@@ -52,7 +75,7 @@ async function render() {
   acts = fresh;
   const html = await build(view);
   if (current !== id || acts !== fresh) return; // another menu (or render) started meanwhile
-  root.className = WIDE.has(view) ? "wide" : "";
+  root.classList.toggle("wide", WIDE.has(view));
   root.innerHTML = html;
   kb = -1;
   measure();
@@ -325,7 +348,7 @@ const VIEWS = {
     const screenSeg = screens.length > 1
       ? `<div class="field"><span>Screens</span>${seg("screens", [["main", "Main"], ["all", "All"], ...screens.slice(1).map((x, i) => [x.id, `Screen ${i + 2}`])])}</div>`
       : "";
-    const PALETTES = [["oriel", "Oriel"], ["catppuccin", "Catppuccin"], ["nord", "Nord"], ["gruvbox", "Gruvbox"], ["rose-pine", "Rosé Pine"], ["solarized", "Solarized"]];
+    const PALETTES = [["oriel", "Default"], ["catppuccin", "Catppuccin"], ["nord", "Nord"], ["gruvbox", "Gruvbox"], ["rose-pine", "Rosé Pine"], ["solarized", "Solarized"]];
     const mode = document.documentElement.dataset.mode;
     return `
       <div class="head">Menu Bar Settings</div>
@@ -545,18 +568,53 @@ setInterval(() => {
 
 // --- data ----------------------------------------------------------------------------
 
-listen("menu", id => {
-  current = view = id;
+listen("menu", m => {
+  anchor = m.item;
+  edge = m.edge;
+  document.body.dataset.edge = edge;
+  // Another item's menu while one is open: the old one fades out as the new one fades in.
+  if (current && panel.classList.contains("open")) {
+    const ghost = root.cloneNode(true);
+    ghost.removeAttribute("id");
+    ghost.classList.add("ghost");
+    panel.append(ghost);
+    setTimeout(() => ghost.remove(), 150);
+    root.classList.remove("entering");
+    void root.offsetWidth;
+    root.classList.add("entering");
+  }
+  current = view = m.id;
   month = null;
-  lastSize = "";
   lastMedia = "";
+  if (settings?.glass) refreshWall();
   render();
 });
 listen("menu-closed", () => {
   current = view = hover = null;
-  root.innerHTML = "";
-  lastSize = "";
+  readied = null;
+  // It folds back into the bar; the backend hides the window once it has.
+  panel.classList.remove("open", "moving");
+  setTimeout(() => { if (!current) root.innerHTML = ""; }, 200);
 });
+// A click beside the menu (the window is larger than it) closes it, as one anywhere else does.
+document.addEventListener("pointerdown", e => {
+  if (current && !e.target.closest("#panel")) invoke("close_menu", { restore: true });
+});
+
+// With glass, the panel shows the wallpaper behind this window, blurred as the bar's is
+// (common.js); menu.css fixes it to the window, so it carries straight on from the bar's.
+const wallCanvas = document.createElement("canvas");
+let wallKey = null, wallUrl = null;
+async function refreshWall() {
+  const key = await Lintel.backdrop(wallCanvas, wallKey);
+  if (!key || key === wallKey) return;
+  wallKey = key;
+  const blob = await new Promise(ok => wallCanvas.toBlob(ok));
+  if (!blob) return;
+  if (wallUrl) URL.revokeObjectURL(wallUrl);
+  wallUrl = URL.createObjectURL(blob);
+  document.documentElement.style.setProperty("--wall", `url("${wallUrl}")`);
+}
 listen("sample", s => {
   const toggles = s => JSON.stringify([s?.radios, s?.energy_saver]);
   const was = toggles(sample);

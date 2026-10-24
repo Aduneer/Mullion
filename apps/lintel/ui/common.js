@@ -126,5 +126,64 @@ const Lintel = (() => {
     chevron: dir => svg(dir === "left" ? `<path d="M14.5 6l-6 6 6 6"/>` : `<path d="M9.5 6l6 6-6 6"/>`),
   };
 
-  return { invoke, listen, applyTheme, esc, bytes, rate, clock, duration, player, program, icons };
+  // --- glass -------------------------------------------------------------------------
+  // With glass on, the bar and the menu each show the wallpaper behind them, blurred, with a tint
+  // of the palette over it. Windows' own blur turns flat gray on a window without the focus, and
+  // the bar never has it; and painting both from the wallpaper makes the menu, where it meets the
+  // bar, carry straight on from it.
+  let wallKey = null, wallImage = null;
+
+  /** The wallpaper as Windows lays it out, on a canvas whose origin is the screen's. */
+  function paintWallpaper(g, w, img) {
+    const [mx, my, mw, mh] = w.position === "span" ? w.desktop : w.monitor;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    if (w.position === "stretch") return g.drawImage(img, mx, my, mw, mh);
+    if (w.position === "center") return g.drawImage(img, mx + (mw - iw) / 2, my + (mh - ih) / 2);
+    if (w.position === "tile") {
+      g.save();
+      g.translate(mx, my);
+      g.fillStyle = g.createPattern(img, "repeat");
+      g.fillRect(0, 0, mw, mh);
+      return g.restore();
+    }
+    const scale = w.position === "fit" ? Math.min(mw / iw, mh / ih) : Math.max(mw / iw, mh / ih);
+    g.drawImage(img, mx + (mw - iw * scale) / 2, my + (mh - ih * scale) / 2, iw * scale, ih * scale);
+  }
+
+  /** Paint the blurred wallpaper behind this window onto `canvas`, at the window's size. Returns
+   *  where the window is (with the wallpaper's key, so callers can tell when it's changed), or null. */
+  async function backdrop(canvas, unless) {
+    const w = await invoke("wallpaper").catch(() => null);
+    if (!w) return null;
+    const key = `${w.key}|${w.bar}`;
+    if (key === unless) return key;
+    if (w.key !== wallKey) {
+      wallKey = w.key;
+      const url = await invoke("wallpaper_image").catch(() => null);
+      wallImage = url ? await new Promise(ok => {
+        const img = new Image();
+        img.onload = () => ok(img);
+        img.onerror = () => ok(null);
+        img.src = url;
+      }) : null;
+    }
+    // `bar` is this window's place on the screen. The blur reaches past its edges, so draw a
+    // margin of the wallpaper around it too.
+    const [bx, by, bw, bh] = w.bar;
+    const pad = Math.ceil(60 * devicePixelRatio);
+    const src = new OffscreenCanvas(bw + 2 * pad, bh + 2 * pad);
+    const g = src.getContext("2d");
+    g.fillStyle = w.color;
+    g.fillRect(0, 0, src.width, src.height);
+    g.translate(pad - bx, pad - by);
+    if (wallImage) paintWallpaper(g, w, wallImage);
+    canvas.width = bw;
+    canvas.height = bh;
+    const out = canvas.getContext("2d");
+    out.filter = `blur(${Math.round(20 * devicePixelRatio)}px) saturate(1.6)`;
+    out.drawImage(src, -pad, -pad);
+    return key;
+  }
+
+  return { invoke, listen, applyTheme, esc, bytes, rate, clock, duration, player, program, icons, backdrop };
 })();

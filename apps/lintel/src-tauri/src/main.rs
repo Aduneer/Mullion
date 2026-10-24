@@ -25,8 +25,7 @@ use stats::{Sampler, Stats};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::window::Color;
-use tauri::window::{Effect, EffectsBuilder};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent, State, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, RunEvent, State, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 const TICK: Duration = Duration::from_secs(1);
@@ -55,11 +54,27 @@ struct Bars {
 }
 
 /// A bar item's box, in the bar's CSS pixels.
-#[derive(Deserialize, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 struct Anchor {
     left: f64,
     top: f64,
+    #[serde(default)]
+    width: f64,
+    #[serde(default)]
+    height: f64,
 }
+
+/// What the menu page is told to show: which menu, and the bar item it hangs from, in the
+/// menu window's CSS pixels (the window lies along the bar, so these are the bar's too).
+#[derive(Serialize, Clone)]
+struct MenuOpen {
+    id: String,
+    item: Anchor,
+    edge: String,
+}
+
+/// How long the menu takes to fold back into the bar (menu.css) before its window is hidden.
+const MENU_CLOSE: Duration = Duration::from_millis(220);
 
 /// How soon after a menu closed on losing the focus a click on its item counts as the click that closed it.
 const BLUR_CLICK: Duration = Duration::from_millis(400);
@@ -292,33 +307,35 @@ fn open_menu(app: AppHandle, window: WebviewWindow, open: State<OpenMenu>, id: S
         return;
     }
     let Some(menu) = app.get_webview_window("menu") else { return };
-    if state.open.is_none() {
-        // Room to lay out any menu while it's still hidden; menu_ready then sets its real size.
-        let _ = menu.set_size(LogicalSize::new(MENU_ROOM.0, MENU_ROOM.1));
-    }
-    if state.open.as_ref().is_some_and(|(_, _, b)| *b != bar) {
+    let other_bar = state.open.as_ref().is_some_and(|(_, _, b)| *b != bar);
+    if other_bar {
         // Another bar's menu: that bar stops showing its item as open.
         let _ = app.emit_to(state.open.as_ref().unwrap().2.as_str(), "menu-closed", ());
     }
+    let edge = app.state::<SettingsState>().0.lock().unwrap().edge.clone();
+    if state.open.is_none() || other_bar {
+        // The menu window lies along the bar, room enough for any menu; the page draws the menu
+        // in it, growing out of the bar, and moves and reshapes it as other items are opened.
+        if let Some(w) = app.get_webview_window(&bar) {
+            if let (Ok(pos), Ok(size), Ok(scale)) = (w.outer_position(), w.outer_size(), w.scale_factor()) {
+                let bar = Rect { x: pos.x as f64, y: pos.y as f64, w: size.width as f64, h: size.height as f64 };
+                let r = stage(&edge, bar, (MENU_ROOM.0 * scale, MENU_ROOM.1 * scale));
+                let _ = menu.set_position(PhysicalPosition::new(r.x.round() as i32, r.y.round() as i32));
+                let _ = menu.set_size(PhysicalSize::new(r.w.round() as u32, r.h.round() as u32));
+            }
+        }
+    }
     state.open = Some((id.clone(), item, bar));
     drop(state);
-    let _ = app.emit_to("menu", "menu", &id);
+    let _ = app.emit_to("menu", "menu", MenuOpen { id, item, edge });
 }
 
-/// The menu page has laid its menu out: size it and place it beside its bar item (below for a
-/// bar along the top, above for one along the bottom, to the side for one on the left or right),
-/// kept a few pixels inside the bar's length.
+/// The menu page has laid its menu out and starts drawing it: show the window (if it isn't
+/// already), give it the focus, and have the bar show the item as open.
 #[tauri::command]
-fn menu_ready(app: AppHandle, open: State<OpenMenu>, settings: State<SettingsState>, id: String, width: f64, height: f64) {
-    let Some((item, label)) = open.0.lock().unwrap().open.as_ref().filter(|(o, _, _)| *o == id).map(|(_, a, b)| (*a, b.clone())) else { return };
-    let (Some(bar), Some(menu)) = (app.get_webview_window(&label), app.get_webview_window("menu")) else { return };
-    let (Ok(pos), Ok(size), Ok(scale)) = (bar.outer_position(), bar.outer_size(), bar.scale_factor()) else { return };
-    let edge = settings.0.lock().unwrap().edge.clone();
-    let (w, h) = (width.clamp(80.0, MENU_ROOM.0), height.clamp(20.0, MENU_ROOM.1));
-    let bar = Rect { x: pos.x as f64, y: pos.y as f64, w: size.width as f64, h: size.height as f64 };
-    let (x, y) = place_menu(&edge, bar, item, (w * scale, h * scale), scale);
-    let _ = menu.set_size(LogicalSize::new(w, h));
-    let _ = menu.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+fn menu_ready(app: AppHandle, open: State<OpenMenu>, id: String) {
+    let Some(label) = open.0.lock().unwrap().open.as_ref().filter(|(o, _, _)| *o == id).map(|(_, _, b)| b.clone()) else { return };
+    let Some(menu) = app.get_webview_window("menu") else { return };
     if !menu.is_visible().unwrap_or(false) {
         let _ = menu.show();
     }
@@ -335,15 +352,14 @@ struct Rect {
     h: f64,
 }
 
-/// Where a menu of `size` (physical pixels) goes for `item` on a bar at `bar` along `edge`.
-fn place_menu(edge: &str, bar: Rect, item: Anchor, size: (f64, f64), scale: f64) -> (f64, f64) {
-    let (gap, away) = (6.0 * scale, 4.0 * scale);
-    let along = |start: f64, len: f64, from: f64, menu: f64| (start + from * scale).min(start + len - gap - menu).max(start + gap);
+/// The menu window's place for a bar at `bar` along `edge`: beside the bar, along its whole
+/// length, `room` (physical pixels) deep.
+fn stage(edge: &str, bar: Rect, room: (f64, f64)) -> Rect {
     match edge {
-        "bottom" => (along(bar.x, bar.w, item.left, size.0), bar.y - away - size.1),
-        "left" => (bar.x + bar.w + away, along(bar.y, bar.h, item.top, size.1)),
-        "right" => (bar.x - away - size.0, along(bar.y, bar.h, item.top, size.1)),
-        _ => (along(bar.x, bar.w, item.left, size.0), bar.y + bar.h + away),
+        "bottom" => Rect { x: bar.x, y: bar.y - room.1, w: bar.w, h: room.1 },
+        "left" => Rect { x: bar.x + bar.w, y: bar.y, w: room.0, h: bar.h },
+        "right" => Rect { x: bar.x - room.0, y: bar.y, w: room.0, h: bar.h },
+        _ => Rect { x: bar.x, y: bar.y + bar.h, w: bar.w, h: room.1 },
     }
 }
 
@@ -358,9 +374,19 @@ fn hide_menu(app: &AppHandle, restore: bool) {
     if app.state::<OpenMenu>().0.lock().unwrap().open.take().is_none() {
         return;
     }
-    if let Some(menu) = app.get_webview_window("menu") {
-        let _ = menu.hide();
-    }
+    // The page folds the menu back into the bar; then the window goes, unless a menu opened again.
+    let later = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(MENU_CLOSE);
+        let app = later.clone();
+        let _ = later.run_on_main_thread(move || {
+            if app.state::<OpenMenu>().0.lock().unwrap().open.is_none() {
+                if let Some(menu) = app.get_webview_window("menu") {
+                    let _ = menu.hide();
+                }
+            }
+        });
+    });
     emit_bars(app, "menu-closed", ());
     let _ = app.emit_to("menu", "menu-closed", ());
     if restore {
@@ -697,39 +723,32 @@ fn create_menu(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .inner_size(MENU_ROOM.0, MENU_ROOM.1)
         .decorations(false)
         .resizable(false)
-        // Rounded corners and a drop shadow on Windows 11.
-        .shadow(true)
+        // See-through: the page draws the menu's shape and shadow itself.
+        .shadow(false)
         .skip_taskbar(true)
         .always_on_top(true)
         .transparent(true)
         .visible(false)
-        .background_color(Color(0x1a, 0x1a, 0x19, 255))
+        .background_color(Color(0, 0, 0, 0))
         .additional_browser_args(BROWSER_ARGS)
         .build()
 }
 
-/// The windows follow the theme: their native frame, and the blank frame before a page paints.
-/// With glass on, the menu is see-through and Windows blurs what's behind it (acrylic); the page
-/// then paints only a tint over it.
+/// The windows follow the theme: their native frame, and the bar's blank frame before its page
+/// paints. The menu window is always see-through: its page draws the menu, and with glass on, the
+/// same blurred wallpaper as the bar (ui/common.js), so the two read as one.
 fn apply_look(app: &AppHandle, settings: &Settings) {
-    let (native, bar_bg, menu_bg) = match settings.theme.as_str() {
-        "dark" => (Some(Theme::Dark), Color(0x0d, 0x0d, 0x0d, 255), Color(0x1a, 0x1a, 0x19, 255)),
-        "light" => (Some(Theme::Light), Color(0xf9, 0xf9, 0xf7, 255), Color(0xfc, 0xfc, 0xfb, 255)),
-        _ => (None, Color(0x0d, 0x0d, 0x0d, 255), Color(0x1a, 0x1a, 0x19, 255)),
+    let (native, bar_bg) = match settings.theme.as_str() {
+        "dark" => (Some(Theme::Dark), Color(0x0d, 0x0d, 0x0d, 255)),
+        "light" => (Some(Theme::Light), Color(0xf9, 0xf9, 0xf7, 255)),
+        _ => (None, Color(0x0d, 0x0d, 0x0d, 255)),
     };
     for (label, w) in app.webview_windows() {
-        let bg = if label == "menu" { menu_bg } else { bar_bg };
-        {
-            let _ = w.set_theme(native);
-            // The menu floats over other windows, and has the focus while it's open, so Windows'
-            // own acrylic works for it. The bar never has the focus, and Windows draws an
-            // unfocused window's acrylic flat gray; only the wallpaper is ever behind the bar,
-            // though, so it paints a blurred copy of that itself (ui/bar.js).
-            let glass = settings.glass && label == "menu";
-            let _ = w.set_background_color(Some(if glass { Color(0, 0, 0, 0) } else { bg }));
-            if label == "menu" {
-                let _ = w.set_effects(glass.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build()));
-            }
+        let _ = w.set_theme(native);
+        if label != "menu" {
+            // The bar never has the focus, and Windows draws an unfocused window's acrylic flat
+            // gray; so with glass on, it paints a blurred copy of the wallpaper itself (ui/bar.js).
+            let _ = w.set_background_color(Some(if settings.glass { Color(0, 0, 0, 0) } else { bar_bg }));
         }
     }
 }
@@ -751,23 +770,19 @@ mod tests {
     }
 
     #[test]
-    fn menus_open_beside_their_item_and_stay_on_screen() {
-        let item = Anchor { left: 100.0, top: 200.0 };
-        let menu = (300.0, 400.0);
-        // Along the top of a 1920-wide screen: under the item.
+    fn the_menu_window_lies_along_the_bar() {
+        let room = (560.0, 900.0);
         let top = Rect { x: 0.0, y: 0.0, w: 1920.0, h: 30.0 };
-        assert_eq!(place_menu("top", top, item, menu, 1.0), (100.0, 34.0));
-        // An item near the right end: pulled in to stay 6 px inside the screen.
-        assert_eq!(place_menu("top", top, Anchor { left: 1800.0, top: 0.0 }, menu, 1.0), (1614.0, 34.0));
-        // Along the bottom: above the bar.
+        let r = stage("top", top, room);
+        assert_eq!((r.x, r.y, r.w, r.h), (0.0, 30.0, 1920.0, 900.0));
         let bottom = Rect { x: 0.0, y: 1050.0, w: 1920.0, h: 30.0 };
-        assert_eq!(place_menu("bottom", bottom, item, menu, 1.0), (100.0, 646.0));
-        // On the sides: next to the item, at its height.
+        let r = stage("bottom", bottom, room);
+        assert_eq!((r.x, r.y, r.w, r.h), (0.0, 150.0, 1920.0, 900.0));
         let left = Rect { x: 0.0, y: 0.0, w: 46.0, h: 1080.0 };
-        assert_eq!(place_menu("left", left, item, menu, 1.0), (50.0, 200.0));
+        let r = stage("left", left, room);
+        assert_eq!((r.x, r.y, r.w, r.h), (46.0, 0.0, 560.0, 1080.0));
         let right = Rect { x: 1874.0, y: 0.0, w: 46.0, h: 1080.0 };
-        assert_eq!(place_menu("right", right, item, menu, 1.0), (1570.0, 200.0));
-        // At 150%, the item's CSS pixels are scaled to the screen's.
-        assert_eq!(place_menu("top", top, item, menu, 1.5), (150.0, 36.0));
+        let r = stage("right", right, room);
+        assert_eq!((r.x, r.y, r.w, r.h), (1314.0, 0.0, 560.0, 1080.0));
     }
 }

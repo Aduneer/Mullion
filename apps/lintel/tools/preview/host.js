@@ -90,12 +90,25 @@
   const emit = (event, payload) => { emitTo("bar", event, payload); emitTo("menu", event, payload); };
 
   // --- menu window -------------------------------------------------------------------------
-  let open = null; // [id, left]
+  // As in main.rs: the menu window lies along the bar, see-through, room enough for any menu, and
+  // the menu page draws the menu in it. Closing, it folds back first, then the window goes.
+  const ROOM = [560, 900];
+  let open = null; // [id, item]
   function hideMenu() {
     if (!open) return;
     open = null;
-    menuFrame.style.display = "none";
     emit("menu-closed", null);
+    setTimeout(() => { if (!open) menuFrame.style.display = "none"; }, 220);
+  }
+  function placeStage() {
+    const b = barFrame.getBoundingClientRect();
+    const [x, y, w, h] = {
+      top: [b.left, b.bottom, b.width, ROOM[1]],
+      bottom: [b.left, b.top - ROOM[1], b.width, ROOM[1]],
+      left: [b.right, b.top, ROOM[0], b.height],
+      right: [b.left - ROOM[0], b.top, ROOM[0], b.height],
+    }[settings.edge];
+    Object.assign(menuFrame.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
   }
   document.addEventListener("pointerdown", e => { if (e.target === document.body || e.target.closest(".window")) hideMenu(); });
 
@@ -112,21 +125,13 @@
     }),
     open_menu({ id, item, toggle }) {
       if (open?.[0] === id) { if (toggle) hideMenu(); return; }
+      if (!open) placeStage();
       open = [id, item];
-      emitTo("menu", "menu", id);
+      emitTo("menu", "menu", { id, item, edge: settings.edge });
     },
-    menu_ready({ id, width, height }) {
+    menu_ready({ id }) {
       if (open?.[0] !== id) return;
-      // The same rules as place_menu in main.rs.
-      const b = barFrame.getBoundingClientRect(), it = open[1];
-      const along = (start, len, from, size) => Math.max(start + 6, Math.min(start + from, start + len - 6 - size));
-      const [x, y] = {
-        top: [along(b.left, b.width, it.left, width), b.bottom + 4],
-        bottom: [along(b.left, b.width, it.left, width), b.top - 4 - height],
-        left: [b.right + 4, along(b.top, b.height, it.top, height)],
-        right: [b.left - 4 - width, along(b.top, b.height, it.top, height)],
-      }[settings.edge];
-      Object.assign(menuFrame.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, display: "block" });
+      menuFrame.style.display = "block";
       menuFrame.contentWindow.focus();
       emitTo("bar", "menu-opened", id);
     },
@@ -138,8 +143,11 @@
     },
     media_art: () => art,
     // The harness page's own background stands in for the wallpaper behind the bar.
-    wallpaper() {
-      const r = barFrame.getBoundingClientRect(), d = devicePixelRatio;
+    wallpaper(_, label) {
+      // The menu frame may still be hidden here, as the real window may: use where it's been put.
+      const m = menuFrame.style, px = v => parseFloat(v) || 0;
+      const r = label === "menu" ? { left: px(m.left), top: px(m.top), width: px(m.width), height: px(m.height) } : barFrame.getBoundingClientRect();
+      const d = devicePixelRatio;
       const screen = [0, 0, innerWidth * d, innerHeight * d].map(Math.round);
       return { key: "preview", color: "#1c2238", position: "fill", monitor: screen, desktop: screen, bar: [r.left, r.top, r.width, r.height].map(v => Math.round(v * d)) };
     },
@@ -177,7 +185,7 @@
     invoke(label, cmd, args) {
       const fn = commands[cmd];
       if (!fn) return Promise.reject(`unknown command ${cmd}`);
-      try { return Promise.resolve(fn(args)); } catch (e) { return Promise.reject(String(e)); }
+      try { return Promise.resolve(fn(args, label)); } catch (e) { return Promise.reject(String(e)); }
     },
   };
 

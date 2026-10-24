@@ -43,8 +43,26 @@ body {
   white-space: nowrap; font-variant-numeric: tabular-nums;
   transition: background 0.12s;
 }
+.item { position: relative; z-index: 1; }
 .item:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); }
-.item.open { background: color-mix(in srgb, var(--ink) 15%, transparent); }
+.item.open { background: none; }
+
+/* The open menu's tab (bar.js): the item's box in the menu's color, reaching across the bar's
+   edge so it runs into the menu. */
+#bar { position: relative; }
+#tab {
+  position: absolute; z-index: 0; opacity: 0; pointer-events: none;
+  background: var(--surface);
+  transition: left 0.2s cubic-bezier(0.3, 0.7, 0.2, 1), width 0.2s cubic-bezier(0.3, 0.7, 0.2, 1),
+    top 0.2s cubic-bezier(0.3, 0.7, 0.2, 1), height 0.2s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.14s ease-out;
+}
+#tab.instant { transition: opacity 0.14s ease-out; }
+#tab.on { opacity: 1; }
+[data-edge="top"] #tab { top: 3px; bottom: -1px; border-radius: 8px 8px 0 0; }
+[data-edge="bottom"] #tab { top: -1px; bottom: 3px; border-radius: 0 0 8px 8px; }
+[data-edge="left"] #tab { left: 3px; right: -1px; border-radius: 8px 0 0 8px; }
+[data-edge="right"] #tab { left: -1px; right: 3px; border-radius: 0 8px 8px 0; }
+[data-glass="on"] #tab { background: color-mix(in srgb, var(--surface) 50%, transparent); }
 
 .ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ic .fill { fill: currentColor; stroke: none; }

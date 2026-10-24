@@ -17,8 +17,8 @@ items.system.innerHTML = icons.logo();
 // --- menus -------------------------------------------------------------------------
 
 function open(id, toggle, el = items[id]) {
-  const { left, top } = el.getBoundingClientRect();
-  invoke("open_menu", { id, item: { left, top }, toggle });
+  const { left, top, width, height } = el.getBoundingClientRect();
+  invoke("open_menu", { id, item: { left, top, width, height }, toggle });
 }
 
 for (const [id, item] of Object.entries(items)) {
@@ -36,12 +36,34 @@ $("#bar").addEventListener("pointerdown", e => {
 });
 
 const menuItems = () => [...Object.entries(items), ...[...dock.children].map(b => [`dock:${b.dataset.key}`, b])];
+
+// The open menu's item becomes a tab in the menu's own color, running into the menu below it (or
+// beside it), so the two read as one piece. Moving to another item slides the tab along with it.
+const tab = document.createElement("div");
+tab.id = "tab";
+$("#bar").prepend(tab);
+function showTab(el) {
+  const bar = $("#bar").getBoundingClientRect(), r = el.getBoundingClientRect();
+  const fresh = !tab.classList.contains("on");
+  tab.classList.toggle("instant", fresh);
+  Object.assign(tab.style, settings.edge === "left" || settings.edge === "right"
+    ? { top: `${r.top - bar.top}px`, height: `${r.height}px`, left: "", width: "" }
+    : { left: `${r.left - bar.left}px`, width: `${r.width}px`, top: "", height: "" });
+  if (fresh) void tab.offsetWidth; // lay it out where it starts, so it fades in there, not slides
+  tab.classList.remove("instant");
+  tab.classList.add("on");
+}
+
 listen("menu-opened", id => {
   openMenu = id;
-  for (const [k, item] of menuItems()) item.classList.toggle("open", k === id);
+  for (const [k, item] of menuItems()) {
+    item.classList.toggle("open", k === id);
+    if (k === id) showTab(item);
+  }
 });
 listen("menu-closed", () => {
   openMenu = null;
+  tab.classList.remove("on");
   for (const [, item] of menuItems()) item.classList.remove("open");
 });
 
@@ -250,66 +272,14 @@ function renderAll() {
 }
 
 // --- glass -------------------------------------------------------------------------
-// Windows only blurs behind windows that have the focus, and the bar never does. But the bar
-// keeps its strip of the screen to itself, so only the wallpaper is ever behind it: it draws that
-// part of the wallpaper, blurred, and the palette's tint goes over it (bar.css).
+// The bar keeps its strip of the screen to itself, so only the wallpaper is ever behind it: it
+// shows that part of the wallpaper, blurred (common.js), with the palette's tint over it (bar.css).
 
 const backdrop = $("#backdrop");
-let wall = null, wallKey = null, wallImage = null;
 
 async function refreshBackdrop() {
   backdrop.hidden = !settings.glass;
-  if (!settings.glass) return;
-  const w = await invoke("wallpaper").catch(() => null);
-  if (!w) return;
-  if (w.key !== wallKey) {
-    wallKey = w.key;
-    const url = await invoke("wallpaper_image").catch(() => null);
-    wallImage = url ? await new Promise(ok => {
-      const img = new Image();
-      img.onload = () => ok(img);
-      img.onerror = () => ok(null);
-      img.src = url;
-    }) : null;
-  }
-  wall = w;
-  drawBackdrop();
-}
-
-/** The wallpaper as Windows lays it out, on a canvas whose origin is the screen's. */
-function paintWallpaper(g, w, img) {
-  const [mx, my, mw, mh] = w.position === "span" ? w.desktop : w.monitor;
-  const iw = img.naturalWidth, ih = img.naturalHeight;
-  if (w.position === "stretch") return g.drawImage(img, mx, my, mw, mh);
-  if (w.position === "center") return g.drawImage(img, mx + (mw - iw) / 2, my + (mh - ih) / 2);
-  if (w.position === "tile") {
-    g.save();
-    g.translate(mx, my);
-    g.fillStyle = g.createPattern(img, "repeat");
-    g.fillRect(0, 0, mw, mh);
-    return g.restore();
-  }
-  const scale = w.position === "fit" ? Math.min(mw / iw, mh / ih) : Math.max(mw / iw, mh / ih);
-  g.drawImage(img, mx + (mw - iw * scale) / 2, my + (mh - ih * scale) / 2, iw * scale, ih * scale);
-}
-
-function drawBackdrop() {
-  const w = wall;
-  if (!w) return;
-  const [bx, by, bw, bh] = w.bar;
-  // The blur reaches past the bar's edges, so draw a margin of the wallpaper around it too.
-  const pad = Math.ceil(60 * devicePixelRatio);
-  const src = new OffscreenCanvas(bw + 2 * pad, bh + 2 * pad);
-  const g = src.getContext("2d");
-  g.fillStyle = w.color;
-  g.fillRect(0, 0, src.width, src.height);
-  g.translate(pad - bx, pad - by);
-  if (wallImage) paintWallpaper(g, w, wallImage);
-  backdrop.width = bw;
-  backdrop.height = bh;
-  const out = backdrop.getContext("2d");
-  out.filter = `blur(${Math.round(20 * devicePixelRatio)}px) saturate(1.6)`;
-  out.drawImage(src, -pad, -pad);
+  if (settings.glass) await Lintel.backdrop(backdrop);
 }
 
 let backdropTimer = 0;

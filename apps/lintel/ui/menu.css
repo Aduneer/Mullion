@@ -1,14 +1,61 @@
-/* The dropdown under a bar item. The window is sized to #menu (see menu.js), and Windows 11 rounds
-   its corners and draws its shadow. Colors are tokens from themes.css. */
+/* The menu under a bar item. Its window lies along the bar, see-through and larger than any menu
+   (main.rs); #panel is the menu itself, joined to the bar along one edge and rounded on the others,
+   growing out of the bar as it opens and folding back as it closes. menu.js sizes and places it to
+   fit #menu. Colors are tokens from themes.css. */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
 :focus { outline: none; }
 
-html, body { overflow: hidden; background: var(--surface); }
-[data-glass="on"], [data-glass="on"] body { background: transparent; }
-[data-glass="on"] #menu { background: color-mix(in srgb, var(--surface) 50%, transparent); }
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+
+#panel {
+  --r: 12px;      /* its far corners, and the curves where it meets the bar */
+  --reach: 48px;  /* room for its shadow and those curves, outside its box */
+  --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  background: var(--surface);
+  box-shadow: 0 12px 32px var(--shadow), 0 1px 4px color-mix(in srgb, var(--shadow) 50%, transparent);
+  clip-path: var(--shut);
+  transition: clip-path 0.18s var(--ease);
+}
+#panel.open { clip-path: var(--shown); }
+/* Moving to another item's menu: it slides and reshapes rather than jumping. */
+#panel.moving {
+  transition: clip-path 0.18s var(--ease), left 0.2s var(--ease), top 0.2s var(--ease), width 0.2s var(--ease), height 0.2s var(--ease);
+}
+/* With glass, the wallpaper (menu.js), tinted as the bar is, then as its tab is. Fixed to the
+   window, so it lines up with the bar's whatever the panel's size and place. */
+[data-glass="on"] #panel {
+  background:
+    linear-gradient(color-mix(in srgb, var(--surface) 50%, transparent), color-mix(in srgb, var(--surface) 50%, transparent)),
+    linear-gradient(color-mix(in srgb, var(--page) 35%, transparent), color-mix(in srgb, var(--page) 35%, transparent)),
+    var(--wall, none) 0 0 / 100% 100% fixed;
+}
+
+/* The two curves where it meets the bar, so it flows out of it rather than butting against it. */
+#panel::before, #panel::after { content: ""; position: absolute; width: var(--r); height: var(--r); background: inherit; }
+[data-edge="top"] #panel { border-radius: 0 0 var(--r) var(--r); --shut: inset(0 calc(-1 * var(--reach)) 100% calc(-1 * var(--reach))); --shown: inset(0 calc(-1 * var(--reach)) calc(-1 * var(--reach))); --nudge: translateY(-8px); }
+[data-edge="top"] #panel::before { top: 0; left: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 0 100%, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="top"] #panel::after { top: 0; right: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 100% 100%, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="bottom"] #panel { border-radius: var(--r) var(--r) 0 0; --shut: inset(100% calc(-1 * var(--reach)) 0); --shown: inset(calc(-1 * var(--reach)) calc(-1 * var(--reach)) 0); --nudge: translateY(8px); }
+[data-edge="bottom"] #panel::before { bottom: 0; left: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 0 0, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="bottom"] #panel::after { bottom: 0; right: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 100% 0, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="left"] #panel { border-radius: 0 var(--r) var(--r) 0; --shut: inset(calc(-1 * var(--reach)) 100% calc(-1 * var(--reach)) 0); --shown: inset(calc(-1 * var(--reach)) calc(-1 * var(--reach)) calc(-1 * var(--reach)) 0); --nudge: translateX(-8px); }
+[data-edge="left"] #panel::before { left: 0; top: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 100% 0, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="left"] #panel::after { left: 0; bottom: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 100% 100%, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="right"] #panel { border-radius: var(--r) 0 0 var(--r); --shut: inset(calc(-1 * var(--reach)) 0 calc(-1 * var(--reach)) 100%); --shown: inset(calc(-1 * var(--reach)) 0 calc(-1 * var(--reach)) calc(-1 * var(--reach))); --nudge: translateX(8px); }
+[data-edge="right"] #panel::before { right: 0; top: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 0 0, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+[data-edge="right"] #panel::after { right: 0; bottom: calc(-1 * var(--r)); -webkit-mask: radial-gradient(circle at 0 100%, transparent var(--r), #000 calc(var(--r) + 0.5px)); }
+
+/* What's in it slides out of the bar a little as it opens, and fades across when it changes. */
+#menu { transition: opacity 0.16s ease-out, transform 0.2s var(--ease); }
+#panel:not(.open) #menu { opacity: 0; transform: var(--nudge); }
+#panel .ghost { pointer-events: none; animation: fade-out 0.12s ease-out forwards; }
+#menu.entering { animation: fade-in 0.16s ease-out; }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes fade-in { from { opacity: 0; } }
 body {
   color: var(--ink);
   font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
@@ -16,9 +63,9 @@ body {
   -webkit-user-select: none;
 }
 
-/* Shrinks to its content, so menu.js can measure it; the window is then sized to match. */
-#menu { display: inline-flex; flex-direction: column; min-width: 230px; max-width: 540px; padding: 5px; }
-#menu.wide { width: 300px; }
+/* Shrinks to its content, so menu.js can measure it; the panel is then sized to match. */
+#menu, .ghost { position: absolute; top: 0; left: 0; display: inline-flex; flex-direction: column; min-width: 230px; max-width: 540px; padding: 5px; }
+#menu.wide, .ghost.wide { width: 300px; }
 
 .ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ic .fill { fill: currentColor; stroke: none; }
