@@ -372,7 +372,9 @@ const VIEWS = {
         </div>
         <label class="toggle" title="Windows' taskbar auto-hides while Lintel runs, and comes back when Lintel quits"><input type="checkbox" data-act="${act(save({ hide_taskbar: !s.hide_taskbar }))}"${s.hide_taskbar ? " checked" : ""}${canHide || s.hide_taskbar ? "" : " disabled"}>Hide the Windows taskbar</label>
         ${canHide ? "" : `<div class="hint muted">Windows only hides a taskbar at the bottom of the screen</div>`}
-        <label class="toggle"><input type="checkbox" data-act="${act(el => { invoke("set_autostart", { enabled: el.checked }).then(on => { info.autostart = on; el.checked = on; }); return "keep"; })}"${info.autostart ? " checked" : ""}>Start Lintel when I sign in</label>
+        ${info.mullion
+          ? `<div class="hint muted" style="margin-left:0">Mullion starts Lintel when you sign in: see Mullion Settings</div>`
+          : `<label class="toggle"><input type="checkbox" data-act="${act(el => { invoke("set_autostart", { enabled: el.checked }).then(on => { info.autostart = on; el.checked = on; }); return "keep"; })}"${info.autostart ? " checked" : ""}>Start Lintel when I sign in</label>`}
       </div>
       ${sep}
       ${item("Back", () => { view = current; render(); return "keep"; })}

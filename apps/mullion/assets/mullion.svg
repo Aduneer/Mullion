@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Mullion</title>
+  <!-- Ink, the suite's own color: the apps each have a building material of their own. -->
+  <rect width="1024" height="1024" rx="224" fill="#1c1b19"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="216" fill="none" stroke="#f0efec" stroke-opacity="0.14" stroke-width="16"/>
+  <!-- a window: two panes of glass in a frame, the mullion between them, on a sill -->
+  <g fill="#f0efec">
+    <rect x="300" y="236" width="184" height="500" rx="10" fill-opacity="0.16"/>
+    <rect x="540" y="236" width="184" height="500" rx="10" fill-opacity="0.16"/>
+    <path d="M300 208h424a56 56 0 0 1 56 56v472h-56V264H300v472h-56V264a56 56 0 0 1 56-56z"/>
+    <rect x="484" y="208" width="56" height="528"/>
+    <rect x="200" y="736" width="624" height="64" rx="22"/>
+  </g>
+</svg>

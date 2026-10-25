@@ -5,7 +5,7 @@
 //! NVML adds temperature, power, clocks and fan, but only while the GPU is
 //! already awake: on Optimus laptops any NVML call wakes a sleeping dGPU.
 
-use crate::pdh::Query;
+use mullion_core::pdh::Query;
 use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
 use nvml_wrapper::Nvml;
 use serde::Serialize;

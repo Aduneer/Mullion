@@ -1,14 +1,14 @@
 //! Builds one snapshot of the system per tick.
 
-use crate::audio::{Audio, AudioWatch};
+use mullion_core::audio::{Audio, AudioWatch};
 use crate::calendar::CalendarWatch;
 use crate::feed::Status;
 use crate::ffi::*;
 use crate::gpu::{GpuInfo, GpuMonitor, GpuSample};
 use crate::lhm::{Fan, Lhm};
-use crate::media::{Media, MediaWatch};
+use mullion_core::media::{Media, MediaWatch};
 use crate::openwin::{Win, Windows};
-use crate::pdh::Query;
+use mullion_core::pdh::Query;
 use crate::procs::{Proc, ProcessSampler};
 use crate::weather::WeatherWatch;
 use serde::Serialize;

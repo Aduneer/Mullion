@@ -8,9 +8,7 @@ mod ffi;
 mod files;
 mod history;
 mod hotkey;
-mod icons;
 mod matcher;
-mod power;
 mod preview;
 mod search;
 mod settings;
@@ -21,6 +19,8 @@ use clipboard::Clipboard;
 use files::Files;
 use history::History;
 use hotkey::Hotkey;
+use mullion_core::suite::{self, Ask};
+use mullion_core::{look, power};
 use serde::Serialize;
 use settings::Settings;
 use shell::Shell;
@@ -31,7 +31,7 @@ use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::window::{Color, Effect, EffectsBuilder};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, State, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 /// The panel's width, in CSS pixels. Its window is the panel itself: as tall as the page says it
@@ -63,6 +63,8 @@ struct Hello {
     hotkeys: &'static [&'static str],
     engines: Vec<(&'static str, &'static str)>,
     autostart: bool,
+    /// Mullion started Fanlight, and has its tray icon and sign-in entry.
+    mullion: bool,
     files: usize,
     version: String,
     settings_path: String,
@@ -70,11 +72,29 @@ struct Hello {
 
 fn main() {
     tauri::Builder::default()
-        // Starting it again (from Start, say) opens the panel.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
+        // Starting it again (from Start, say) opens the panel. Mullion starts it again to ask
+        // something of it (`mullion_core::suite`).
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            let from_mullion = suite::from_mullion(&args);
+            if from_mullion {
+                leave_to_mullion(app);
+            }
+            match suite::ask(&args) {
+                Ask::Quit => app.exit(0),
+                Ask::Settings => show_settings(app),
+                Ask::Show => show(app),
+                Ask::Nothing if !from_mullion => show(app),
+                Ask::Nothing => {}
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![hello, search, icon, preview, open, recent, forget, hide, fit, save_settings, set_autostart, reindex, clear_history, quit])
         .setup(|app| {
+            let args: Vec<String> = std::env::args().collect();
+            // A --quit that gets this far found no Fanlight running, so there's nothing to quit.
+            if suite::ask(&args) == Ask::Quit {
+                std::process::exit(0);
+            }
             let settings = Settings::load().clamp();
             app.manage(Shell::start());
             let files = Files::default();
@@ -87,7 +107,12 @@ fn main() {
             app.manage(Shown(Mutex::new(None)));
 
             create_panel(app.handle())?;
-            build_tray(app.handle(), &settings.hotkey)?;
+            // Mullion's tray icon stands in for Fanlight's when Mullion started it.
+            if suite::from_mullion(&args) {
+                leave_to_mullion(app.handle());
+            } else {
+                build_tray(app.handle(), &settings.hotkey)?;
+            }
             let handle = app.handle().clone();
             let (hk, first) = Hotkey::start(&settings.hotkey, move || {
                 let app = handle.clone();
@@ -96,6 +121,11 @@ fn main() {
             app.manage(HotkeyState(hk, Mutex::new(first.err())));
             apply_look(app.handle(), &settings);
             app.manage(SettingsState(Mutex::new(settings)));
+            match suite::ask(&args) {
+                Ask::Show => show(app.handle()),
+                Ask::Settings => show_settings(app.handle()),
+                _ => {}
+            }
             Ok(())
         })
         .on_window_event(|window, event| match event {
@@ -213,17 +243,12 @@ fn create_panel(app: &AppHandle) -> tauri::Result<WebviewWindow> {
 /// The window follows the theme (the acrylic's own tint is dark or light with it), and with glass
 /// gets Windows' acrylic: what's behind it, blurred, as Start and the quick settings have.
 fn apply_look(app: &AppHandle, settings: &Settings) {
-    let native = match settings.theme.as_str() {
-        "dark" => Some(Theme::Dark),
-        "light" => Some(Theme::Light),
-        _ => None,
-    };
     let Some(w) = panel(app) else { return };
-    let _ = w.set_theme(native);
+    let _ = w.set_theme(look::native_theme(&settings.theme));
     let effects = settings.glass.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build());
     let _ = w.set_effects(effects);
     if let Ok(hwnd) = w.hwnd() {
-        ffi::round_corners(hwnd.0 as isize);
+        look::round_corners(hwnd.0 as isize);
     }
 }
 
@@ -254,12 +279,7 @@ fn build_tray(app: &AppHandle, hotkey: &str) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show(app),
-            "settings" => {
-                show(app);
-                if let Some(w) = panel(app) {
-                    let _ = w.emit("view", "settings");
-                }
-            }
+            "settings" => show_settings(app),
             "autostart" => {
                 let on = !app.autolaunch().is_enabled().unwrap_or(false);
                 let _ = set_autostart(app.clone(), on);
@@ -278,6 +298,23 @@ fn build_tray(app: &AppHandle, hotkey: &str) -> tauri::Result<()> {
 
 struct OpenItem(MenuItem<Wry>);
 
+fn show_settings(app: &AppHandle) {
+    show(app);
+    if let Some(w) = panel(app) {
+        let _ = w.emit("view", "settings");
+    }
+}
+
+/// Mullion started Fanlight, or reached the one running: Mullion's tray icon and sign-in entry
+/// stand in for Fanlight's own, so there's one of each for the whole suite.
+fn leave_to_mullion(app: &AppHandle) {
+    let _ = app.remove_tray_by_id("main");
+    let al = app.autolaunch();
+    if al.is_enabled().unwrap_or(false) {
+        let _ = al.disable();
+    }
+}
+
 // --- commands --------------------------------------------------------------------------
 
 #[tauri::command]
@@ -288,6 +325,7 @@ fn hello(app: AppHandle, settings: State<SettingsState>, hotkey: State<HotkeySta
         hotkeys: settings::HOTKEYS,
         engines: search::ENGINE_NAMES.iter().map(|(id, name, _)| (*id, *name)).collect(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
+        mullion: suite::is_run_by_mullion(),
         files: files.count(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),

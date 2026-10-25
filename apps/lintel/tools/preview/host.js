@@ -4,7 +4,7 @@
 // URL options, all optional:
 //   theme=auto|dark|light  palette=nord  height=30  edge=top|bottom|left|right  open=clock (a menu open at start)
 //   media=off  battery=off  wifi=off (wired)  offline=1  desktop=1 (the desktop in front)  hot=1 (high CPU and memory)
-//   screens=2 (a second screen)  glass=on  apps=off (no open apps)
+//   screens=2 (a second screen)  glass=on  apps=off (no open apps)  mullion=1 (started by Mullion)
 //   demo=1 (a stand-in pointer opens a menu and slides along the bar, for the README's animation)
 "use strict";
 (() => {
@@ -132,7 +132,7 @@
 
   const commands = {
     hello: () => ({
-      settings, sample: latest, front, apps: running, has_battery: hasBattery, oriel: true, autostart, clock24: true, first_day: 0,
+      settings, sample: latest, front, apps: running, has_battery: hasBattery, oriel: true, autostart, mullion: q.has("mullion"), clock24: true, first_day: 0,
       version: "0.1.0", host: "DESKTOP-7Q2K4M", settings_path: "C:\\Users\\you\\AppData\\Roaming\\Lintel\\settings.json",
     }),
     open_menu({ id, item, toggle }) {

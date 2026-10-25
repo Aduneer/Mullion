@@ -1,5 +1,6 @@
 //! User settings, stored as JSON in %APPDATA%\Oriel\settings.json.
 
+use mullion_core::settings::{dir, write_json};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -171,8 +172,7 @@ fn tidy(name: &str, max: usize) -> String {
 }
 
 pub fn path() -> PathBuf {
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    base.join("Oriel").join("settings.json")
+    dir("Oriel").join("settings.json")
 }
 
 impl Settings {
@@ -194,14 +194,7 @@ impl Settings {
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        let p = path();
-        if let Some(dir) = p.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        // Write then rename, so a crash mid-write can't leave a corrupt file.
-        let tmp = p.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
-        std::fs::rename(tmp, p)
+        write_json(&path(), self, true)
     }
 
     /// Whether a widget is on any page, on screen or not.

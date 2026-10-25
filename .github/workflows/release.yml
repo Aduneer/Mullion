@@ -1,0 +1,151 @@
+# Builds every app's own installer and portable zip, and Mullion's installer and portable zip
+# (Mullion.exe and the apps in one folder), on GitHub's Windows machines; tries each one out; and
+# drafts a release with them all.
+#
+# The suite has one version. To release: set `version` in every app's src-tauri/Cargo.toml, then
+# push a signed tag with that version:
+#   git tag -s v0.3.0 -m "Mullion 0.3.0"
+#   git push origin v0.3.0
+# Check the draft on the Releases page, add notes, and publish it.
+#
+# Third-party actions are pinned to a commit (with the version in a comment), so a moved tag
+# can't change what runs with write access to the repo. Dependabot keeps the pins current.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write # to create the draft release
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the tag matches every app's version
+        shell: pwsh
+        run: |
+          foreach ($toml in Get-ChildItem apps/*/src-tauri/Cargo.toml) {
+            $version = (Select-String -Path $toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+            if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version in $toml" }
+          }
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      # Release builds plus each app's NSIS installer. Mullion.exe has no installer of its own
+      # (its tauri.conf.json turns bundling off): it comes in Mullion's, below. Code signing would
+      # go here once there's a certificate. The apps share target/, so each build reuses what the
+      # last one compiled.
+      - name: Build
+        shell: pwsh
+        run: |
+          foreach ($app in Get-ChildItem apps -Directory) {
+            Push-Location "$($app.FullName)/src-tauri"
+            npx --yes @tauri-apps/cli@2.12.3 build
+            if ($LASTEXITCODE) { throw "$($app.Name) didn't build" }
+            Pop-Location
+          }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = $env:TAG.TrimStart("v")
+          New-Item -ItemType Directory dist | Out-Null
+          foreach ($app in Get-ChildItem apps -Directory) {
+            $conf = Get-Content "$($app.FullName)/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+            if (-not $conf.bundle.active) { continue }
+            $name = $conf.productName
+            $setup = Get-ChildItem "target/release/bundle/nsis/$name*-setup.exe"
+            if (@($setup).Count -ne 1) { throw "Expected one installer for $name, found $(@($setup).Count)" }
+            Copy-Item $setup.FullName "dist/$name-$v-setup.exe"
+            Compress-Archive "target/release/$($app.Name).exe" "dist/$name-$v-portable.zip"
+          }
+          # Mullion's portable zip: Mullion.exe and every app side by side, as its installer lays
+          # them out, so Mullion finds them.
+          $exes = Get-ChildItem apps -Directory | ForEach-Object { "target/release/$($_.Name).exe" }
+          Compress-Archive $exes "dist/Mullion-$v-portable.zip"
+
+      # Smart App Control can stop release builds on our own PCs, so try each installer here on a
+      # clean Windows: install silently, check the app starts and keeps running, then uninstall.
+      - name: Try each app's installer
+        shell: pwsh
+        run: |
+          foreach ($setup in Get-ChildItem dist/*-setup.exe) {
+            $name = $setup.Name -replace '-[^-]+-setup\.exe$'
+            Start-Process $setup.FullName -ArgumentList "/S" -Wait
+            $entry = Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall |
+              Get-ItemProperty | Where-Object DisplayName -eq $name
+            if (-not $entry) { throw "$name isn't listed in Installed apps" }
+            $uninstaller = [regex]::Match($entry.UninstallString, '^"?([^"]+\.exe)').Groups[1].Value
+            $exe = Join-Path (Split-Path $uninstaller) "$($name.ToLower()).exe"
+            if (-not (Test-Path $exe)) { throw "No $($name.ToLower()).exe at $exe" }
+            $app = Start-Process $exe -PassThru
+            Start-Sleep -Seconds 15
+            if ($app.HasExited) { throw "$name quit straight after starting (exit code $($app.ExitCode))" }
+            Stop-Process -Id $app.Id
+            Start-Process $uninstaller -ArgumentList "/S" -Wait
+            for ($i = 0; $i -lt 30 -and (Test-Path $exe); $i++) { Start-Sleep -Seconds 1 }
+            if (Test-Path $exe) { throw "The uninstaller left $exe behind" }
+            Write-Host "$name installed to $(Split-Path $exe), ran for 15 s, uninstalled."
+          }
+
+      # Mullion's installer (installer/mullion.nsi), built with the NSIS that Tauri's build
+      # downloaded.
+      - name: Build Mullion's installer
+        shell: pwsh
+        run: |
+          $v = $env:TAG.TrimStart("v")
+          $makensis = Get-ChildItem "$env:LOCALAPPDATA/tauri/NSIS" -Recurse -Filter makensis.exe | Select-Object -First 1
+          if (-not $makensis) { throw "No makensis.exe from Tauri's build in $env:LOCALAPPDATA\tauri\NSIS" }
+          & $makensis.FullName "/DVERSION=$v" "/DBIN=$(Resolve-Path target/release)" "/DOUTFILE=$(Join-Path (Resolve-Path dist) "Mullion-$v-setup.exe")" installer/mullion.nsi
+          if ($LASTEXITCODE) { throw "makensis failed" }
+
+      # Install everything silently, check Mullion starts every app from its folder and quits them
+      # with it, then uninstall and check nothing's left.
+      - name: Try Mullion's installer
+        shell: pwsh
+        run: |
+          Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S" -Wait
+          $dir = Join-Path $env:LOCALAPPDATA "Mullion"
+          $apps = Get-ChildItem apps -Directory | ForEach-Object Name
+          foreach ($a in $apps) { if (-not (Test-Path "$dir/$a.exe")) { throw "No $a.exe in $dir" } }
+          if (-not (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion -ErrorAction SilentlyContinue)) {
+            throw "Mullion isn't listed in Installed apps"
+          }
+          Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
+          Start-Sleep -Seconds 15
+          foreach ($a in $apps) {
+            if (-not (Get-Process $a -ErrorAction SilentlyContinue)) { throw "$a isn't running 15 s after Mullion started" }
+          }
+          Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 5
+          foreach ($a in $apps) {
+            if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a kept running after Mullion quit" }
+          }
+          Start-Process "$dir/uninstall.exe" -ArgumentList "/S" -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir/mullion.exe"); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path "$dir/mullion.exe") { throw "The uninstaller left $dir behind" }
+          Write-Host "Mullion installed $($apps.Count) apps to $dir, ran them, quit them and uninstalled."
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content dist/SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          draft: true
+          fail_on_unmatched_files: true
+          files: dist/*

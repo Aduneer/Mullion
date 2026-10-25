@@ -22,37 +22,20 @@ param([switch]$Icons, [switch]$Demo, [string]$Browser)
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+# The scripts every app shares (Shots.psm1, icons.py, demo.py) are in the repo's own tools folder.
+$shared = (Resolve-Path (Join-Path $root "..\..\tools")).Path
 
-if (-not $Browser) {
-    $Browser = @(
-        "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
-        "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
-        "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-        "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
-        "$env:LOCALAPPDATA\imput\Helium\Application\chrome.exe"
-    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if (-not $Browser) { throw "No Edge or Chrome found; pass -Browser path\to\chrome.exe" }
-}
+Import-Module (Join-Path $shared "preview\Shots.psm1") -Force
+
+if (-not $Browser) { $Browser = Find-Browser }
 $userData = Join-Path $env:TEMP "lintel-shots"
 
 function Shot($url, $file, $width, $height, $background = "00000000", $budget = 12000, [switch]$Moving) {
-    Remove-Item $file -ErrorAction SilentlyContinue
-    $motion = @()
-    if (-not $Moving) { $motion += "--force-prefers-reduced-motion" }
-    # The browser logs harmless noise to stderr, which Windows PowerShell would treat as an error.
-    $ErrorActionPreference = "Continue"
-    & $Browser --headless=new --disable-gpu --hide-scrollbars --no-first-run "--user-data-dir=$userData" $motion `
-        "--default-background-color=$background" "--window-size=$width,$height" "--virtual-time-budget=$budget" `
-        "--screenshot=$file" $url 2>&1 | Out-Null
-    $ErrorActionPreference = "Stop"
-    if (-not (Test-Path $file)) { throw "No screenshot for $url" }
-    Write-Host "  $file"
+    Save-Shot $Browser $userData $url $file $width $height $background $budget -Moving:$Moving
 }
 
 if ($Icons) {
-    $png = Join-Path $env:TEMP "lintel-logo-1024.png"
-    Shot ([Uri](Join-Path $root "assets\lintel.svg")).AbsoluteUri $png 1024 1024
-    python -I (Join-Path $root "tools\icons.py") $png (Join-Path $root "src-tauri\icons")
+    New-AppIcons $Browser $userData (Join-Path $root "assets\lintel.svg") (Join-Path $root "src-tauri\icons") "lintel"
     return
 }
 
@@ -66,13 +49,14 @@ try {
     # The first run of a fresh browser profile can be cut short before the menu opens: warm it up.
     Shot "$base&theme=dark&open=media" (Join-Path $env:TEMP "lintel-warmup.png") 1440 620
     if ($Demo) {
-        # 20 frames a second of one page load, its clock stepped frame by frame (demo.py), then an
-        # animated WebP like Oriel's: smaller than a GIF, and not cut down to 256 colors.
+        # 20 frames a second of one page load, recorded as it plays (demo.py), then an animated
+        # WebP like Oriel's: smaller than a GIF, and not cut down to 256 colors. The page is 1440x449,
+        # what the browser's window left it before demo.py set the size itself.
         $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
         if (-not $ffmpeg) { throw "The demo needs ffmpeg on the PATH: winget install Gyan.FFmpeg" }
         $frames = Join-Path $env:TEMP "lintel-demo"
         Remove-Item $frames -Recurse -Force -ErrorAction SilentlyContinue
-        python -I (Join-Path $PSScriptRoot "demo.py") $Browser "$base&theme=dark&demo=1" $frames 700 10300 20
+        python -I (Join-Path $shared "preview\demo.py") $Browser "$base&theme=dark&demo=1" $frames 700 10300 20 1440 449
         $webp = Join-Path $images "demo.webp"
         & $ffmpeg -hide_banner -loglevel error -y -framerate 20 -i (Join-Path $frames "%03d.png") `
             -vf "scale=1280:-1:flags=lanczos" -c:v libwebp_anim -quality 82 -loop 0 $webp
@@ -91,23 +75,9 @@ try {
     # Control Centre open, in the style of Oriel's. Upload it under the repo's Settings.
     $raw = Join-Path $env:TEMP "lintel-social-bar.png"
     Shot "$base&theme=dark&glass=on&open=control" $raw 1440 640
-    $page = Join-Path $env:TEMP "lintel-social.html"
-    $file = { param($path) ([Uri]$path).AbsoluteUri }
-    Set-Content $page -Encoding utf8 ("<!doctype html><meta charset=`"utf-8`"><style>" +
-        "html,body{margin:0;width:1280px;height:640px;overflow:hidden}" +
-        "body{background:radial-gradient(circle at 88% 10%,#9085e938,transparent 50%),radial-gradient(circle at 0 100%,#3987e52e,transparent 45%),linear-gradient(#1a1a21,#0c0c10);" +
-        "color:#f0efec;font-family:'Segoe UI Variable Text','Segoe UI',sans-serif}" +
-        ".t{position:absolute;left:80px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center}" +
-        ".t img{width:104px;height:104px;margin-bottom:28px}" +
-        "h1{margin:0 0 18px;font:600 100px/1 'Segoe UI Variable Display','Segoe UI',sans-serif;letter-spacing:-2px}" +
-        "p{margin:0;font-size:33px;line-height:1.3;color:#b4b8c2}" +
-        ".s{margin-top:30px;font-size:21px;color:#7c818d}" +
-        ".d{position:absolute;left:610px;top:110px;width:640px;height:560px;border-radius:16px;overflow:hidden;box-shadow:0 30px 90px #000a,0 0 0 1px #ffffff14}" +
-        ".d img{position:absolute;right:0;top:0;width:1440px}" +
-        "</style><div class=`"d`"><img src=`"$(& $file $raw)`"></div>" +
-        "<div class=`"t`"><img src=`"$(& $file (Join-Path $root 'assets\lintel.svg'))`"><h1>Lintel</h1>" +
-        "<p>A menu bar for Windows.</p><div class=`"s`">Free and open source &middot; Rust + Tauri</div></div>")
-    Shot (& $file $page) (Join-Path $images "social-preview.png") 1280 640 "1a1a21ff"
+    New-SocialPreview $Browser $userData $raw (Join-Path $root "assets\lintel.svg") "Lintel" "A menu bar for Windows." `
+        (Join-Path $images "social-preview.png") "440px" "100px" `
+        "position:absolute;left:610px;top:110px;width:640px;height:560px;border-radius:16px" "position:absolute;right:0;top:0;width:1440px" "#b84d35"
 } finally {
     Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
 }

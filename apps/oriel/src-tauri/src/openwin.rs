@@ -158,7 +158,7 @@ impl Windows {
         let fg = unsafe { ffi::GetForegroundWindow() };
         let fg_pid = read(fg).map_or(0, |w| w.pid);
         let exes = &mut self.exes;
-        let rows = build(&enumerate(), own, (fg, fg_pid), |pid| exes.entry(pid).or_insert_with(|| crate::audio::exe_name(pid)).clone());
+        let rows = build(&enumerate(), own, (fg, fg_pid), |pid| exes.entry(pid).or_insert_with(|| mullion_core::audio::exe_name(pid)).clone());
         self.exes.retain(|pid, _| rows.iter().any(|r| r.pid == *pid));
         Some(rows)
     }

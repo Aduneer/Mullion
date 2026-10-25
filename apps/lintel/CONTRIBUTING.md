@@ -14,15 +14,16 @@ You need:
   the **Desktop development with C++** workload
 - The WebView2 runtime, which is built into Windows 11 and comes with Edge on Windows 10
 
-Then:
+Lintel lives in [Mullion](../../README.md)'s repo, with the other apps and the code they share
+(`core/`). Clone it, then:
 
 ```powershell
-cd src-tauri
+cd apps\lintel\src-tauri
 cargo run
 ```
 
-The first build takes a few minutes. The app ends up in `src-tauri\target\debug\lintel.exe`,
-and **Start Lintel when I sign in** works with that copy too.
+The first build takes a few minutes. The app ends up in `target\debug\lintel.exe` at the top of
+the repo, and **Start Lintel when I sign in** works with that copy too.
 
 Lintel stops its own window from closing (only **Quit Lintel** ends it), so to replace the exe
 while it's running, end it first with `taskkill /IM lintel.exe /F`. Windows takes the bar's
@@ -42,29 +43,30 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/main.rs         the bar and menu windows, settings, and the commands the pages can call
   src/appbar.rs       registers each bar as a Windows app bar (SHAppBarMessage) on its screen
   src/apps.rs         the app in front and the running apps (WinEvent hooks on their own thread)
-  src/icons.rs        the running apps' icons, as PNG
   src/stats.rs        CPU, memory, network, battery and the network's name, once a second
-  src/pdh.rs          Windows performance counters
-  src/media.rs        what's playing, from Windows' media controls, on its own thread
-  src/audio.rs        output and per-app volume via Core Audio, on its own thread
   src/radios.rs       Wi-Fi and Bluetooth on and off, and the paired Bluetooth devices
   src/brightness.rs   screen brightness: the power plan for a laptop's own, DDC/CI for monitors
   src/wallpaper.rs    the wallpaper behind each bar, for the glass look
   src/taskbar.rs      auto-hiding Windows' taskbar while Lintel runs, and putting it back
-  src/power.rs        lock, sleep, sign out, restart and shut down
   src/settings.rs     the settings file
-  src/ffi.rs          the few Win32 functions not taken from the windows crate
+  src/ffi.rs          the Win32 functions only Lintel uses (the rest are the core's)
   windows/            extra steps for the installer
 ui/                   the bar and its menus: plain HTML, CSS and JavaScript, no build step
-  themes.css          the palettes, shared with Oriel
+  themes.css          the palettes: a copy of ui-common/themes.css, shared with Oriel and Fanlight
   common.js           helpers and icons for both pages
   index.html, bar.*   the bar
   menu.html, menu.*   the menu window, one view per bar item
 tools/preview/        runs the bar and its menus in a browser on made-up data
-tools/banner.py       draws the README banners from the logo
-tools/icons.py        makes the app icons from the logo
 assets/               the logo and banners
 ```
+
+What the apps share is in Mullion's `core/` (the `mullion-core` crate): the Win32 bindings more
+than one uses, the settings files, the running apps' icons, the Alt+Tab window list, the power
+commands (lock, sleep, sign out, restart, shut down) and the window's look, plus, behind features
+Lintel turns on, Windows' performance counters (`pdh`), what's playing (`media`) and Core Audio
+volume (`audio`). `ui-common/themes.css` is where the palettes are edited, and the repo's `tools/`
+has the scripts every app's preview uses (`icons.py`, `preview/demo.py`, `preview/Shots.psm1`).
+[Mullion's CONTRIBUTING](../../CONTRIBUTING.md) has more.
 
 There are two kinds of window. Each **bar** is an app bar, one per screen it's on: it never
 takes focus, so clicking it doesn't pull the keyboard away from the window you're in. The
@@ -88,12 +90,13 @@ The pages can only ask Windows to open a fixed list of things (Task Manager, Fil
 Oriel if it's installed, `ms-settings:` pages and the Wi-Fi list; `run_action` in `main.rs`),
 press the shortcuts for the panels Windows has no API for, open a new window of a running app
 (`launch_app`), act on running apps' windows (`window_action`, `quit_app`), control media,
-volume, brightness and the radios, and run the power actions in `power.rs`.
+volume, brightness and the radios, and run the power actions in the core's `power.rs`.
 [SECURITY.md](SECURITY.md) has the full list.
 
 Anything Windows-specific that a test can check without a screen has one (`cargo test`): app bar
 geometry, which screens get a bar, where the menu's stage lies on each edge, settings validation,
-the Wi-Fi API's struct layout, app icons.
+the Wi-Fi API's struct layout, and in the core, app icons and the window list
+(`cargo test --workspace` runs them all).
 
 ## Working on the bar
 
@@ -117,7 +120,7 @@ animation at the top of the README (`docs/images/demo.webp`) from `?demo=1` (`de
 needs [ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`). With `-Icons` it renders
 `assets\lintel.svg` and makes the app icons from it (needs Python with
 [Pillow](https://pypi.org/project/pillow/)).
-`python -I tools\banner.py assets` draws the banners from the logo.
+`python -I tools\banner.py apps\lintel`, from the top of the repo, draws the banners from the logo.
 
 ```powershell
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1
@@ -125,14 +128,10 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1
 
 ## Making a release
 
-Releases are built by GitHub Actions (`.github/workflows/release.yml`), not on a PC, so Smart
-App Control and local toolchains don't matter:
-
-1. Set `version` in `src-tauri/Cargo.toml` (the installer takes its version from there).
-2. Commit, then make a signed tag and push it: `git tag -s v0.1.0 -m "Lintel 0.1.0"` and
-   `git push origin v0.1.0`.
-3. The workflow builds `Lintel-0.1.0-setup.exe`, `Lintel-0.1.0-portable.zip` and
-   `SHA256SUMS.txt`, and drafts a release with them. Add notes and publish it.
+Lintel is released with the rest of Mullion, at the suite's version, by GitHub Actions:
+[Mullion's CONTRIBUTING](../../CONTRIBUTING.md#making-a-release) has the steps. Each release has
+`Lintel-<version>-setup.exe` and `Lintel-<version>-portable.zip` of its own, beside Mullion's
+installer.
 
 The installer is Tauri's NSIS installer. It installs per user, needs no admin rights and, when
 "Delete the application data" is ticked on uninstall, also removes the settings and the sign-in

@@ -2,7 +2,7 @@
 //! version of Oriel's collector, from the same sources (the counters Task Manager uses).
 
 use crate::ffi::*;
-use crate::pdh::Query;
+use mullion_core::pdh::Query;
 use serde::Serialize;
 use std::ptr::null_mut;
 use windows::Win32::Networking::NetworkListManager::{

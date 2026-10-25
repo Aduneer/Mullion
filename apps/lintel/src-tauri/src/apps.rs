@@ -6,6 +6,8 @@
 //! bar and its menus are left out, so opening a menu doesn't change the name next to the logo.
 
 use crate::ffi::*;
+use mullion_core::icons;
+use mullion_core::wins::{self, enumerate, listed, read, Raw};
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -201,11 +203,11 @@ fn list_apps(w: &mut Watch) -> Vec<App> {
         // Store apps are known by their app id; their program files often have no icon of their own.
         let packaged = raw.class == "ApplicationFrameWindow" || key.contains(r"\windowsapps\");
         let launch = packaged
-            .then(|| crate::icons::app_id(raw.hwnd))
+            .then(|| icons::app_id(raw.hwnd))
             .flatten()
             .map(|id| format!(r"shell:AppsFolder\{id}"))
             .unwrap_or_else(|| path.clone());
-        let icon = w.icons.entry(key.clone()).or_insert_with(|| crate::icons::icon(&launch).or_else(|| crate::icons::icon(&path))).clone();
+        let icon = w.icons.entry(key.clone()).or_insert_with(|| icons::icon(&launch, icons::SIZE_PX).or_else(|| icons::icon(&path, icons::SIZE_PX))).clone();
         apps.push(App { key, name, exe, pid: raw.pid, windows: vec![win], icon, launch });
     }
     w.order.retain(|k| apps.iter().any(|a| &a.key == k));
@@ -286,103 +288,13 @@ fn front(w: &Raw, own_pid: u32, mut names: impl FnMut(u32) -> (String, String)) 
 
 // --- windows -------------------------------------------------------------------------
 
-const WS_EX_TOOLWINDOW: u32 = 0x0000_0080;
-const WS_EX_APPWINDOW: u32 = 0x0004_0000;
-const WS_EX_NOACTIVATE: u32 = 0x0800_0000;
 const GA_ROOT: u32 = 2;
-
-/// What Windows says about one top-level window.
-#[derive(Clone, Debug, Default)]
-struct Raw {
-    hwnd: isize,
-    /// For a Store app's frame, the app's process rather than the frame host's.
-    pid: u32,
-    owned: bool,
-    ex_style: u32,
-    cloaked: bool,
-    minimized: bool,
-    class: String,
-    title: String,
-}
 
 fn root(hwnd: isize) -> isize {
     match unsafe { GetAncestor(hwnd, GA_ROOT) } {
         0 => hwnd,
         r => r,
     }
-}
-
-/// Ask Windows about one window. None if it's gone.
-fn read(hwnd: isize) -> Option<Raw> {
-    unsafe {
-        if hwnd == 0 || IsWindow(hwnd) == 0 {
-            return None;
-        }
-        let mut pid = 0u32;
-        GetWindowThreadProcessId(hwnd, &mut pid);
-        let mut cloaked = 0u32;
-        DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, (&mut cloaked as *mut u32).cast(), 4);
-        let (mut title, mut class) = ([0u16; 512], [0u16; 256]);
-        let t = GetWindowTextW(hwnd, title.as_mut_ptr(), title.len() as i32).max(0) as usize;
-        let c = GetClassNameW(hwnd, class.as_mut_ptr(), class.len() as i32).max(0) as usize;
-        let class = String::from_utf16_lossy(&class[..c]);
-        // Store apps live in a frame window that belongs to ApplicationFrameHost; the app is the
-        // process behind the frame's content.
-        if class == "ApplicationFrameWindow" {
-            pid = store_app_pid(hwnd, pid).unwrap_or(pid);
-        }
-        Some(Raw {
-            hwnd,
-            pid,
-            owned: GetWindow(hwnd, GW_OWNER) != 0,
-            ex_style: GetWindowLongW(hwnd, GWL_EXSTYLE) as u32,
-            cloaked: cloaked != 0,
-            minimized: IsIconic(hwnd) != 0,
-            class,
-            title: String::from_utf16_lossy(&title[..t]),
-        })
-    }
-}
-
-fn store_app_pid(frame: isize, frame_pid: u32) -> Option<u32> {
-    unsafe extern "system" fn child(hwnd: isize, out: isize) -> i32 {
-        let out = &mut *(out as *mut (u32, Option<u32>));
-        let mut pid = 0u32;
-        GetWindowThreadProcessId(hwnd, &mut pid);
-        if pid != out.0 {
-            out.1 = Some(pid);
-            return 0;
-        }
-        1
-    }
-    let mut found = (frame_pid, None);
-    unsafe { EnumChildWindows(frame, child, (&mut found as *mut (u32, Option<u32>)) as isize) };
-    found.1
-}
-
-/// The same test Alt+Tab applies, as far as it's documented (from Oriel's Open windows widget).
-fn listed(w: &Raw, own_pid: u32) -> bool {
-    let app = w.ex_style & WS_EX_APPWINDOW != 0;
-    !w.title.is_empty()
-        && w.pid != own_pid
-        && !w.cloaked
-        && (app || (w.ex_style & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) == 0 && !w.owned))
-        && !SHELL_CLASSES.contains(&w.class.as_str())
-        && !DESKTOP_CLASSES.contains(&w.class.as_str())
-}
-
-fn enumerate() -> Vec<Raw> {
-    unsafe extern "system" fn collect(hwnd: isize, out: isize) -> i32 {
-        if IsWindowVisible(hwnd) != 0 {
-            if let Some(w) = read(hwnd) {
-                (*(out as *mut Vec<Raw>)).push(w);
-            }
-        }
-        1
-    }
-    let mut all: Vec<Raw> = Vec::new();
-    unsafe { EnumWindows(collect, (&mut all as *mut Vec<Raw>) as isize) };
-    all
 }
 
 /// The windows of the program `pid` runs, top-most first. Matched by program file, so every
@@ -400,43 +312,19 @@ pub fn windows_of(pid: u32) -> Vec<Win> {
         .collect()
 }
 
-/// The window the menu showed, if it's still there and still the same program's. Windows reuses
-/// handles, so a handle alone isn't enough.
-fn target(hwnd: u64, pid: u32) -> Result<isize, String> {
-    let hwnd = isize::try_from(hwnd).map_err(|_| "not a window".to_string())?;
-    match read(hwnd) {
-        Some(w) if w.pid == pid && listed(&w, std::process::id()) => Ok(hwnd),
-        _ => Err("that window has gone".into()),
-    }
-}
-
-/// Bring a window to the front, restoring it first if it's minimized.
+/// Bring a window the menu showed to the front, restoring it first if it's minimized. Only if
+/// it's still there and still the same program's (`wins::check`): Windows reuses handles.
 pub fn focus(hwnd: u64, pid: u32) -> Result<(), String> {
-    let hwnd = target(hwnd, pid)?;
-    unsafe {
-        if IsIconic(hwnd) != 0 {
-            ShowWindow(hwnd, SW_RESTORE);
-        }
-        if SetForegroundWindow(hwnd) == 0 {
-            return Err("Windows wouldn't bring that window to the front".into());
-        }
-    }
-    Ok(())
+    wins::focus(wins::handle(hwnd)?, pid)
 }
 
 pub fn minimize(hwnd: u64, pid: u32) -> Result<(), String> {
-    let hwnd = target(hwnd, pid)?;
-    unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
-    Ok(())
+    wins::minimize(wins::handle(hwnd)?, pid)
 }
 
 /// Ask a window to close, as its × button does: the program can still offer to save.
 pub fn close(hwnd: u64, pid: u32) -> Result<(), String> {
-    let hwnd = target(hwnd, pid)?;
-    if unsafe { PostMessageW(hwnd, WM_CLOSE, 0, 0) } == 0 {
-        return Err("Windows wouldn't deliver the request (an elevated program?)".into());
-    }
-    Ok(())
+    wins::close(wins::handle(hwnd)?, pid)
 }
 
 /// "Quit": ask every window of the app to close. Never ends a process, so nothing unsaved is lost
@@ -526,17 +414,6 @@ mod tests {
         assert_eq!(display_name("foo", Some("Foo - the best foo")), "Foo");
         assert_eq!(display_name("foo", None), "foo");
         assert_eq!(display_name("foo", Some("")), "foo");
-    }
-
-    #[test]
-    fn listing_follows_alt_tab() {
-        assert!(listed(&win(1, 7, "X", "Notes"), ME));
-        assert!(!listed(&win(1, 7, "X", ""), ME));
-        assert!(!listed(&win(1, ME, "X", "Lintel"), ME));
-        assert!(!listed(&Raw { cloaked: true, ..win(1, 7, "X", "Calculator") }, ME));
-        assert!(!listed(&Raw { ex_style: WS_EX_TOOLWINDOW, ..win(1, 7, "X", "Palette") }, ME));
-        assert!(!listed(&Raw { owned: true, ..win(1, 7, "X", "Save as") }, ME));
-        assert!(!listed(&win(1, 7, "Progman", "Program Manager"), ME));
     }
 
     #[test]

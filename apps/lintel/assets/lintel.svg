@@ -1,36 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <title>Lintel</title>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#212128"/>
-      <stop offset="1" stop-color="#101014"/>
-    </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3987e5"/>
-      <stop offset="1" stop-color="#9085e9"/>
-    </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
-      <stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#000" stop-opacity="0.32"/>
-      <stop offset="1" stop-color="#000" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
-  <!-- the screen: a pane of glass -->
-  <rect x="252" y="318" width="520" height="452" rx="34" fill="url(#glass)"/>
-  <rect x="252" y="318" width="520" height="452" rx="34" fill="url(#sheen)"/>
-  <!-- the beam's shadow on the glass -->
-  <rect x="252" y="318" width="520" height="70" fill="url(#shade)"/>
-  <!-- the lintel: the menu bar, wider than the opening it sits over -->
-  <rect x="200" y="236" width="624" height="82" rx="24" fill="#f0efec"/>
-  <g fill="#101014">
-    <rect x="240" y="263" width="28" height="28" rx="8"/>
-    <rect x="290" y="268" width="96" height="18" rx="9"/>
-    <rect x="620" y="268" width="40" height="18" rx="9"/>
-    <rect x="676" y="268" width="40" height="18" rx="9"/>
-    <rect x="732" y="268" width="52" height="18" rx="9"/>
+  <!-- Brick, which a lintel holds up over every doorway. -->
+  <rect width="1024" height="1024" rx="224" fill="#b84d35"/>
+  <!-- a lintel: the beam across the top of an opening, on its two jambs; on the beam, a menu bar -->
+  <g fill="#f0efec">
+    <rect x="184" y="248" width="656" height="116" rx="24"/>
+    <rect x="268" y="364" width="64" height="420"/>
+    <rect x="692" y="364" width="64" height="420"/>
+    <rect x="300" y="364" width="424" height="420" fill-opacity="0.16"/>
+  </g>
+  <g fill="#b84d35">
+    <rect x="228" y="286" width="40" height="40" rx="11"/>
+    <rect x="290" y="295" width="132" height="22" rx="11"/>
+    <rect x="610" y="295" width="52" height="22" rx="11"/>
+    <rect x="680" y="295" width="52" height="22" rx="11"/>
+    <rect x="750" y="295" width="46" height="22" rx="11"/>
   </g>
 </svg>

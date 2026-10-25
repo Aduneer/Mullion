@@ -1,9 +1,10 @@
 //! User settings, stored as JSON in %APPDATA%\Fanlight\settings.json (beside Oriel's and Lintel's own folders).
 
+use mullion_core::settings::PALETTES;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const PALETTES: &[&str] = &["oriel", "catppuccin", "nord", "gruvbox", "rose-pine", "solarized"];
+pub use mullion_core::settings::{read_json, write_json};
 pub const HOTKEYS: &[&str] = &["alt+space", "ctrl+space", "ctrl+alt+space", "alt+shift+space", "win+alt+space", "ctrl+shift+space"];
 pub const ENGINES: &[&str] = &["google", "bing", "duckduckgo", "brave", "ecosia", "startpage", "kagi"];
 
@@ -58,32 +59,11 @@ impl Default for Settings {
 }
 
 pub fn dir() -> PathBuf {
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    base.join("Fanlight")
+    mullion_core::settings::dir("Fanlight")
 }
 
 pub fn path() -> PathBuf {
     dir().join("settings.json")
-}
-
-/// Read a JSON file of ours, or None if it's missing or broken.
-pub fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Option<T> {
-    std::fs::read_to_string(path)
-        .ok()
-        // Notepad and PowerShell can save with a byte-order mark, which serde_json rejects.
-        .and_then(|s| serde_json::from_str(s.trim_start_matches('\u{feff}')).ok())
-}
-
-/// Write a JSON file of ours: to a temporary file first, then over the old one, so a crash
-/// halfway never leaves half a file.
-pub fn write_json<T: Serialize>(path: &std::path::Path, value: &T, pretty: bool) -> std::io::Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let text = if pretty { serde_json::to_string_pretty(value)? } else { serde_json::to_string(value)? };
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, text)?;
-    std::fs::rename(tmp, path)
 }
 
 impl Settings {

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560">
+<title>Mullion</title>
+<g transform="translate(140,120) scale(0.3125)">
+  
+  
+  <rect width="1024" height="1024" rx="224" fill="#1c1b19"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="216" fill="none" stroke="#f0efec" stroke-opacity="0.14" stroke-width="16"/>
+  
+  <g fill="#f0efec">
+    <rect x="300" y="236" width="184" height="500" rx="10" fill-opacity="0.16"/>
+    <rect x="540" y="236" width="184" height="500" rx="10" fill-opacity="0.16"/>
+    <path d="M300 208h424a56 56 0 0 1 56 56v472h-56V264H300v472h-56V264a56 56 0 0 1 56-56z"/>
+    <rect x="484" y="208" width="56" height="528"/>
+    <rect x="200" y="736" width="624" height="64" rx="22"/>
+  </g>
+</g>
+<text x="516" y="262" font-size="132" font-weight="700" letter-spacing="-3" fill="#f0efec" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Mullion</text>
+<rect x="522" y="292" width="72" height="8" rx="4" fill="#f0efec"/>
+<text x="522" y="352" font-size="34" fill="#898781" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Well-made parts for the Windows desktop</text>
+<rect x="522" y="380" width="84" height="40" rx="10" fill="#1f1e1c" stroke="rgba(240,239,236,0.12)"/>
+<rect x="536" y="393" width="14" height="14" rx="4" fill="#2e6e60"/>
+<text x="558" y="406" font-size="16" fill="#f0efec" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Oriel</text>
+<rect x="618.0" y="380" width="94" height="40" rx="10" fill="#1f1e1c" stroke="rgba(240,239,236,0.12)"/>
+<rect x="632.0" y="393" width="14" height="14" rx="4" fill="#b84d35"/>
+<text x="654.0" y="406" font-size="16" fill="#f0efec" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Lintel</text>
+<rect x="723.6" y="380" width="113" height="40" rx="10" fill="#1f1e1c" stroke="rgba(240,239,236,0.12)"/>
+<rect x="737.6" y="393" width="14" height="14" rx="4" fill="#dd9d2c"/>
+<text x="759.6" y="406" font-size="16" fill="#f0efec" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Fanlight</text>
+</svg>

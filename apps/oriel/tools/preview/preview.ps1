@@ -115,11 +115,11 @@ if ($Installer) {
     $pages = [ordered]@{
         "installer-sidebar" = @{ w = 164; h = 314; html =
             "html,body{margin:0;width:164px;height:314px;overflow:hidden}" +
-            "body{background:radial-gradient(circle at 100% 0,#9085e938,transparent 70%),radial-gradient(circle at 0 100%,#3987e52e,transparent 65%),linear-gradient(#1a1a21,#0c0c10);" +
+            "body{background:#161513;border-top:6px solid #2e6e60;box-sizing:border-box;" +
             "color:#f0efec;font-family:$fonts;text-align:center}" +
-            "img{display:block;width:68px;height:68px;margin:70px auto 18px;border-radius:16px;box-shadow:0 0 0 1px #ffffff1a,0 8px 22px #0008}" +
+            "img{display:block;width:68px;height:68px;margin:70px auto 18px}" +
             "h1{margin:0 0 10px;font-weight:600;font-size:34px;line-height:1;letter-spacing:-.5px}" +
-            "p{margin:0 auto;width:118px;font-size:11.5px;line-height:1.4;color:#b4b8c2}" +
+            "p{margin:0 auto;width:118px;font-size:11.5px;line-height:1.4;color:#b8b5ad}" +
             "<img src=`"$logo`"><h1>Oriel</h1><p>A command center for your second screen</p>" }
         "installer-header" = @{ w = 150; h = 57; html =
             "html,body{margin:0;width:150px;height:57px;overflow:hidden;background:#fff}" +
@@ -241,13 +241,13 @@ Write-Host "Rendering social preview"
 $p = Join-Path $out "social-preview.html"
 Write-Page $p ("<!doctype html><meta charset=`"utf-8`"><style>" +
     "html,body{margin:0;width:1280px;height:640px;overflow:hidden}" +
-    "body{background:radial-gradient(circle at 88% 10%,#9085e938,transparent 50%),radial-gradient(circle at 0 100%,#3987e52e,transparent 45%),linear-gradient(#1a1a21,#0c0c10);" +
+    "body{background:#161513;border-top:8px solid #2e6e60;box-sizing:border-box;" +
     "color:#f0efec;font-family:'Segoe UI Variable Text','Segoe UI',sans-serif}" +
     ".t{position:absolute;left:80px;top:0;bottom:0;width:460px;display:flex;flex-direction:column;justify-content:center}" +
     ".t img{width:104px;height:104px;margin-bottom:28px}" +
     "h1{margin:0 0 18px;font:600 100px/1 'Segoe UI Variable Display','Segoe UI',sans-serif;letter-spacing:-2px}" +
-    "p{margin:0;font-size:33px;line-height:1.3;color:#b4b8c2}" +
-    ".s{margin-top:30px;font-size:21px;color:#7c818d}" +
+    "p{margin:0;font-size:33px;line-height:1.3;color:#b8b5ad}" +
+    ".s{margin-top:30px;font-size:21px;color:#898781}" +
     ".d{position:absolute;left:600px;top:118px;width:960px;height:540px;border-radius:16px;box-shadow:0 30px 90px #000a,0 0 0 1px #ffffff14}" +
     "</style><img class=`"d`" src=`"$(Url (Join-Path $raw 'oriel-dark.png'))`">" +
     "<div class=`"t`"><img src=`"$(Url (Join-Path $root 'assets\oriel.svg'))`"><h1>Oriel</h1>" +

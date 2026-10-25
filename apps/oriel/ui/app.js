@@ -28,6 +28,7 @@ async function boot() {
     interval: hello.interval_ms / 1000,
     monitors: hello.monitors,
     autostart: hello.autostart,
+    mullion: hello.mullion,
     settingsPath: hello.settings_path,
   });
   await O.plugins.load(); // once; a no-op when the setting is off

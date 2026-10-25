@@ -39,7 +39,7 @@ and Windows versions you tried.
   Windows offers, and notes how it was in `%APPDATA%\Lintel\taskbar-state` so it can put it
   back when you turn the setting off or quit (`src-tauri/src/taskbar.rs`). It changes nothing
   else about the taskbar or Explorer.
-- It can lock the PC, put it to sleep, sign out, restart or shut down (`src-tauri/src/power.rs`).
+- It can lock the PC, put it to sleep, sign out, restart or shut down (`power.rs` in Mullion's `core/`).
   Sign out, restart and shut down ask first, and none of them force apps to close.
 - It runs as you, without admin rights, and installs per user. Its settings are in
   `%APPDATA%\Lintel\settings.json`, beside the taskbar note above while there is one.

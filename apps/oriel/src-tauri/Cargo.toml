@@ -1,31 +1,22 @@
 [package]
 name = "oriel"
-version = "0.2.1"
+version = "0.3.0"
 description = "A second-screen command center for Windows"
 license = "MIT"
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { workspace = true, features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
-tauri-plugin-autostart = "2"
-tauri-plugin-single-instance = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+mullion-core = { workspace = true, features = ["audio", "media", "pdh"] }
+tauri = { workspace = true, features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = { workspace = true }
+tauri-plugin-single-instance = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 nvml-wrapper = "0.13"
-# Same majors as Tauri's own dependencies, so they're only compiled once.
-windows = { version = "0.62", features = [
-    "Win32_Foundation", "Win32_Graphics_Dxgi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com",
-    "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem", "Media_Control", "Storage_Streams",
-    "Globalization", "Web_Http", "Web_Http_Filters", "Web_Http_Headers",
+windows = { workspace = true, features = [
+    "Win32_Foundation", "Win32_Graphics_Dxgi", "Win32_System_Com", "Globalization", "Web_Http", "Web_Http_Filters", "Web_Http_Headers",
 ] }
-base64 = "0.22"
-
-[profile.release]
-opt-level = "s"
-lto = true
-codegen-units = 1
-strip = true
-panic = "abort"
+base64 = { workspace = true }

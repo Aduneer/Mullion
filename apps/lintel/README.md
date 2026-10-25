@@ -10,9 +10,9 @@
 The app you're in, your open apps, what's playing, a Control Centre and the clock,<br>
 in one slim bar along the top of your screen, the way macOS and Linux desktops have it.
 
-[![Latest release](https://img.shields.io/github/v/release/Aduneer/Lintel?color=%233987e5)](../../releases/latest)
-[![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
-![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
+[![Latest release](https://img.shields.io/github/v/release/Aduneer/Mullion?color=%23b84d35)](https://github.com/Aduneer/Mullion/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-b84d35)](LICENSE)
+![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-b84d35)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
 [Install](#install) · [What's in it](#whats-in-the-bar) · [Positions and themes](#positions-and-themes) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
@@ -39,7 +39,7 @@ always there, and every item opens a small menu that does something.
   keyboard away from the window you're working in.
 - **Private.** No account, no telemetry, and it never goes online. See [SECURITY.md](SECURITY.md).
 - **Looks like it belongs.** Six palettes, each in dark and light, and Auto to follow Windows.
-  The same ones as [Oriel](https://github.com/Aduneer/Oriel). Solid, or glass that shows your
+  The same ones as [Oriel](../oriel/README.md). Solid, or glass that shows your
   wallpaper through the bar and its menus.
 
 ## What's in the bar
@@ -105,7 +105,8 @@ and its menus:
 
 Lintel runs on Windows 10 and 11.
 
-1. Download **Lintel-*version*-setup.exe** from the [latest release](../../releases/latest).
+1. Download **Lintel-*version*-setup.exe** from the [latest release](https://github.com/Aduneer/Mullion/releases/latest),
+   or **Mullion-*version*-setup.exe** there to pick from all of Mullion's apps at once.
 2. Run it. It installs just for you, with no admin prompt, and adds Lintel to the Start menu.
 3. Start Lintel. It takes its place along the top of your main screen; Menu Bar Settings, in the
    logo menu, moves it.
@@ -157,11 +158,13 @@ Logo menu → **Menu Bar Settings**. Changes apply and save as you make them, to
   Lintel quits
 - **Start Lintel when I sign in**
 
-## Works with Oriel
+## Part of Mullion
 
-Lintel is part of the same set of apps as [Oriel](https://github.com/Aduneer/Oriel), the
-dashboard for your second screen, and shares its themes. If Oriel is installed, the logo menu
-has a shortcut to it. One installer for all of them is on the roadmap.
+Lintel is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
+desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen, and
+[Fanlight](../fanlight/README.md), search and launch. They share their themes, and Mullion's
+installer installs any of them in one go. Each is still its own program, which works alone. If
+Oriel is installed, the logo menu has a shortcut to it.
 
 ## FAQ
 
@@ -200,15 +203,14 @@ Code signing needs a paid certificate and an identity check. It's planned.
 
 ## Roadmap
 
-- One installer for Lintel, Oriel and what comes next: a search, a launcher and a dock
 - Signed releases, then winget
 
-Something you'd like to see? Say so in [Discussions](../../discussions).
+Something you'd like to see? Say so in [Discussions](https://github.com/Aduneer/Mullion/discussions).
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome: [open an issue](../../issues/new/choose) for a
-bug, or start a [discussion](../../discussions) for an idea or a question.
+Bug reports, ideas and pull requests are welcome: [open an issue](https://github.com/Aduneer/Mullion/issues/new/choose) for a
+bug, or start a [discussion](https://github.com/Aduneer/Mullion/discussions) for an idea or a question.
 [CONTRIBUTING.md](CONTRIBUTING.md) covers building from source, how Lintel works and working on
 the bar in a browser without building the Rust side.
 

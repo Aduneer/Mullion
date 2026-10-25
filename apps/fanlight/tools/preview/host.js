@@ -5,7 +5,7 @@
 // URL options, all optional:
 //   theme=dark|light  palette=nord  glass=on
 //   q=lisbon (typed in)  only=apps|files|actions|clipboard  sel=2 (↓ that many times)  preview=1 (Space)
-//   view=settings  apps=list (the Apps category as a list, not a grid)
+//   view=settings  apps=list (the Apps category as a list, not a grid)  mullion=1 (started by Mullion)
 //   demo=1 (types a tour of it, for the README's animation)
 "use strict";
 (() => {
@@ -390,7 +390,7 @@
   const commands = {
     hello: () => ({
       settings, hotkey_error: null, hotkeys: ["alt+space", "ctrl+space", "ctrl+alt+space", "alt+shift+space", "win+alt+space", "ctrl+shift+space"],
-      engines: ENGINES.map(([id, name]) => [id, name]), autostart, files: 48213, version: "0.1.0",
+      engines: ENGINES.map(([id, name]) => [id, name]), autostart, mullion: q.has("mullion"), files: 48213, version: "0.1.0",
       settings_path: String.raw`C:\Users\you\AppData\Roaming\Fanlight\settings.json`,
     }),
     search: ({ text, seq, only }) => [seq, search(text, only)],

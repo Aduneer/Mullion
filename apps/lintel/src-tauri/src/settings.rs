@@ -1,9 +1,8 @@
 //! User settings, stored as JSON in %APPDATA%\Lintel\settings.json (beside Oriel's own folder).
 
+use mullion_core::settings::{read_json, write_json, PALETTES};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-
-const PALETTES: &[&str] = &["oriel", "catppuccin", "nord", "gruvbox", "rose-pine", "solarized"];
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
@@ -70,25 +69,16 @@ impl Default for Settings {
 }
 
 pub fn path() -> PathBuf {
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    base.join("Lintel").join("settings.json")
+    mullion_core::settings::dir("Lintel").join("settings.json")
 }
 
 impl Settings {
     pub fn load() -> Self {
-        std::fs::read_to_string(path())
-            .ok()
-            // Notepad and PowerShell can save with a byte-order mark, which serde_json rejects.
-            .and_then(|s| serde_json::from_str(s.trim_start_matches('\u{feff}')).ok())
-            .unwrap_or_default()
+        read_json(&path()).unwrap_or_default()
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        let p = path();
-        if let Some(dir) = p.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        std::fs::write(p, serde_json::to_string_pretty(self)?)
+        write_json(&path(), self, true)
     }
 
     /// Anything a hand-edited file got wrong goes back to its default.

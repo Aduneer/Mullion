@@ -1,0 +1,25 @@
+# Mullion: the shared core and every app, in one Cargo workspace. Each app is still its own exe
+# and process, and works alone; they share this lockfile, the release profile and one target/.
+[workspace]
+members = ["core", "apps/mullion/src-tauri", "apps/oriel/src-tauri", "apps/lintel/src-tauri", "apps/fanlight/src-tauri"]
+resolver = "2"
+
+[workspace.dependencies]
+mullion-core = { path = "core" }
+tauri = "2"
+tauri-build = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Same majors as Tauri's own dependencies, so they're only compiled once. Each crate adds the
+# features it needs.
+windows = "0.62"
+base64 = "0.23"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

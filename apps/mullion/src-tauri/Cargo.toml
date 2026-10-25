@@ -1,0 +1,17 @@
+[package]
+name = "mullion"
+version = "0.3.0"
+description = "Mullion: one tray icon, sign-in entry and settings window for the suite's apps"
+license = "MIT"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { workspace = true, features = [] }
+
+[dependencies]
+mullion-core = { workspace = true }
+tauri = { workspace = true, features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = { workspace = true }
+tauri-plugin-single-instance = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

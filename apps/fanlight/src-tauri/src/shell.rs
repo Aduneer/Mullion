@@ -2,6 +2,7 @@
 //! apps (desktop programs and Store apps alike, from the shell's Applications folder), and the
 //! icons for results, made once and kept.
 
+use mullion_core::icons;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Sender};
@@ -129,12 +130,12 @@ const BIG_THUMB: i32 = 768;
 /// the same for the preview, larger.
 fn make_icon(key: &str) -> Option<String> {
     let (big, key) = key.strip_prefix("big:").map_or((false, key), |k| (true, k));
-    let (icon, thumb) = if big { (BIG_ICON, BIG_THUMB) } else { (crate::icons::SIZE_PX, crate::icons::SIZE_PX) };
+    let (icon, thumb) = if big { (BIG_ICON, BIG_THUMB) } else { (icons::SIZE_PX, icons::SIZE_PX) };
     let (kind, rest) = key.split_once(':')?;
     match kind {
-        "app" => crate::icons::icon(&format!(r"shell:AppsFolder\{rest}"), icon),
-        "file" | "folder" => crate::icons::icon(rest, icon),
-        "thumb" => crate::icons::thumbnail(rest, thumb).or_else(|| crate::icons::icon(rest, icon)),
+        "app" => icons::icon(&format!(r"shell:AppsFolder\{rest}"), icon),
+        "file" | "folder" => icons::icon(rest, icon),
+        "thumb" => icons::thumbnail(rest, thumb).or_else(|| icons::icon(rest, icon)),
         _ => None,
     }
 }

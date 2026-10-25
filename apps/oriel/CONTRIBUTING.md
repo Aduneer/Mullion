@@ -13,15 +13,16 @@ You need:
   the **Desktop development with C++** workload
 - The WebView2 runtime, which is built into Windows 11 and comes with Edge on Windows 10
 
-Then:
+Oriel lives in [Mullion](../../README.md)'s repo, with the other apps and the code they share
+(`core/`). Clone it, then:
 
 ```powershell
-cd src-tauri
+cd apps\oriel\src-tauri
 cargo run
 ```
 
-The first build takes a few minutes. The app ends up in `src-tauri\target\debug\oriel.exe`,
-and **Start at sign-in** in Settings works with that copy too.
+The first build takes a few minutes. The app ends up in `target\debug\oriel.exe` at the top of
+the repo, and **Start at sign-in** in Settings works with that copy too.
 
 > [!NOTE]
 > With Smart App Control on, `cargo build --release` fails with *os error 4551*: Windows won't
@@ -36,12 +37,9 @@ and **Start at sign-in** in Settings works with that copy too.
 src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/main.rs         window placement, tray, settings and actions the page can call
   src/collect.rs      builds one snapshot per tick from the modules below
-  src/pdh.rs          Windows performance counters (CPU, GPU engines, disk, network, thermal zone)
   src/gpu.rs          GPU names via DXGI, NVIDIA extras via NVML on its own thread
   src/procs.rs        every process's CPU time, memory and parent in one NtQuerySystemInformation call
   src/lhm.rs          optional LibreHardwareMonitor reader on its own thread
-  src/media.rs        what's playing, from Windows' media controls, on its own thread
-  src/audio.rs        the volume mixer: output and per-app volume via Core Audio, on its own thread
   src/net.rs          https GET through Windows' own HTTP client; the only code that goes online
   src/feed.rs         when a widget that goes online fetches, and what it keeps when a fetch fails
   src/weather.rs      the weather widget (Open-Meteo forecast) and Settings' place search
@@ -51,9 +49,10 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/plugins.rs      serves widgets from the plugin folder over the oriel-plugins:// scheme
   src/openwin.rs      the open windows Alt+Tab would list, and focusing or closing one
   src/settings.rs     the settings file
+  src/ffi.rs          the Win32 and NT functions only Oriel uses (the rest are the core's)
   windows/            extra steps for the installer
 ui/                   the dashboard: plain HTML, CSS and canvas, no build step, no dependencies
-  themes.css          the themes, each a set of CSS variables in a dark and a light version
+  themes.css          the themes: a copy of ui-common/themes.css, shared with Lintel and Fanlight
   core.js             widget registry, charts, formatting
   widgets/*.js        one file per widget
   plugins.js          loads widgets from the plugin folder and keeps a broken one contained
@@ -63,7 +62,15 @@ ui/                   the dashboard: plain HTML, CSS and canvas, no build step, 
   app.js              layout and the update loop
 docs/examples/        an example plugin to copy
 tools/preview/        runs the dashboard in a browser on made-up data
+assets/               the logo and banners
 ```
+
+What the apps share is in Mullion's `core/` (the `mullion-core` crate). Oriel uses most of it:
+the performance counters (`pdh.rs`: CPU, GPU engines, disk, network, thermal zone), what's playing
+(`media.rs`) and the volume mixer (`audio.rs`), each on its own thread, as well as the Win32
+bindings more than one app uses, the settings files, the Alt+Tab window list and the window's
+look. `ui-common/themes.css` is where the themes are edited, and the repo's `tools/` has the
+scripts every app's preview uses. [Mullion's CONTRIBUTING](../../CONTRIBUTING.md) has more.
 
 The backend pushes a sample to the page every tick over Tauri's IPC, with no local web server
 and no open port. While the window is hidden it keeps the graphs' history but sends and draws
@@ -198,20 +205,17 @@ it for posts; it needs [ffmpeg](https://ffmpeg.org) on the PATH (`winget install
 
 ## Making a release
 
-Releases are built by GitHub Actions (`.github/workflows/release.yml`), not on a PC, so Smart
-App Control and local toolchains don't matter:
-
-1. Set `version` in `src-tauri/Cargo.toml` (the installer takes its version from there).
-2. Commit, then make a signed tag and push it: `git tag -s v0.2.0 -m "Oriel 0.2.0"` and
-   `git push origin v0.2.0`.
-3. The workflow builds `Oriel-0.2.0-setup.exe`, `Oriel-0.2.0-portable.zip` and
-   `SHA256SUMS.txt`, and drafts a release with them. Add notes and publish it.
+Oriel is released with the rest of Mullion, at the suite's version, by GitHub Actions:
+[Mullion's CONTRIBUTING](../../CONTRIBUTING.md#making-a-release) has the steps. Each release has
+`Oriel-<version>-setup.exe` and `Oriel-<version>-portable.zip` of its own, beside Mullion's
+installer.
 
 The installer is Tauri's NSIS installer. It installs per user, needs no admin rights and, when
 "Delete the application data" is ticked on uninstall, also removes the settings and the sign-in
 entry (`src-tauri/windows/installer-hooks.nsh`). Its sidebar and header images are BMPs in
 `src-tauri/windows/`; `preview.ps1 -Installer` renders them again (same Edge or Chrome as
-`-Screenshots`).
+`-Screenshots`). `python -I tools\banner.py apps\oriel`, from the top of the repo, draws the
+README banners from the logo.
 
 Releases aren't code-signed yet, so SmartScreen may warn about them and Smart App Control may
 block them. Signing would slot into the workflow's Build step once there's a certificate.

@@ -547,7 +547,7 @@ function drawSettings(error = hello.hotkey_error) {
   setv.innerHTML = `
     <h2>Fanlight Settings <button class="btn primary" data-do="done">Done</button></h2>
     <h3>SHORTCUT</h3>
-    ${setRow("Open Fanlight with", error ? `<span class="err">${esc(error)}</span>` : "Or click its icon in the notification area",
+    ${setRow("Open Fanlight with", error ? `<span class="err">${esc(error)}</span>` : hello.mullion ? "Or from Mullion’s icon in the notification area" : "Or click its icon in the notification area",
       `<select data-set="hotkey">${hello.hotkeys.map(h => opt(h, label(h), s.hotkey)).join("")}</select>`)}
     <h3>LOOK</h3>
     ${setRow("Theme", "", `<div class="seg">${["auto", "dark", "light"].map(t => `<button data-theme="${t}" aria-pressed="${s.theme === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div>`)}
@@ -565,7 +565,9 @@ function drawSettings(error = hello.hotkey_error) {
     ${setRow("Keep", "", `<select data-set="clipboard_size">${[25, 50, 100, 250, 500, 1000].map(n => opt(String(n), `The last ${n}`, String(s.clipboard_size))).join("")}</select>`)}
     ${setRow("Keep it after Fanlight quits", "Saved on this PC only. Off: in memory only", sw("keep_clipboard", s.keep_clipboard))}
     <h3>GENERAL</h3>
-    ${setRow("Start at sign-in", "", `<button class="switch" role="switch" data-do="autostart" aria-checked="${hello.autostart}"></button>`)}
+    ${hello.mullion
+      ? setRow("Start at sign-in", "Mullion starts Fanlight: see Mullion Settings", "")
+      : setRow("Start at sign-in", "", `<button class="switch" role="switch" data-do="autostart" aria-checked="${hello.autostart}"></button>`)}
     ${setRow("What you’ve opened", "Fanlight ranks things you open often higher", `<button class="btn danger" data-do="clear-history">Forget</button>`)}
     ${setRow("File index", "Fanlight keeps it up to date by itself", `<button class="btn" data-do="reindex">Update now</button>`)}
     ${setRow("Quit Fanlight", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}

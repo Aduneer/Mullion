@@ -1,7 +1,6 @@
 // No console window in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod audio;
 mod calendar;
 mod collect;
 mod feed;
@@ -9,20 +8,19 @@ mod ffi;
 mod gpu;
 mod ics;
 mod lhm;
-mod media;
 mod net;
 mod openwin;
-mod pdh;
 mod plugins;
 mod procs;
 mod settings;
 mod tz;
 mod weather;
 
-use audio::AudioWatch;
+use mullion_core::audio::{self, AudioWatch};
 use calendar::CalendarWatch;
 use collect::{Collector, Info, Snapshot};
-use media::MediaWatch;
+use mullion_core::media::{self, MediaWatch};
+use mullion_core::suite::{self, Ask};
 use serde::Serialize;
 use settings::Settings;
 use weather::WeatherWatch;
@@ -57,6 +55,8 @@ struct Hello {
     settings: Settings,
     monitors: Vec<MonitorRect>,
     autostart: bool,
+    /// Mullion started Oriel, and has its tray icon and sign-in entry.
+    mullion: bool,
     settings_path: String,
 }
 
@@ -72,7 +72,21 @@ struct MonitorRect {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
+        // Starting it again (from Start, say) shows the dashboard. Mullion starts it again to ask
+        // something of it (`mullion_core::suite`).
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            let from_mullion = suite::from_mullion(&args);
+            if from_mullion {
+                leave_to_mullion(app);
+            }
+            match suite::ask(&args) {
+                Ask::Quit => app.exit(0),
+                Ask::Settings => show_settings(app),
+                Ask::Show => show(app),
+                Ask::Nothing if !from_mullion => show(app),
+                Ask::Nothing => {}
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, weather, calendar, refresh_feed, search_places, restart, list_plugins])
         // Widgets from the plugin folder; answers nothing unless the setting is on.
@@ -81,6 +95,11 @@ fn main() {
             plugins::serve(&plugins::dir(), enabled, request.method().as_str(), request.uri().path())
         })
         .setup(|app| {
+            let args: Vec<String> = std::env::args().collect();
+            // A --quit that gets this far found no Oriel running, so there's nothing to quit.
+            if suite::ask(&args) == Ask::Quit {
+                std::process::exit(0);
+            }
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
             let media = MediaWatch::start();
@@ -107,9 +126,17 @@ fn main() {
             app.manage(SettingsState(Mutex::new(settings.clone())));
             start_sampler(app.handle().clone(), hub, collector);
             create_window(app.handle(), &settings)?;
-            build_tray(app.handle())?;
+            // Mullion's tray icon stands in for Oriel's when Mullion started it.
+            if suite::from_mullion(&args) {
+                leave_to_mullion(app.handle());
+            } else {
+                build_tray(app.handle())?;
+            }
             apply_theme(app.handle(), &settings.theme);
             place_window(app.handle(), &settings);
+            if suite::ask(&args) == Ask::Settings {
+                show_settings(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -169,6 +196,7 @@ fn hello(app: AppHandle, hub: State<Arc<Hub>>, settings: State<SettingsState>) -
         settings: settings.0.lock().unwrap().clone(),
         monitors: app.get_webview_window("main").map(|w| monitor_list(&w)).unwrap_or_default(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
+        mullion: suite::is_run_by_mullion(),
         settings_path: settings::path().display().to_string(),
     }
 }
@@ -451,6 +479,21 @@ fn toggle(app: &AppHandle) {
     }
 }
 
+fn show_settings(app: &AppHandle) {
+    show(app);
+    let _ = app.emit_to("main", "open-settings", ());
+}
+
+/// Mullion started Oriel, or reached the one running: Mullion's tray icon and sign-in entry
+/// stand in for Oriel's own, so there's one of each for the whole suite.
+fn leave_to_mullion(app: &AppHandle) {
+    let _ = app.remove_tray_by_id("main");
+    let al = app.autolaunch();
+    if al.is_enabled().unwrap_or(false) {
+        let _ = al.disable();
+    }
+}
+
 // --- tray ----------------------------------------------------------------------
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -472,10 +515,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "toggle" => toggle(app),
-            "settings" => {
-                show(app);
-                let _ = app.emit_to("main", "open-settings", ());
-            }
+            "settings" => show_settings(app),
             "autostart" => {
                 let on = !app.autolaunch().is_enabled().unwrap_or(false);
                 if let Ok(on) = set_autostart(app.clone(), on) {

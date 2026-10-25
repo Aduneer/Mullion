@@ -133,8 +133,10 @@ function render() {
 
       <section data-sk="performance">
         <h3>System</h3>
-        <div class="field" data-s="autostart startup login boot launch windows"><label for="s-auto">Start at sign-in</label>
-          <input id="s-auto" type="checkbox" class="switch" data-autostart${O.state.autostart ? " checked" : ""}></div>
+        ${O.state.mullion
+          ? `<div class="field" data-s="autostart startup login boot launch windows mullion"><span>Start at sign-in<span class="hint">Mullion starts Oriel: see Mullion Settings</span></span></div>`
+          : `<div class="field" data-s="autostart startup login boot launch windows"><label for="s-auto">Start at sign-in</label>
+          <input id="s-auto" type="checkbox" class="switch" data-autostart${O.state.autostart ? " checked" : ""}></div>`}
         <div class="field" data-s="interval refresh rate frequency speed seconds performance"><label for="s-interval">Update every<span class="hint">More often costs a little more CPU</span></label>
           <select id="s-interval" data-set="interval_ms" data-num>${options(INTERVAL, s.interval_ms)}</select></div>
         <div class="field" data-s="gpu webview2 performance ram"><label for="s-gpu">Hardware acceleration<span class="hint">Draw with the GPU: slightly less CPU, about 130 MB more memory. Applies after a restart.</span></label>

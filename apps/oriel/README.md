@@ -10,9 +10,9 @@
 Your CPU, GPU, memory, network, disks and processes, plus what's playing, the weather and your<br>
 calendar, on one calm, full-screen dashboard you can read from across the desk and leave running all day.
 
-[![Latest release](https://img.shields.io/github/v/release/Aduneer/Oriel?color=%233987e5)](../../releases/latest)
-[![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
-![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
+[![Latest release](https://img.shields.io/github/v/release/Aduneer/Mullion?color=%232e6e60)](https://github.com/Aduneer/Mullion/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-2e6e60)](LICENSE)
+![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-2e6e60)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
 [Install](#install) · [Features](#whats-on-it) · [Themes](#themes) · [Plugins](#plugins) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
@@ -100,7 +100,8 @@ Six themes, each with a dark and a light version. Pick dark, light, or Auto to f
 
 Oriel runs on Windows 10 and 11.
 
-1. Download **Oriel-*version*-setup.exe** from the [latest release](../../releases/latest).
+1. Download **Oriel-*version*-setup.exe** from the [latest release](https://github.com/Aduneer/Mullion/releases/latest), or
+   **Mullion-*version*-setup.exe** there to pick from all of Mullion's apps at once.
 2. Run it. It installs just for you, with no admin prompt, and adds Oriel to the Start menu.
 3. Start Oriel. If you have a second screen, it opens there, full screen.
 
@@ -248,6 +249,13 @@ Recurring events (daily, weekly, monthly and yearly, with exceptions and moved o
 occurrences) work in any time zone Windows knows, and times show in your PC's own. A rarer rule
 (like "the 20th week of the year") shows its event once rather than guessing.
 
+## Part of Mullion
+
+Oriel is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
+desktop, with [Lintel](../lintel/README.md), the menu bar, and [Fanlight](../fanlight/README.md),
+search and launch. They share their themes, and Mullion's installer installs any of them in one
+go. Each is still its own program, which works alone.
+
 ## FAQ
 
 **Does Oriel send my data anywhere?**
@@ -279,7 +287,7 @@ note under [Install](#install).
 
 ## Roadmap
 
-What's next. What's already in Oriel is in the [release notes](../../releases).
+What's next. What's already in Oriel is in the [release notes](https://github.com/Aduneer/Mullion/releases).
 
 - Signed releases, so SmartScreen and Smart App Control know who made Oriel, and then winget
 - Layouts for small and bar-shaped screens, like 1920×480 and 2560×720 panels and small
@@ -287,12 +295,12 @@ What's next. What's already in Oriel is in the [release notes](../../releases).
 - A **Check for updates** button that asks GitHub only when you press it
 - A [Scoop](https://scoop.sh) package
 
-Something you'd like to see? Say so in [Discussions](../../discussions/categories/ideas).
+Something you'd like to see? Say so in [Discussions](https://github.com/Aduneer/Mullion/discussions).
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome: [open an issue](../../issues/new/choose) for a
-bug, or start a [discussion](../../discussions) for an idea or a question.
+Bug reports, ideas and pull requests are welcome: [open an issue](https://github.com/Aduneer/Mullion/issues/new/choose) for a
+bug, or start a [discussion](https://github.com/Aduneer/Mullion/discussions) for an idea or a question.
 [CONTRIBUTING.md](CONTRIBUTING.md) covers building from source, how Oriel works, writing a
 widget and working on the dashboard without building the Rust side.
 

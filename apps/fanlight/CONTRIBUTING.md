@@ -14,14 +14,16 @@ You need:
   the **Desktop development with C++** workload
 - The WebView2 runtime, which is built into Windows 11 and comes with Edge on Windows 10
 
-Then:
+Fanlight lives in [Mullion](../../README.md)'s repo, with the other apps and the code they share
+(`core/`). Clone it, then:
 
 ```powershell
-cd src-tauri
+cd apps\fanlight\src-tauri
 cargo run
 ```
 
-The first build takes a few minutes. The app ends up in `src-tauri\target\debug\fanlight.exe`,
+The first build takes a few minutes. The app ends up in `target\debug\fanlight.exe` at the top of
+the repo,
 and **Start at sign-in** works with that copy too.
 
 Fanlight keeps running with its panel closed (only **Quit Fanlight** ends it), so to replace the
@@ -43,26 +45,28 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/matcher.rs      how well a name matches what was typed
   src/files.rs        the file index, kept in memory and brought up to date folder by folder
   src/shell.rs        the Start menu's apps, and icons and thumbnails, on a COM thread of its own
-  src/icons.rs        an icon or thumbnail from the shell, as an image the page can show
   src/preview.rs      what the preview shows: a file's start, a folder's items, the facts
   src/calc.rs         sums and unit conversions
   src/catalog.rs      the commands and the Settings pages, with the words they go by
   src/clipboard.rs    the clipboard history (a clipboard format listener, nothing polled)
   src/history.rs      what you've opened, so it ranks higher, and the searches for ↑
-  src/wins.rs         the open windows, as Alt+Tab lists them
+  src/wins.rs         the open windows, with their apps' names
   src/hotkey.rs       the shortcut (RegisterHotKey on a thread of its own)
-  src/power.rs        lock, sleep, sign out, restart and shut down
   src/settings.rs     the settings file
-  src/ffi.rs          the few Win32 functions not taken from the windows crate
+  src/ffi.rs          the few Win32 functions only Fanlight uses (the rest are the core's)
   windows/            extra steps for the installer
 ui/                   the panel: plain HTML, CSS and JavaScript, no build step
-  themes.css          the palettes, shared with Oriel and Lintel
+  themes.css          the palettes: a copy of ui-common/themes.css, shared with Oriel and Lintel
   panel.*             the search field, the results, the preview and the settings
 tools/preview/        runs the panel in a browser on made-up data
-tools/banner.py       draws the README banners from the logo
-tools/icons.py        makes the app icons from the logo
 assets/               the logo and banners
 ```
+
+What the apps share is in Mullion's `core/` (the `mullion-core` crate): the Win32 bindings more
+than one uses, the settings files, shell icons and thumbnails, the Alt+Tab window list, the power
+commands (lock, sleep, sign out, restart, shut down) and the window's look. `ui-common/themes.css`
+is where the palettes are edited, and the repo's `tools/` has the scripts every app's preview uses
+(`icons.py`, `preview/demo.py`). [Mullion's CONTRIBUTING](../../CONTRIBUTING.md) has more.
 
 There's one window, the panel, and it's exactly as big as what's in it: the page measures itself
 and tells the backend (`fit` in `main.rs`), so Windows can round its corners, give it a shadow
@@ -89,7 +93,7 @@ full list.
 
 Anything that a test can check without a screen has one (`cargo test`): the matcher, the sums and
 units, the index and how it updates, the search's ranking and categories, the previews, settings
-validation, icons.
+validation, and in the core, icons and the window list (`cargo test --workspace` runs them all).
 
 ## Working on the panel
 
@@ -113,7 +117,7 @@ top of the README (`docs/images/demo.webp`) from `?demo=1` (`demo.py`), which ne
 [ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`). With `-Icons` it renders
 `assets\fanlight.svg` and makes the app icons from it (needs Python with
 [Pillow](https://pypi.org/project/pillow/)).
-`python -I tools\banner.py assets` draws the banners from the logo.
+`python -I tools\banner.py apps\fanlight`, from the top of the repo, draws the banners from the logo.
 
 ```powershell
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1
@@ -121,14 +125,10 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1
 
 ## Making a release
 
-Releases are built by GitHub Actions (`.github/workflows/release.yml`), not on a PC, so Smart
-App Control and local toolchains don't matter:
-
-1. Set `version` in `src-tauri/Cargo.toml` (the installer takes its version from there).
-2. Commit, then make a signed tag and push it: `git tag -s v0.1.0 -m "Fanlight 0.1.0"` and
-   `git push origin v0.1.0`.
-3. The workflow builds `Fanlight-0.1.0-setup.exe`, `Fanlight-0.1.0-portable.zip` and
-   `SHA256SUMS.txt`, and drafts a release with them. Add notes and publish it.
+Fanlight is released with the rest of Mullion, at the suite's version, by GitHub Actions:
+[Mullion's CONTRIBUTING](../../CONTRIBUTING.md#making-a-release) has the steps. Each release has
+`Fanlight-<version>-setup.exe` and `Fanlight-<version>-portable.zip` of its own, beside Mullion's
+installer.
 
 The installer is Tauri's NSIS installer. It installs per user, needs no admin rights and, when
 "Delete the application data" is ticked on uninstall, also removes the settings, the history and

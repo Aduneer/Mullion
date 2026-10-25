@@ -1,0 +1,3 @@
+# Text files are stored with LF line endings, as every file in the three old repos already was;
+# Git converts them for your checkout as core.autocrlf says. Binaries are left alone.
+* text=auto

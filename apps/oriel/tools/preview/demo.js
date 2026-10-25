@@ -16,6 +16,7 @@
 //     widths and heights apply to the first page, like a settings file saved by the layout editor
 //   hot=1 (temperatures and memory past the warn and critical limits, to see the gauges' bands)
 //   windows=none (nothing open)  windows=many (thirty windows)  windows=front (Oriel itself in front)
+//   mullion=1 (started by Mullion)
 (() => {
   "use strict";
   const GB = 1024 ** 3, MB = 1024 ** 2;
@@ -510,7 +511,7 @@
               if (q.get("edit") === "1") Oriel.editor.start();
             }, 0);
             return {
-              info, interval_ms: settings.interval_ms, history, settings, autostart: true,
+              info, interval_ms: settings.interval_ms, history, settings, autostart: true, mullion: q.has("mullion"),
               monitors: [{ index: 1, x: 0, y: 0, width: 2560, height: 1440, primary: true }, { index: 2, x: 2560, y: 0, width: 1920, height: 1080, primary: false }],
               settings_path: "%APPDATA%\\Oriel\\settings.json",
             };

@@ -10,9 +10,9 @@
 Press <kbd>Alt</kbd> + <kbd>Space</kbd> and type: apps, files, settings, open windows, sums,<br>
 what you copied and the web, in one field that opens over whatever you're doing.
 
-[![Latest release](https://img.shields.io/github/v/release/Aduneer/Fanlight?color=%233987e5)](../../releases/latest)
-[![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
-![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
+[![Latest release](https://img.shields.io/github/v/release/Aduneer/Mullion?color=%23dd9d2c)](https://github.com/Aduneer/Mullion/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-dd9d2c)](LICENSE)
+![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-dd9d2c)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
 [Install](#install) · [What it finds](#what-it-finds) · [App grid](#app-grid) · [Keys](#keys) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
@@ -41,8 +41,8 @@ press <kbd>Enter</kbd>.
 - **Private.** No account, no telemetry, and it never goes online by itself; web searches open in
   your browser when you pick them. See [SECURITY.md](SECURITY.md).
 - **Looks like it belongs.** Six palettes, each in dark and light, and Auto to follow Windows.
-  The same ones as [Oriel](https://github.com/Aduneer/Oriel) and
-  [Lintel](https://github.com/Aduneer/Lintel). Solid, or glass that blurs what's behind it.
+  The same ones as [Oriel](../oriel/README.md) and
+  [Lintel](../lintel/README.md). Solid, or glass that blurs what's behind it.
 
 ## What it finds
 
@@ -134,7 +134,8 @@ replace it, or press <kbd>Enter</kbd> to open the same thing again.
 
 Fanlight runs on Windows 10 and 11.
 
-1. Download **Fanlight-*version*-setup.exe** from the [latest release](../../releases/latest).
+1. Download **Fanlight-*version*-setup.exe** from the [latest release](https://github.com/Aduneer/Mullion/releases/latest), or
+   **Mullion-*version*-setup.exe** there to pick from all of Mullion's apps at once.
 2. Run it. It installs just for you, with no admin prompt, and adds Fanlight to the Start menu.
 3. Start Fanlight. It waits in the notification area; press <kbd>Alt</kbd> + <kbd>Space</kbd>.
 
@@ -182,10 +183,10 @@ settings do:
 
 ## Part of Mullion
 
-Fanlight is one of a set of apps that rework the Windows desktop, with
-[Oriel](https://github.com/Aduneer/Oriel), the dashboard for your second screen, and
-[Lintel](https://github.com/Aduneer/Lintel), the menu bar. They share their themes. One installer
-for all of them is on the roadmap.
+Fanlight is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
+[Oriel](../oriel/README.md), the dashboard for your second screen, and
+[Lintel](../lintel/README.md), the menu bar. They share their themes, and Mullion's
+installer installs any of them in one go. Each is still its own program, which works alone.
 
 ## FAQ
 
@@ -226,16 +227,15 @@ Code signing needs a paid certificate and an identity check. It's planned.
 
 ## Roadmap
 
-- One installer for Fanlight, Oriel, Lintel and what comes next
 - Search inside documents, and more converters (currencies, time zones)
 - Signed releases, then winget
 
-Something you'd like to see? Say so in [Discussions](../../discussions).
+Something you'd like to see? Say so in [Discussions](https://github.com/Aduneer/Mullion/discussions).
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome: [open an issue](../../issues/new/choose) for a
-bug, or start a [discussion](../../discussions) for an idea or a question.
+Bug reports, ideas and pull requests are welcome: [open an issue](https://github.com/Aduneer/Mullion/issues/new/choose) for a
+bug, or start a [discussion](https://github.com/Aduneer/Mullion/discussions) for an idea or a question.
 [CONTRIBUTING.md](CONTRIBUTING.md) covers building from source, how Fanlight works and working on
 the panel in a browser without building the Rust side.
 

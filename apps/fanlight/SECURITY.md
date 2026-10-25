@@ -51,7 +51,7 @@ and Windows versions you tried.
   presses <kbd>Ctrl</kbd> + <kbd>V</kbd> there with `SendInput`. Show desktop, Take a screenshot
   and Emoji press Windows' own shortcuts for them (<kbd>Win</kbd> with D, Shift+S or the period
   key) the same way.
-- It can lock the PC, put it to sleep, sign out, restart or shut down (`src-tauri/src/power.rs`).
+- It can lock the PC, put it to sleep, sign out, restart or shut down (`power.rs` in Mullion's `core/`).
   Sign out, restart and shut down ask for a second Enter first, and none of them force apps to
   close.
 - It runs as you, without admin rights, and installs per user.

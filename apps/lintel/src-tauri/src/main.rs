@@ -3,13 +3,8 @@
 
 mod appbar;
 mod apps;
-mod audio;
 mod brightness;
 mod ffi;
-mod icons;
-mod media;
-mod pdh;
-mod power;
 mod radios;
 mod settings;
 mod stats;
@@ -17,8 +12,10 @@ mod taskbar;
 mod wallpaper;
 
 use apps::Front;
-use audio::{Audio, AudioWatch};
-use media::{Media, MediaWatch};
+use mullion_core::audio::{self, Audio, AudioWatch};
+use mullion_core::media::{self, Media, MediaWatch};
+use mullion_core::power;
+use mullion_core::suite::{self, Ask};
 use serde::{Deserialize, Serialize};
 use settings::Settings;
 use stats::{Sampler, Stats};
@@ -104,6 +101,8 @@ struct Hello {
     /// Oriel is installed, so the stats menu can offer to open it.
     oriel: bool,
     autostart: bool,
+    /// Mullion started Lintel, and has its sign-in entry.
+    mullion: bool,
     /// Windows' own clock and calendar settings, for the "auto" clock and the month view.
     clock24: bool,
     /// 0 = Monday … 6 = Sunday, as Windows numbers them.
@@ -115,7 +114,16 @@ struct Hello {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        // Starting it again does nothing: the bar is already there. Mullion starts it again to
+        // ask something of it (`mullion_core::suite`).
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if suite::from_mullion(&args) {
+                leave_to_mullion(app);
+            }
+            if suite::ask(&args) == Ask::Quit {
+                quit(app.clone());
+            }
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
             wallpaper,
@@ -125,6 +133,14 @@ fn main() {
             app_windows, window_action, launch_app, quit_app, power, run_action, quit
         ])
         .setup(|app| {
+            let args: Vec<String> = std::env::args().collect();
+            // A --quit that gets this far found no Lintel running, so there's nothing to quit.
+            if suite::ask(&args) == Ask::Quit {
+                std::process::exit(0);
+            }
+            if suite::from_mullion(&args) {
+                leave_to_mullion(app.handle());
+            }
             let settings = Settings::load().clamp();
             let media = MediaWatch::start();
             media.set_wanted(settings.media);
@@ -250,6 +266,7 @@ fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSam
         has_battery: stats::battery().is_some(),
         oriel: oriel_exe().is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
+        mullion: suite::is_run_by_mullion(),
         clock24: ffi::reg_user_string(INTERNATIONAL, "sShortTime").is_none_or(|f| f.contains('H')),
         first_day: ffi::reg_user_string(INTERNATIONAL, "iFirstDayOfWeek").and_then(|d| d.parse().ok()).filter(|d| *d < 7).unwrap_or(0),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -277,6 +294,15 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     }
     let _ = app.emit("settings", &settings);
     Ok(settings)
+}
+
+/// Mullion started Lintel, or reached the one running: Mullion's sign-in entry stands in for
+/// Lintel's own, so there's one for the whole suite.
+fn leave_to_mullion(app: &AppHandle) {
+    let al = app.autolaunch();
+    if al.is_enabled().unwrap_or(false) {
+        let _ = al.disable();
+    }
 }
 
 #[tauri::command]
@@ -581,7 +607,7 @@ fn run_action(name: String) -> Result<(), String> {
         _ => None,
     };
     if let Some(key) = key {
-        send_win_key(key as u16);
+        ffi::send_keys(&[ffi::VK_LWIN, key as u16]);
         return Ok(());
     }
     let target = action_target(&name).ok_or_else(|| format!("unknown action: {name}"))?;
@@ -595,22 +621,10 @@ fn run_action(name: String) -> Result<(), String> {
     }
 }
 
-/// Oriel's exe, if it's installed for this user: where its installer says it put it.
+/// Oriel's exe, if it's installed for this user: in Mullion's folder or on its own.
 fn oriel_exe() -> Option<String> {
-    let icon = ffi::reg_user_string(r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Oriel", "DisplayIcon")?;
-    let path = icon.trim_matches('"').split(',').next()?.trim().to_string();
-    (path.to_lowercase().ends_with(".exe") && std::path::Path::new(&path).is_file()).then_some(path)
-}
-
-fn send_win_key(key: u16) {
-    use ffi::*;
-    let input = |vk: u16, up: bool| INPUT {
-        kind: INPUT_KEYBOARD,
-        ki: KEYBDINPUT { wVk: vk, wScan: 0, dwFlags: if up { KEYEVENTF_KEYUP } else { 0 }, time: 0, dwExtraInfo: 0 },
-        _pad: [0; 8],
-    };
-    let keys = [input(VK_LWIN, false), input(key, false), input(key, true), input(VK_LWIN, true)];
-    unsafe { SendInput(keys.len() as u32, keys.as_ptr(), std::mem::size_of::<INPUT>() as i32) };
+    let oriel = suite::APPS.iter().find(|a| a.name == "Oriel")?;
+    suite::find_app(oriel).map(|p| p.display().to_string())
 }
 
 #[tauri::command]
