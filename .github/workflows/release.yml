@@ -8,11 +8,15 @@
 #   git push origin v0.3.0
 # Check the draft on the Releases page, add notes, and publish it.
 #
+# Run it by hand from the Actions tab to build and try everything at the version in the
+# Cargo.toml files, without a tag: it does every step but the release.
+#
 # Third-party actions are pinned to a commit (with the version in a comment), so a moved tag
 # can't change what runs with write access to the repo. Dependabot keeps the pins current.
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags: ["v*"]
 
@@ -25,19 +29,24 @@ jobs:
     permissions:
       contents: write # to create the draft release
     env:
-      TAG: ${{ github.ref_name }}
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Check the tag matches every app's version
+      # A tag must match every app's version; run by hand, the first app's version stands in for
+      # it, and the rest must match that.
+      - name: Check every app has the tag's version
         shell: pwsh
         run: |
+          $tag = if ($env:RELEASE -eq "true") { $env:GITHUB_REF_NAME } else { $null }
           foreach ($toml in Get-ChildItem apps/*/src-tauri/Cargo.toml) {
             $version = (Select-String -Path $toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
-            if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version in $toml" }
+            if (-not $tag) { $tag = "v$version" }
+            if ("v$version" -ne $tag) { throw "Version $version in $toml doesn't match $tag" }
           }
+          "TAG=$tag" >> $env:GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
 
@@ -130,12 +139,22 @@ jobs:
           }
           Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
           Start-Sleep -Seconds 5
-          foreach ($a in $apps) {
+          foreach ($a in @("mullion") + $apps) {
             if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a kept running after Mullion quit" }
           }
-          Start-Process "$dir/uninstall.exe" -ArgumentList "/S" -Wait
-          for ($i = 0; $i -lt 30 -and (Test-Path "$dir/mullion.exe"); $i++) { Start-Sleep -Seconds 1 }
-          if (Test-Path "$dir/mullion.exe") { throw "The uninstaller left $dir behind" }
+          # _?= runs the uninstaller in place, so this waits for it; it can't delete itself then,
+          # so that's left to here.
+          $un = Start-Process "$dir/uninstall.exe" -ArgumentList "/S", "_?=$dir" -Wait -PassThru
+          if ($un.ExitCode) { throw "The uninstaller failed (exit code $($un.ExitCode))" }
+          $left = Get-ChildItem $dir -Exclude uninstall.exe
+          if ($left) {
+            Get-Process | Where-Object Path -like "$dir*" | Format-Table Id, Name, Path
+            throw "The uninstaller left $($left.Name -join ', ') in $dir"
+          }
+          if (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion -ErrorAction SilentlyContinue) {
+            throw "Mullion is still listed in Installed apps"
+          }
+          Remove-Item -Recurse $dir
           Write-Host "Mullion installed $($apps.Count) apps to $dir, ran them, quit them and uninstalled."
 
       - name: Checksums
@@ -145,6 +164,7 @@ jobs:
             Set-Content dist/SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: env.RELEASE == 'true'
         with:
           draft: true
           fail_on_unmatched_files: true

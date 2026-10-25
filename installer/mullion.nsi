@@ -172,13 +172,29 @@ FunctionEnd
 
 ; --- uninstall ------------------------------------------------------------------------------
 
+; An exe that has only just quit can stay locked for a moment, so try again for up to 10 s.
+!macro DeleteWhenFree FILE
+  StrCpy $R0 0
+  ${Do}
+    ${IfNot} ${FileExists} "${FILE}"
+    ${OrIf} $R0 >= 20
+      ${Break}
+    ${EndIf}
+    Delete "${FILE}"
+    ${If} ${FileExists} "${FILE}"
+      Sleep 500
+    ${EndIf}
+    IntOp $R0 $R0 + 1
+  ${Loop}
+!macroend
+
 Section "un.Mullion and its apps" SecUnMullion
   SectionIn RO
   !insertmacro QuitMullion
-  Delete "$INSTDIR\mullion.exe"
-  Delete "$INSTDIR\oriel.exe"
-  Delete "$INSTDIR\lintel.exe"
-  Delete "$INSTDIR\fanlight.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\mullion.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\oriel.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\lintel.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\fanlight.exe"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
   Delete "$SMPROGRAMS\Mullion.lnk"
