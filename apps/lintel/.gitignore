@@ -1,0 +1,6 @@
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Local tooling (preview launch config with this PC's paths)
+.claude/
