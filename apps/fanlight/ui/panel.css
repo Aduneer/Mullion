@@ -1,0 +1,184 @@
+/* The panel. Its window is the panel itself (main.rs): Windows rounds it and gives it its shadow,
+   and the page tells it how tall to be as results come and go. With glass, the window has Windows'
+   acrylic, and the page only tints it. Colors are tokens from themes.css, shared with Oriel and Lintel. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: default; text-align: left; }
+:focus { outline: none; }
+
+html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body {
+  color: var(--ink);
+  font: 14px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#panel {
+  --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+/* Glass: the palette's surface over the blur, thick enough that text reads on anything behind;
+   muted text a little stronger than on a solid panel, for the same reason. */
+[data-glass="on"] #panel { background: color-mix(in srgb, var(--surface) 62%, transparent); }
+[data-glass="on"] { --muted: color-mix(in srgb, var(--ink-2) 80%, var(--surface)); --border: color-mix(in srgb, var(--ink) 12%, transparent); }
+[data-glass="on"] #foot { background: color-mix(in srgb, var(--page) 25%, transparent); }
+
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ic .fill { fill: currentColor; stroke: none; }
+
+/* --- the search field ------------------------------------------------------------------- */
+.field { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 58px; flex: none; }
+.field .lens { color: var(--muted); display: grid; }
+.field .lens .ic { width: 24px; height: 24px; stroke-width: 2; }
+#q {
+  flex: 1; min-width: 0; height: 100%; border: 0; background: none;
+  font: 300 23px/1 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  user-select: text; -webkit-user-select: text;
+  caret-color: var(--accent);
+}
+#q::placeholder { color: var(--muted); opacity: 0.85; }
+#q::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.kbd {
+  font-size: 12px; color: var(--ink-2); padding: 2px 8px; border-radius: 6px;
+  background: var(--surface-hi); border: 1px solid var(--border); white-space: nowrap;
+}
+
+/* The categories: an icon each, and the one that's on with its name. */
+.cats { display: flex; gap: 2px; flex: none; }
+.cats button { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 7px; border-radius: 8px; color: var(--muted); }
+.cats button .ic { width: 18px; height: 18px; }
+.cats button span { display: none; font-size: 13px; }
+.cats button:hover { background: var(--surface-hi); color: var(--ink-2); }
+.cats button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); padding-right: 10px; }
+.cats button[aria-pressed="true"] span { display: inline; }
+
+/* --- results ------------------------------------------------------------------------------ */
+#body { display: flex; min-height: 0; }
+#results { flex: 1; min-width: 0; overflow-y: auto; max-height: 520px; padding: 0 8px 8px; scrollbar-width: thin; scrollbar-color: var(--baseline) transparent; }
+#results:empty { display: none; }
+#results:not(:empty) { border-top: 1px solid var(--border); padding-top: 6px; }
+
+.section h3 {
+  padding: 10px 12px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; color: var(--muted);
+}
+.row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 40px; padding: 5px 12px; border-radius: 9px;
+}
+.row .pic { width: 26px; height: 26px; flex: none; display: grid; place-items: center; color: var(--ink-2); }
+.row .pic img { width: 26px; height: 26px; object-fit: contain; }
+.row .pic.thumb img { object-fit: cover; border-radius: 4px; }
+.row .pic .ic { width: 20px; height: 20px; }
+.row .text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.row .title { flex: none; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .sub { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+.row .side { flex: none; color: var(--muted); font-size: 12px; }
+.row.sel { background: var(--accent); color: var(--on-accent); }
+.row.sel .sub, .row.sel .side, .row.sel .pic { color: inherit; opacity: 0.85; }
+.row mark { background: none; color: inherit; font-weight: 650; }
+.row.ask .sub { opacity: 1; font-weight: 600; }
+
+/* The Top Hit: larger, and a sum's answer larger still. */
+.top { padding: 6px 0 2px; }
+.top .row { min-height: 60px; padding: 8px 12px; }
+.top .row .pic, .top .row .pic img { width: 40px; height: 40px; }
+.top .row .pic .ic { width: 28px; height: 28px; }
+.top .row .text { flex-direction: column; align-items: stretch; gap: 1px; }
+.top .row .title { max-width: 100%; font-size: 16px; font-weight: 600; }
+.top .row .sub { flex: none; }
+.top .row.answer .title { font: 300 34px/1.1 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.top .row.answer .title::before { content: "= "; opacity: 0.45; }
+.top .row.answer .sub { font-variant-numeric: tabular-nums; }
+
+/* A clipboard entry's text keeps its spaces, but stays on one line in the list. */
+.row.clip .title { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 12.5px; max-width: 62%; }
+
+.empty { padding: 16px 14px 18px; color: var(--muted); }
+
+/* --- preview (Space) ------------------------------------------------------------------------ */
+/* The window widens (main.rs `fit`): the results on the left, the preview on the right, at a
+   height that doesn't jump about as the selection moves. */
+#panel.wide #body { height: 540px; border-top: 1px solid var(--border); }
+#panel.wide #results { flex: 0 0 430px; max-height: none; border-top: 0; border-right: 1px solid var(--border); }
+#panel.wide #results:not(:empty) { padding-top: 6px; }
+#preview { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; scrollbar-color: var(--baseline) transparent; }
+.pv-head { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pv-pic { width: 72px; height: 72px; flex: none; display: grid; place-items: center; color: var(--ink-2); }
+.pv-pic img { width: 72px; height: 72px; object-fit: contain; }
+.pv-pic .ic { width: 44px; height: 44px; stroke-width: 1.4; }
+.pv-pic.shot { width: 100%; height: 300px; flex: none; border-radius: 10px; background: var(--surface-hi); overflow: hidden; }
+.pv-pic.shot img { width: 100%; height: 100%; object-fit: contain; }
+.pv-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pv-title { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.pv-kind { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.pv-answer { font: 300 40px/1.1 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.pv-text {
+  flex: none; max-height: 300px; overflow: auto; padding: 12px 14px; border-radius: 10px; background: var(--surface-hi); border: 1px solid var(--border);
+  font: 12px/1.5 "Cascadia Mono", Consolas, ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4;
+  user-select: text; -webkit-user-select: text; scrollbar-width: thin; scrollbar-color: var(--baseline) transparent;
+}
+.pv-text::selection, .pv-title::selection { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.pv-items { list-style: none; display: flex; flex-direction: column; gap: 1px; font-size: 13px; }
+.pv-items li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; color: var(--ink-2); min-width: 0; }
+.pv-items li .ic { width: 16px; height: 16px; color: var(--muted); }
+.pv-items li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-items li.more { color: var(--muted); padding-left: 28px; }
+.pv-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 12.5px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pv-facts dt { color: var(--muted); }
+.pv-facts dd { color: var(--ink-2); overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+
+/* --- foot ---------------------------------------------------------------------------------- */
+#foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 7px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--page) 30%, transparent);
+}
+#keys { display: flex; gap: 14px; overflow: hidden; white-space: nowrap; }
+#keys b { font-weight: 600; color: var(--ink-2); margin-right: 4px; }
+#note { color: var(--ink-2); white-space: nowrap; }
+
+/* --- settings ------------------------------------------------------------------------------ */
+#settings { overflow-y: auto; max-height: 520px; padding: 4px 18px 16px; border-top: 1px solid var(--border); scrollbar-width: thin; scrollbar-color: var(--baseline) transparent; }
+#settings h2 { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 650; padding: 12px 0 4px; }
+#settings h3 { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; color: var(--muted); padding: 14px 0 6px; }
+.set { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 38px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.set:last-child { border-bottom: 0; }
+.set .label { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.set .label small { color: var(--muted); font-size: 12px; }
+.set .err { color: var(--crit); }
+select, .text-in {
+  height: 30px; padding: 0 10px; border-radius: 7px; background: var(--surface-hi); border: 1px solid var(--border);
+}
+select:focus-visible, .text-in:focus, .btn:focus-visible, .switch:focus-visible, .seg button:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.text-in { flex: 1; min-width: 0; user-select: text; -webkit-user-select: text; }
+.btn { height: 30px; padding: 0 14px; border-radius: 7px; background: var(--surface-hi); border: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.btn.danger:hover { border-color: var(--crit); color: var(--crit); }
+
+.switch { position: relative; width: 38px; height: 22px; flex: none; border-radius: 11px; background: var(--baseline); border: 1px solid transparent; transition: background 0.15s; }
+.switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform 0.15s var(--ease); }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(16px); }
+
+.seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--surface-hi); border: 1px solid var(--border); }
+.seg button { padding: 3px 12px; border-radius: 6px; border: 1px solid transparent; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 2px; background-clip: content-box; }
+.swatch[aria-pressed="true"] { border-color: var(--accent); }
+
+.folders { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.folder { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.folder span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.folder .x { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); }
+.folder .x:hover { background: var(--surface-hi); color: var(--crit); }
+.folder .x .ic { width: 14px; height: 14px; }
+.add { display: flex; gap: 8px; padding: 4px 0 8px; }
+.about { color: var(--muted); font-size: 12px; padding-top: 14px; line-height: 1.6; user-select: text; -webkit-user-select: text; }

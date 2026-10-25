@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-palette="oriel" data-mode="dark">
+<head>
+  <meta charset="utf-8">
+  <title>Fanlight</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="panel" role="dialog" aria-label="Fanlight">
+    <div class="field">
+      <span class="lens" id="lens"></span>
+      <input id="q" type="text" placeholder="Fanlight Search" autocomplete="off" spellcheck="false" aria-label="Search" aria-controls="results">
+      <div class="cats" id="cats" role="toolbar" aria-label="Categories"></div>
+      <span class="kbd" id="mode" hidden></span>
+    </div>
+    <div id="body">
+      <div id="results" role="listbox" aria-label="Results"></div>
+      <div id="preview" hidden aria-label="Preview" aria-live="polite"></div>
+    </div>
+    <div id="settings" hidden></div>
+    <div id="foot" hidden><span id="keys"></span><span id="note"></span></div>
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>

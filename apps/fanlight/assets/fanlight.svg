@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Fanlight</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#212128"/>
+      <stop offset="1" stop-color="#101014"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3987e5"/>
+      <stop offset="1" stop-color="#9085e9"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="1" r="0.75">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="fan"><path d="M232 540a280 280 0 0 1 560 0z"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <!-- the fanlight: a half-wheel of glass, its light spreading from the hub -->
+  <g clip-path="url(#fan)">
+    <rect x="232" y="260" width="560" height="280" fill="url(#glass)"/>
+    <rect x="232" y="260" width="560" height="280" fill="url(#glow)"/>
+    <rect x="232" y="260" width="560" height="280" fill="url(#sheen)"/>
+    <g stroke="#101014" stroke-width="16" stroke-linecap="round">
+      <path d="M512 540L512 250M512 540L307 335M512 540L717 335M512 540L232 540M512 540L792 540"/>
+    </g>
+  </g>
+  <circle cx="512" cy="540" r="58" fill="#101014"/>
+  <circle cx="512" cy="540" r="34" fill="#f0efec"/>
+  <!-- the search field it lights, where the door would be -->
+  <rect x="200" y="598" width="624" height="120" rx="60" fill="#f0efec"/>
+  <g fill="none" stroke="#101014" stroke-width="18" stroke-linecap="round">
+    <circle cx="282" cy="654" r="26"/>
+    <path d="M302 674l22 22"/>
+  </g>
+  <g fill="#101014">
+    <rect x="362" y="645" width="190" height="20" rx="10" opacity="0.85"/>
+    <rect x="572" y="645" width="90" height="20" rx="10" opacity="0.35"/>
+  </g>
+</svg>
