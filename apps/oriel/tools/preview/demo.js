@@ -66,7 +66,7 @@
   let settings = {
     theme: ["dark", "light", "auto"].includes(q.get("theme")) ? q.get("theme") : "dark",
     palette: /^[a-z0-9-]{1,32}$/.test(q.get("palette") || "") ? q.get("palette") : "oriel",
-    monitor: "auto", fullscreen: true, interval_ms: 1000, graph_seconds: 300,
+    monitor: "auto", fullscreen: true, open_at_start: false, interval_ms: 1000, graph_seconds: 300,
     pages: pages.length ? pages : layout.length ? [{ name: "Dashboard", layout }] : [ // the default pages, as in settings.rs
       { name: "Resources", layout: [["cpu", "gpu", "memory"], ["network", "disk", "processes"]] },
       { name: "Desk", layout: [["weather", "calendar", "media"], ["gauges", "volume", "windows"]] },

@@ -129,7 +129,8 @@ data** to also remove your settings and the sign-in entry.
 
 With two or more screens, Oriel opens full screen on one that isn't your main screen. With a
 single screen it opens as a normal window, so it never covers the screen you're working on.
-Closing the window hides it to the tray; the tray icon shows it again, and its menu has
+When it starts by itself, at sign-in or from Mullion, it waits in the background until you open
+it, unless **Open when Oriel starts** is on in Settings. Closing the window hides it to the tray; the tray icon shows it again, and its menu has
 **Quit Oriel**.
 
 In the process list, click a group to see its processes. The button next to the search
@@ -178,7 +179,7 @@ Changes apply and save as you make them, to `%APPDATA%\Oriel\settings.json`:
 - **Layout**: which widgets show, in which rows and order, and how big each is (also from
   **Edit layout** on the dashboard); pages to add, name, reorder or delete, each with its own
   widgets; cycling through pages
-- **Display**: which screen, full screen or windowed
+- **Display**: which screen, full screen or windowed, and whether it opens when it starts by itself
 - **System**: start at sign-in, how often to update, hardware acceleration
 - **Plugins**: load widgets from the plugins folder (off by default, see [Plugins](#plugins))
 - **Alerts**: when temperatures, memory and drive space count as high or critical

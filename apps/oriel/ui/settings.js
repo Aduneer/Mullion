@@ -128,6 +128,10 @@ function render() {
           <select id="s-monitor" data-set="monitor">${options(monitorOpts, s.monitor)}</select></div>
         <div class="field" data-s="fullscreen window maximize f11"><label for="s-full">Full screen<span class="hint">Not used when Oriel would cover your only screen. <kbd>F11</kbd> toggles it.</span></label>
           ${sw("s-full", "fullscreen", s.fullscreen)}</div>
+        <div class="field" data-s="open start startup show sign-in login launch popup mullion"><label for="s-open">Open when Oriel starts<span class="hint">${O.state.mullion
+          ? "When Mullion starts it. Otherwise it waits for Open Oriel in Mullion’s menu."
+          : "At sign-in. Otherwise it waits in the notification area. Starting it yourself always opens it."}</span></label>
+          ${sw("s-open", "open_at_start", s.open_at_start)}</div>
         <div class="actions" data-s="resolution scale scaling monitor screen"><button class="btn link" type="button" data-action="ms-settings:display">Windows display settings</button></div>
       </section>
 

@@ -25,7 +25,7 @@ use serde::Serialize;
 use settings::Settings;
 use weather::WeatherWatch;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::image::Image;
@@ -37,6 +37,12 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 /// How much history the backend keeps for the graphs (10 minutes).
 const HISTORY_MS: u64 = 600_000;
+/// What the sign-in entry passes: Oriel started by itself, not by someone opening it.
+const SIGN_IN: &str = "--sign-in";
+
+/// The window has been put on its screen. Until it's first opened, it isn't: started by itself
+/// with "Open when Oriel starts" off, nothing is shown, and nothing goes full screen.
+static PLACED: AtomicBool = AtomicBool::new(false);
 
 struct Hub {
     info: Info,
@@ -83,11 +89,11 @@ fn main() {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
                 Ask::Show => show(app),
-                Ask::Nothing if !from_mullion => show(app),
+                Ask::Nothing if !from_mullion && !args.iter().any(|a| a == SIGN_IN) => show(app),
                 Ask::Nothing => {}
             }
         }))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![SIGN_IN])))
         .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, weather, calendar, refresh_feed, search_places, restart, list_plugins])
         // Widgets from the plugin folder; answers nothing unless the setting is on.
         .register_uri_scheme_protocol(plugins::SCHEME, |ctx, request| {
@@ -133,9 +139,14 @@ fn main() {
                 build_tray(app.handle())?;
             }
             apply_theme(app.handle(), &settings.theme);
-            place_window(app.handle(), &settings);
-            if suite::ask(&args) == Ask::Settings {
-                show_settings(app.handle());
+            // Started by itself (at sign-in, or by Mullion without asking to show it), it opens
+            // only if the settings say so; started by hand, it always does.
+            let by_itself = suite::from_mullion(&args) || args.iter().any(|a| a == SIGN_IN);
+            match suite::ask(&args) {
+                Ask::Settings => show_settings(app.handle()),
+                Ask::Show => show(app.handle()),
+                _ if !by_itself || settings.open_at_start => place_window(app.handle(), &settings),
+                _ => {}
             }
             Ok(())
         })
@@ -423,6 +434,7 @@ fn monitor_list(w: &WebviewWindow) -> Vec<MonitorRect> {
 
 fn place_window(app: &AppHandle, s: &Settings) {
     let Some(w) = app.get_webview_window("main") else { return };
+    PLACED.store(true, Ordering::Relaxed);
     let mons = monitor_list(&w);
     let target = match s.monitor.as_str() {
         "auto" => mons.iter().find(|m| !m.primary).or(mons.first()),
@@ -461,6 +473,11 @@ fn apply_theme(app: &AppHandle, theme: &str) {
 }
 
 fn show(app: &AppHandle) {
+    // Opened for the first time: onto its screen, full screen if that's the setting.
+    if !PLACED.load(Ordering::Relaxed) {
+        let settings = app.state::<SettingsState>().0.lock().unwrap().clone();
+        place_window(app, &settings);
+    }
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.unminimize();

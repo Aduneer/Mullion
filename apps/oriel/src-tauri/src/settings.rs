@@ -14,6 +14,11 @@ pub struct Settings {
     /// "auto" (a secondary screen if there is one) or a monitor number from `monitors`
     pub monitor: String,
     pub fullscreen: bool,
+    /// Open the dashboard when Oriel starts by itself: at sign-in, or when Mullion starts it.
+    /// Started by hand, it always opens. Off for someone new, so installing Oriel (or Mullion)
+    /// doesn't fill a screen unasked; a file from before it existed keeps what Oriel did then.
+    #[serde(default = "opened_before")]
+    pub open_at_start: bool,
     pub interval_ms: u64,
     /// Seconds of history on the graphs
     pub graph_seconds: u32,
@@ -135,6 +140,7 @@ impl Default for Settings {
             palette: "oriel".into(),
             monitor: "auto".into(),
             fullscreen: true,
+            open_at_start: false,
             interval_ms: 1000,
             graph_seconds: 300,
             // What's in the README's pictures. Desk's weather and calendar fetch nothing until
@@ -164,6 +170,11 @@ impl Default for Settings {
             plugins: false,
         }
     }
+}
+
+/// Oriel always opened when it started, before `open_at_start`.
+fn opened_before() -> bool {
+    true
 }
 
 /// A name for a list or a tab: no control characters, no edge spaces, at most `max` characters.
@@ -363,6 +374,13 @@ mod tests {
         assert!(!Settings::default().plugins);
         assert!(!Settings::parse(r#"{"theme": "dark"}"#).unwrap().plugins);
         assert!(Settings::parse(r#"{"plugins": true}"#).unwrap().plugins);
+    }
+
+    #[test]
+    fn only_a_file_from_before_opens_at_start_unasked() {
+        assert!(!Settings::default().open_at_start);
+        assert!(Settings::parse(r#"{"theme": "dark"}"#).unwrap().open_at_start);
+        assert!(!Settings::parse(r#"{"open_at_start": false}"#).unwrap().open_at_start);
     }
 
     #[test]
