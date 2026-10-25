@@ -140,8 +140,11 @@ Function .onInit
   ; Changing an install: start from what's there.
   ReadRegStr $0 HKCU "${UNINST}\Mullion" "InstallLocation"
   ${If} $0 != ""
-    StrCpy $INSTDIR $0 "" 1
-    StrCpy $INSTDIR $INSTDIR -1
+    ; It's stored in quotes. Take both off before it becomes $INSTDIR, which drops a stray quote
+    ; of its own accord.
+    StrCpy $0 $0 "" 1
+    StrCpy $0 $0 -1
+    StrCpy $INSTDIR $0
     ${IfNot} ${FileExists} "$INSTDIR\oriel.exe"
       !insertmacro UnselectSection ${SecOriel}
     ${EndIf}
@@ -224,11 +227,4 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecUnMullion} "Mullion and every app installed with it."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecUnData} "Also the apps' settings, history and saved data, except for an app that's still installed on its own."
 !insertmacro MUI_UNFUNCTION_DESCRIPTION_END
-
-Function un.onInit
-  ReadRegStr $0 HKCU "${UNINST}\Mullion" "InstallLocation"
-  ${If} $0 != ""
-    StrCpy $INSTDIR $0 "" 1
-    StrCpy $INSTDIR $INSTDIR -1
-  ${EndIf}
-FunctionEnd
+; The uninstaller's $INSTDIR is the folder it was installed in, which is Mullion's.
