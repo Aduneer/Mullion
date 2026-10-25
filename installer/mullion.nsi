@@ -233,5 +233,7 @@ SectionEnd
 ; Run in place, the uninstaller can't delete itself, so a hidden cmd (signed by Windows, so Smart
 ; App Control lets it run) waits for it to quit, then removes it and the folder, if that's empty.
 Function un.onUninstSuccess
+  ; Out of the folder first: neither it nor the cmd can be working in a folder that's to go.
+  SetOutPath "$TEMP"
   ExecShell "open" "$SYSDIR\cmd.exe" '/c ping -n 4 127.0.0.1 >nul & del /f /q "$INSTDIR\uninstall.exe" & rmdir "$INSTDIR"' SW_HIDE
 FunctionEnd
