@@ -25,7 +25,7 @@ body:
     attributes:
       label: Version
       description: At the bottom of the app's settings (in Oriel, press , on the dashboard; in Fanlight, Ctrl+, in the panel; in Lintel, Menu Bar Settings, in the logo menu).
-      placeholder: "0.3.0"
+      placeholder: "0.3.1"
     validations:
       required: true
 

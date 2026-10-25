@@ -1007,7 +1007,7 @@ dependencies = [
 
 [[package]]
 name = "fanlight"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "mullion-core",
  "serde",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "lintel"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -2172,7 +2172,7 @@ dependencies = [
 
 [[package]]
 name = "mullion"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "mullion-core",
  "serde",
@@ -2547,7 +2547,7 @@ dependencies = [
 
 [[package]]
 name = "oriel"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",

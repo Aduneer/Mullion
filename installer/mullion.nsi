@@ -34,8 +34,16 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 Aduneer. MIT License."
 
 !define MUI_ICON "..\apps\mullion\src-tauri\icons\icon.ico"
 !define MUI_UNICON "..\apps\mullion\src-tauri\icons\icon.ico"
+; The pictures: apps\mullion\tools\preview\shots.ps1 -Installer draws them.
+!define MUI_WELCOMEFINISHPAGE_BITMAP "sidebar.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "sidebar.bmp"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_HEADERIMAGE_BITMAP "header.bmp"
+!define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
 !define MUI_COMPONENTSPAGE_SMALLDESC
-!define MUI_WELCOMEPAGE_TEXT "Mullion reworks the Windows desktop, one part at a time. Pick the apps you want on the next page; Mullion Settings turns any of them on or off later.$\r$\n$\r$\nEverything installs for you only, without admin rights."
+!define MUI_WELCOMEPAGE_TITLE "Welcome to Mullion"
+!define MUI_WELCOMEPAGE_TEXT "Well-made parts for the Windows desktop. Pick the apps you want on the next page; Mullion Settings turns any of them on or off later.$\r$\n$\r$\nEverything installs for you only, without admin rights."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\mullion.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Start Mullion"
 !insertmacro MUI_PAGE_WELCOME

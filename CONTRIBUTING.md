@@ -23,7 +23,7 @@ ui-common/            the page files every app shares word for word (themes.css)
 tools/                scripts every app's preview uses: icons.py, preview/demo.py and
                       preview/Shots.psm1 (the browser, screenshots, icons, social preview),
                       and banner.py, which draws each app's README banners from its logo
-installer/            mullion.nsi, Mullion's installer
+installer/            mullion.nsi, Mullion's installer, and its pictures
 .github/              CI, the release workflow, the issue forms
 ```
 
@@ -121,7 +121,12 @@ matter:
 Each app's installer is Tauri's NSIS installer: per user, no admin rights, and its own uninstaller.
 Mullion's installer (`installer/mullion.nsi`) is its own NSIS script: a box for each app, every
 ticked app's exe beside `mullion.exe` in one folder, and one uninstaller for them all. It can only
-be built in Actions, with the NSIS that Tauri's build downloads.
+be built in Actions, with the NSIS that Tauri's build downloads; run the release workflow by hand
+for a dry run that builds and tries everything without releasing. Its sidebar and header pictures
+(`installer/*.bmp`) come from `apps\mullion\tools\preview\shots.ps1 -Installer`.
+
+Its uninstaller runs in place (`_?=` in its Installed apps entry): started the usual NSIS way, it
+copies itself to `%TEMP%` and runs the copy, which Smart App Control blocks.
 
 Releases aren't code-signed yet, so SmartScreen may warn about them and Smart App Control may
 block them. Signing would slot into the workflow's Build step once there's a certificate.
