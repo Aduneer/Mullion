@@ -72,9 +72,12 @@ thread_local! {
     static TIMER: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+type OnFront = Box<dyn Fn(&Front)>;
+type OnApps = Box<dyn Fn(&[App])>;
+
 struct Watch {
-    on_change: Box<dyn Fn(&Front)>,
-    on_apps: Box<dyn Fn(&[App])>,
+    on_change: OnFront,
+    on_apps: OnApps,
     /// Display names by program path.
     names: HashMap<String, String>,
     /// Icons by app key, made once per app.

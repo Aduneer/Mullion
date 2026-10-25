@@ -478,8 +478,8 @@ pub fn file_description(path: &str) -> Option<String> {
         let mut tables = Vec::new();
         if let Some((ptr, len)) = query(r"\VarFileInfo\Translation") {
             let pairs = std::slice::from_raw_parts(ptr as *const u16, (len / 2) as usize);
-            for pair in pairs.chunks_exact(2) {
-                tables.push(format!("{:04x}{:04x}", pair[0], pair[1]));
+            for [lang, codepage] in pairs.as_chunks::<2>().0 {
+                tables.push(format!("{lang:04x}{codepage:04x}"));
             }
         }
         tables.extend(["040904b0".into(), "040904e4".into()]);

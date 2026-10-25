@@ -69,11 +69,11 @@ fn pixels(parsing_name: &str) -> Option<(u32, u32, Vec<u8>)> {
 /// The shell hands out premultiplied pixels, mostly; an image browsers draw wants straight alpha.
 /// If any color is brighter than its alpha, the pixels can't be premultiplied, so they're left be.
 fn unpremultiply(px: &mut [u8]) {
-    let premultiplied = px.chunks_exact(4).all(|p| p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]);
+    let premultiplied = px.as_chunks::<4>().0.iter().all(|p| p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]);
     if !premultiplied {
         return;
     }
-    for p in px.chunks_exact_mut(4) {
+    for p in px.as_chunks_mut::<4>().0 {
         let a = p[3] as u32;
         if a > 0 && a < 255 {
             for c in &mut p[..3] {
@@ -148,6 +148,6 @@ mod tests {
         let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
         let (w, h, px) = pixels(&format!(r"{windir}\explorer.exe")).expect("explorer's icon");
         assert!(w >= 32 && h >= 32 && px.len() == (w * h * 4) as usize);
-        assert!(px.chunks_exact(4).any(|p| p[3] > 0), "not all transparent");
+        assert!(px.as_chunks::<4>().0.iter().any(|p| p[3] > 0), "not all transparent");
     }
 }

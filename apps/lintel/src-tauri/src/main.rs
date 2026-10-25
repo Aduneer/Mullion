@@ -210,7 +210,7 @@ fn start_sampler(app: AppHandle, media: MediaWatch, audio: AudioWatch) {
                     media.poll();
                     audio.poll();
                     tick += 1;
-                    if tick % 5 == 0 || RADIOS_CHANGED.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                    if tick.is_multiple_of(5) || RADIOS_CHANGED.swap(false, std::sync::atomic::Ordering::Relaxed) {
                         radios = radios::state();
                     }
                     let sample = Sample {
