@@ -15,7 +15,7 @@ what you copied and the web, in one field that opens over whatever you're doing.
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
-[Install](#install) · [What it finds](#what-it-finds) · [Launchpad](#launchpad) · [Keys](#keys) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
+[Install](#install) · [What it finds](#what-it-finds) · [App grid](#app-grid) · [Keys](#keys) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -97,7 +97,7 @@ folders), **Actions** (commands and Settings pages) and **Clipboard**. With noth
 category lists everything in it. <kbd>Backspace</kbd> in an empty field or <kbd>Esc</kbd> goes
 back to everything.
 
-## Launchpad
+## App grid
 
 The Apps category (<kbd>Ctrl</kbd> + <kbd>1</kbd>) shows your apps as a grid of icons, as
 Launchpad does on a Mac: every app in the Start menu, in alphabetical order, with your open windows
