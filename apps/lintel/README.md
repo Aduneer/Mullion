@@ -10,6 +10,7 @@
 The app you're in, your open apps, what's playing, a Control Centre and the clock,<br>
 in one slim bar along the top of your screen, the way macOS and Linux desktops have it.
 
+[![Latest release](https://img.shields.io/github/v/release/Aduneer/Lintel?color=%233987e5)](../../releases/latest)
 [![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
@@ -102,20 +103,30 @@ and its menus:
 
 ## Install
 
-Lintel runs on Windows 10 and 11. There's no release yet, so for now
-[build it from source](CONTRIBUTING.md#building-from-source): it takes Rust and a few minutes.
+Lintel runs on Windows 10 and 11.
 
-Once there are releases, they'll come as **Lintel-*version*-setup.exe** (installs just for you,
-no admin prompt) and **Lintel-*version*-portable.zip**, like Oriel's.
+1. Download **Lintel-*version*-setup.exe** from the [latest release](../../releases/latest).
+2. Run it. It installs just for you, with no admin prompt, and adds Lintel to the Start menu.
+3. Start Lintel. It takes its place along the top of your main screen; Menu Bar Settings, in the
+   logo menu, moves it.
+
+Prefer not to install anything? Download **Lintel-*version*-portable.zip** instead, unzip it
+into a folder of its own (not straight into Downloads) and run `lintel.exe`.
 
 > [!IMPORTANT]
 > Lintel isn't code-signed yet, so Windows doesn't know who made it:
 > - **SmartScreen** may say *Windows protected your PC*. Click **More info**, then **Run anyway**.
-> - **Smart App Control**, if it's on, may block it, and it has no "run anyway". Building it
->   yourself works. Please don't turn Smart App Control off for Lintel: on most versions of
->   Windows it can only be turned back on by reinstalling Windows.
+> - **Smart App Control**, if it's on, may block Lintel: it only lets unsigned apps run when
+>   Microsoft's cloud service judges them safe, and it has no "run anyway". It judges each file
+>   on its own, so if it blocks the portable zip, try the installer. If it blocks that too, you
+>   can [build Lintel yourself](CONTRIBUTING.md#building-from-source) until it's signed.
+>   Please don't turn Smart App Control off for Lintel: on most versions of Windows it can only
+>   be turned back on by reinstalling Windows.
+>
+> Each release lists the SHA-256 of its files in `SHA256SUMS.txt`, so you can check a download
+> with `Get-FileHash`.
 
-To uninstall an installed copy, go to **Settings → Apps → Installed apps → Lintel**. Tick
+To uninstall, go to **Settings → Apps → Installed apps → Lintel**. Tick
 **Delete the application data** to also remove your settings and the sign-in entry.
 
 ## Using it
