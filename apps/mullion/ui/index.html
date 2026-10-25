@@ -11,15 +11,26 @@
     <header>
       <span class="logo" id="logo"></span>
       <div>
-        <h1>Mullion</h1>
+        <h1 id="title">Mullion</h1>
         <p>Well-made parts for the Windows desktop.</p>
       </div>
     </header>
-    <h3>APPS</h3>
-    <div id="apps"></div>
-    <h3>GENERAL</h3>
-    <div id="general"></div>
-    <p class="about" id="about"></p>
+    <section id="welcome" hidden>
+      <p class="lead">Mullion runs these apps together, from one icon in the notification area.
+        Pick the ones you want; you can change any of it later from that icon.</p>
+      <h3>APPS</h3>
+      <div id="picks"></div>
+      <h3>GENERAL</h3>
+      <div id="first"></div>
+      <div class="go"><button class="btn primary" id="go">Start</button></div>
+    </section>
+    <section id="settings" hidden>
+      <h3>APPS</h3>
+      <div id="apps"></div>
+      <h3>GENERAL</h3>
+      <div id="general"></div>
+      <p class="about" id="about"></p>
+    </section>
   </main>
   <script src="settings.js"></script>
 </body>

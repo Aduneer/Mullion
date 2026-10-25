@@ -2,6 +2,9 @@
 // Mullion's settings: which apps it runs (each one's switch starts or quits it), a way into each
 // app's own window and settings, and Mullion's sign-in entry. While the window is open it asks
 // every few seconds which apps are running, as they start and quit.
+//
+// The first time, it's a welcome instead: the same apps, each with its first step, switched on
+// or off before any of them starts, and Start to start them.
 {
 const T = window.__TAURI__;
 const invoke = (cmd, args) => T.core.invoke(cmd, args);
@@ -32,6 +35,15 @@ applyTheme();
 
 let hello = null, apps = [], error = "";
 const icons = {};
+// The apps turned off in the welcome, until Start.
+const off = new Set();
+
+// What to do first with each app, for the welcome.
+const FIRST = {
+  Oriel: "Open it from Mullion’s icon when you want it",
+  Lintel: "Shows up on your main screen straight away",
+  Fanlight: "Press Alt+Space to try it",
+};
 
 const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} aria-checked="${on}" aria-label="${esc(label)}"></button>`;
 
@@ -41,30 +53,47 @@ function state(a) {
   return a.on ? "Not running" : "Off";
 }
 
+const getIt = a => `<button class="btn" data-get="${esc(a.name)}">Get it</button>`;
+
+// An app on its card: icon, name, what it is, a line under that, and its buttons.
+const card = (a, line, side) => `<div class="app${a.installed ? "" : " missing"}">
+  <span class="pic">${icons[a.name] ? `<img src="${icons[a.name]}" alt="">` : APP_GLYPH}</span>
+  <div class="text">
+    <span class="name">${esc(a.name)}</span>
+    <span class="sub">${esc(a.about)}</span>
+    ${line}
+  </div>
+  <div class="side">${side}</div>
+</div>`;
+
+const errLine = () => (error ? `<p class="err">${esc(error)}</p>` : "");
+
+const autostartSet = () => `
+  <div class="set"><div class="label"><span>Start Mullion when I sign in</span><small>And with it, every app that’s on</small></div>
+    ${sw(`data-do="autostart"`, hello.autostart, "Start Mullion when I sign in")}</div>`;
+
 function drawApps() {
-  appsEl.innerHTML = apps.map(a => {
-    const pic = icons[a.name] ? `<img src="${icons[a.name]}" alt="">` : APP_GLYPH;
-    const side = !a.installed
-      ? `<button class="btn" data-get="${esc(a.name)}">Get it</button>`
+  appsEl.innerHTML = apps.map(a => card(a,
+    `<span class="state${a.running ? " up" : ""}">${state(a)}</span>`,
+    !a.installed ? getIt(a)
       : `${a.shows && a.on ? `<button class="btn" data-settings="${esc(a.name)}">Settings</button>` : ""}
          ${!a.running && a.on ? `<button class="btn" data-start="${esc(a.name)}">Start</button>` : ""}
-         ${sw(`data-app="${esc(a.name)}"`, a.on, `Run ${a.name}`)}`;
-    return `<div class="app${a.installed ? "" : " missing"}">
-      <span class="pic">${pic}</span>
-      <div class="text">
-        <span class="name">${esc(a.name)}</span>
-        <span class="sub">${esc(a.about)}</span>
-        <span class="state${a.running ? " up" : ""}">${state(a)}</span>
-      </div>
-      <div class="side">${side}</div>
-    </div>`;
-  }).join("") + (error ? `<p class="err">${esc(error)}</p>` : "");
+         ${sw(`data-app="${esc(a.name)}"`, a.on, `Run ${a.name}`)}`)).join("") + errLine();
+}
+
+function drawWelcome() {
+  $("picks").innerHTML = apps.map(a => card(a,
+    `<span class="hint">${a.installed ? esc(FIRST[a.name] ?? "") : "Not installed"}</span>`,
+    a.installed ? sw(`data-pick="${esc(a.name)}"`, !off.has(a.name), `Run ${a.name}`) : getIt(a))).join("")
+    // Nothing's wrong when the screen hitches as Lintel starts, but it's better said beforehand.
+    + (apps.some(a => a.name === "Lintel" && a.installed && !off.has(a.name))
+      ? `<p class="note">When Lintel starts, Windows makes room for its bar: the screen may pause for a moment and windows move down.</p>` : "")
+    + errLine();
+  $("first").innerHTML = autostartSet();
 }
 
 function drawGeneral() {
-  general.innerHTML = `
-    <div class="set"><div class="label"><span>Start Mullion when I sign in</span><small>And with it, every app that’s on</small></div>
-      ${sw(`data-do="autostart"`, hello.autostart, "Start Mullion when I sign in")}</div>
+  general.innerHTML = `${autostartSet()}
     <div class="set"><div class="label"><span>Quit Mullion</span><small>And the apps it runs, until you start it again</small></div>
       <button class="btn danger" data-do="quit">Quit</button></div>`;
   $("about").innerHTML = `Mullion ${esc(hello.version)} · each app is its own program, and works without the others<br>Settings: ${esc(hello.settings_path)}`;
@@ -78,6 +107,37 @@ async function refresh() {
     console.warn(e);
   }
 }
+
+// The welcome or the settings, whichever it's at.
+function draw() {
+  const welcome = !hello.welcomed;
+  $("welcome").hidden = !welcome;
+  $("settings").hidden = welcome;
+  $("title").textContent = welcome ? "Welcome to Mullion" : "Mullion";
+  if (welcome) drawWelcome();
+  else { drawApps(); drawGeneral(); }
+}
+
+$("picks").addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (t?.dataset.pick) off.has(t.dataset.pick) ? off.delete(t.dataset.pick) : off.add(t.dataset.pick);
+  else if (t?.dataset.get) invoke("get_app");
+  drawWelcome();
+});
+
+$("go").addEventListener("click", async () => {
+  error = "";
+  try {
+    await invoke("welcome", { off: [...off] });
+    hello.welcomed = true;
+    apps = await invoke("apps");
+  } catch (err) {
+    error = String(err);
+  }
+  draw();
+  // The apps take a moment to start.
+  setTimeout(refresh, 800);
+});
 
 appsEl.addEventListener("click", async e => {
   const t = e.target.closest("button");
@@ -96,28 +156,30 @@ appsEl.addEventListener("click", async e => {
   setTimeout(refresh, 800);
 });
 
-general.addEventListener("click", async e => {
+const onGeneral = async e => {
   const t = e.target.closest("button");
   if (!t) return;
   if (t.dataset.do === "autostart") {
     hello.autostart = await invoke("set_autostart", { enabled: t.getAttribute("aria-checked") !== "true" }).catch(() => hello.autostart);
-    drawGeneral();
+    draw();
   } else if (t.dataset.do === "quit") {
     invoke("quit");
   }
-});
+};
+general.addEventListener("click", onGeneral);
+$("first").addEventListener("click", onGeneral);
 
-listen("autostart", on => { if (hello) { hello.autostart = on; drawGeneral(); } });
+listen("autostart", on => { if (hello) { hello.autostart = on; draw(); } });
 
 async function start() {
   hello = await invoke("hello");
   apps = hello.apps;
   for (const a of apps) if (a.icon) icons[a.name] = a.icon;
+  for (const a of apps) if (!a.on) off.add(a.name);
   if (hello.icon) $("logo").innerHTML = `<img src="${hello.icon}" alt="">`;
-  drawApps();
-  drawGeneral();
+  draw();
   invoke("ready");
-  setInterval(() => { if (!document.hidden) refresh(); }, 3000);
+  setInterval(() => { if (!document.hidden && hello.welcomed) refresh(); }, 3000);
 }
 start();
 }

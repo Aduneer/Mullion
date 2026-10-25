@@ -33,6 +33,9 @@ menu: one icon in the notification area, one entry in Installed apps and one sig
 all of them, instead of one of each per app. If you already have one of the apps on its own,
 Mullion offers to take its place, and keeps its settings.
 
+The first time Mullion opens, it welcomes you: pick which apps to run and whether Mullion starts
+when you sign in. Nothing starts until you press Start, and Oriel waits until you open it.
+
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="apps/mullion/docs/images/settings-light.png">
   <img alt="Mullion Settings: Oriel, Lintel and Fanlight, each with a switch to run it or not and a way into its own settings, then Start Mullion when I sign in and Quit Mullion" src="apps/mullion/docs/images/settings-dark.png" width="560">

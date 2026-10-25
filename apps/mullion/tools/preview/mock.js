@@ -3,6 +3,7 @@
 //
 // URL options, all optional:
 //   mode=dark|light (otherwise Windows' own)  off=Lintel (turned off)  missing=Oriel (not installed)
+//   welcome=1 (the first time, before Start)
 (() => {
   const q = new URLSearchParams(location.search);
   if (q.get("mode")) {
@@ -14,7 +15,7 @@
   }
   const list = n => (q.get(n) || "").split(",").filter(Boolean);
   const off = new Set(list("off")), missing = new Set(list("missing"));
-  let autostart = true;
+  let autostart = true, welcomed = q.get("welcome") !== "1";
   const APPS = [
     ["Oriel", "A command centre for your second screen", true],
     ["Lintel", "A menu bar along the top of the screen", false],
@@ -27,9 +28,10 @@
     return a;
   });
   const commands = {
-    hello: () => ({ apps: apps(true), icon: "/icons/mullion.png", autostart, version: "0.1.0", settings_path: String.raw`C:\Users\you\AppData\Roaming\Mullion\settings.json` }),
+    hello: () => ({ apps: apps(true), icon: "/icons/mullion.png", autostart, welcomed, version: "0.1.0", settings_path: String.raw`C:\Users\you\AppData\Roaming\Mullion\settings.json` }),
     apps: () => apps(false),
     set_app: ({ name, on }) => { (on ? off.delete(name) : off.add(name)); return apps(false); },
+    welcome: ({ off: picked }) => { off.clear(); picked.forEach(n => off.add(n)); welcomed = true; },
     set_autostart: ({ enabled }) => (autostart = enabled),
   };
   window.__TAURI__ = {

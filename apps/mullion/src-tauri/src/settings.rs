@@ -9,6 +9,14 @@ use std::path::PathBuf;
 pub struct Settings {
     /// The apps Mullion doesn't start, by name. Every other app it finds, it starts.
     pub off: Vec<String>,
+    /// The welcome has been through: until then Mullion starts no apps, and opens the welcome
+    /// even at sign-in. A file from before it existed was made by someone who's used Mullion.
+    #[serde(default = "used_before")]
+    pub welcomed: bool,
+}
+
+fn used_before() -> bool {
+    true
 }
 
 pub fn path() -> PathBuf {
@@ -53,5 +61,12 @@ mod tests {
         assert!(s.is_on("Lintel") && s.off.is_empty());
         let old: Settings = serde_json::from_str(r#"{"off":["Oriel"],"gone":1}"#).unwrap();
         assert!(!old.is_on("Oriel"));
+    }
+
+    #[test]
+    fn only_someone_new_is_welcomed() {
+        assert!(!Settings::default().welcomed);
+        assert!(serde_json::from_str::<Settings>(r#"{"off":[]}"#).unwrap().welcomed);
+        assert!(!serde_json::from_str::<Settings>(r#"{"welcomed":false}"#).unwrap().welcomed);
     }
 }

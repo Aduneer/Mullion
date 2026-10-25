@@ -12,7 +12,8 @@
 mod settings;
 
 use mullion_core::suite::{self, Ask, APPS};
-use mullion_core::{ffi, icons, look};
+use base64::Engine;
+use mullion_core::{ffi, look};
 use serde::Serialize;
 use settings::Settings;
 use std::sync::Mutex;
@@ -45,9 +46,11 @@ struct AppInfo {
 #[derive(Serialize)]
 struct Hello {
     apps: Vec<AppInfo>,
-    /// Mullion's own icon, from its exe.
+    /// Mullion's own icon.
     icon: Option<String>,
     autostart: bool,
+    /// Off until the welcome has been through, so the page shows it.
+    welcomed: bool,
     version: String,
     settings_path: String,
 }
@@ -61,7 +64,7 @@ fn main() {
             _ => open_settings(app),
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![SIGN_IN])))
-        .invoke_handler(tauri::generate_handler![hello, apps, set_app, open_app, get_app, set_autostart, ready, quit])
+        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Mullion running, so there's nothing to quit.
@@ -69,10 +72,14 @@ fn main() {
                 std::process::exit(0);
             }
             let settings = Settings::load();
-            start_apps(&settings);
+            // Someone new picks their apps in the welcome first; it starts them.
+            let welcomed = settings.welcomed;
+            if welcomed {
+                start_apps(&settings);
+            }
             app.manage(SettingsState(Mutex::new(settings)));
             build_tray(app.handle())?;
-            if !args.iter().any(|a| a == SIGN_IN) {
+            if !welcomed || !args.iter().any(|a| a == SIGN_IN) {
                 open_settings(app.handle());
             }
             Ok(())
@@ -104,10 +111,23 @@ fn list(settings: &Settings, with_icons: bool) -> Vec<AppInfo> {
                 installed: exe.is_some(),
                 on: settings.is_on(a.name),
                 running: exe.as_ref().is_some_and(|e| !suite::running(e).is_empty()),
-                icon: exe.filter(|_| with_icons).and_then(|e| icons::icon(&e.to_string_lossy(), icons::SIZE_PX)),
+                icon: exe.filter(|_| with_icons).and_then(|_| icon_of(a.name)),
             }
         })
         .collect()
+}
+
+/// An app's icon (or Mullion's own), as a data: URL. They're built in rather than asked of the
+/// shell, whose icon cache can keep showing an exe's old icon after it's replaced.
+fn icon_of(name: &str) -> Option<String> {
+    let png: &[u8] = match name {
+        "Mullion" => include_bytes!("../icons/128x128.png"),
+        "Oriel" => include_bytes!("../../../oriel/src-tauri/icons/128x128.png"),
+        "Lintel" => include_bytes!("../../../lintel/src-tauri/icons/128x128.png"),
+        "Fanlight" => include_bytes!("../../../fanlight/src-tauri/icons/128x128.png"),
+        _ => return None,
+    };
+    Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png)))
 }
 
 /// Start every app that's on, or tell the ones already running that they're Mullion's now.
@@ -139,9 +159,10 @@ fn open_settings(app: &AppHandle) {
         let _ = w.set_focus();
         return;
     }
+    let welcomed = app.state::<SettingsState>().0.lock().unwrap().welcomed;
     // Hidden until the page has drawn itself (`ready`), so it never flashes white.
     let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
-        .title("Mullion Settings")
+        .title(if welcomed { "Mullion Settings" } else { "Welcome to Mullion" })
         .inner_size(560.0, 680.0)
         .min_inner_size(460.0, 420.0)
         .center()
@@ -156,7 +177,8 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let settings = app.state::<SettingsState>().0.lock().unwrap().clone();
     let menu = Menu::new(app)?;
     let mut opens = false;
-    for a in APPS.iter().filter(|a| a.shows && settings.is_on(a.name) && suite::find_app(a).is_some()) {
+    // Before the welcome no app is started, so there's none to open.
+    for a in APPS.iter().filter(|a| settings.welcomed && a.shows && settings.is_on(a.name) && suite::find_app(a).is_some()) {
         menu.append(&MenuItem::with_id(app, format!("open:{}", a.name), format!("Open {}", a.name), true, None::<&str>)?)?;
         opens = true;
     }
@@ -212,20 +234,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 // --- commands --------------------------------------------------------------------------
 
 #[tauri::command]
-async fn hello(app: AppHandle) -> Hello {
-    let settings = app.state::<SettingsState>().0.lock().unwrap().clone();
-    // The shell draws the icons with COM, on a thread of its own.
-    let (apps, icon) = std::thread::spawn(move || {
-        unsafe { ffi::CoInitializeEx(std::ptr::null_mut(), ffi::COINIT_APARTMENTTHREADED) };
-        let me = std::env::current_exe().ok().and_then(|e| icons::icon(&e.to_string_lossy(), icons::SIZE_PX));
-        (list(&settings, true), me)
-    })
-    .join()
-    .unwrap_or_default();
+fn hello(app: AppHandle, state: State<SettingsState>) -> Hello {
+    let settings = state.0.lock().unwrap().clone();
     Hello {
-        apps,
-        icon,
+        apps: list(&settings, true),
+        icon: icon_of("Mullion"),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
+        welcomed: settings.welcomed,
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
     }
@@ -257,6 +272,24 @@ fn set_app(app: AppHandle, state: State<SettingsState>, name: String, on: bool) 
     }
     refresh_tray(&app);
     Ok(list(&settings, false))
+}
+
+/// The welcome's Start: keep the apps it turned off, and start the rest.
+#[tauri::command]
+fn welcome(app: AppHandle, window: WebviewWindow, state: State<SettingsState>, off: Vec<String>) -> Result<(), String> {
+    let settings = {
+        let mut s = state.0.lock().unwrap();
+        for a in APPS.iter() {
+            s.set(a.name, !off.iter().any(|o| o == a.name));
+        }
+        s.welcomed = true;
+        s.save().map_err(|e| e.to_string())?;
+        s.clone()
+    };
+    start_apps(&settings);
+    refresh_tray(&app);
+    let _ = window.set_title("Mullion Settings");
+    Ok(())
 }
 
 /// Open an app's window, or its settings.

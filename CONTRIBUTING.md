@@ -85,7 +85,8 @@ To try it, build the apps and Mullion (`cargo build --workspace`) and run
 1. `apps/<app>/`, laid out like the others, and its `src-tauri` in the workspace's `members`.
 2. An entry in `APPS` in `core/src/suite.rs`, and in its `main.rs`, the same `--mullion` handling
    as Fanlight's (no tray icon of its own, no sign-in entry, and `--show`, `--settings` and
-   `--quit`).
+   `--quit`). Its icon in `icon_of` in `apps/mullion/src-tauri/src/main.rs`, which builds
+   each app's icon into Mullion.
 3. In `installer/mullion.nsi`: an `!insertmacro App` line, its line in the `-Tidy` section and
    `.onInit`, an `UnData` line and a `MUI_DESCRIPTION_TEXT` line.
 4. It in the root README's table and SECURITY.md, and the bug form's list of apps.
