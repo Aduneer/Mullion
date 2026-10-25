@@ -76,7 +76,18 @@ thread_local! {
 
 /// Make this thread fit to call Windows' runtime. Safe to call as often as you like.
 pub fn init_thread() {
+    keep_mta();
     COM.with(|_| {});
+}
+
+/// Keeps the multithreaded apartment up until Oriel quits. Otherwise it goes when the last
+/// thread in it ends, taking the runtime objects other threads still hold with it (the tests
+/// start and end a thread for each test).
+pub fn keep_mta() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let _ = unsafe { windows::Win32::System::Com::CoIncrementMTAUsage() };
+    });
 }
 
 /// Waits for a WinRT operation, and cancels it if it isn't done by `deadline`.

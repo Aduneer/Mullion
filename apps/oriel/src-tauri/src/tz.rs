@@ -59,6 +59,7 @@ thread_local! {
 }
 
 fn make(zone: &str) -> Option<Calendar> {
+    crate::net::keep_mta();
     let cal = Calendar::new().ok()?;
     // Whatever the user's own calendar is (Buddhist, Hijri), we want plain dates and hours 0–23.
     cal.ChangeCalendarSystem(&HSTRING::from("GregorianCalendar")).ok()?;
