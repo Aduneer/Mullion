@@ -111,11 +111,12 @@ Then open <http://127.0.0.1:5299/tools/preview/>. Options go after the address, 
 or `?hot=1`. The top of `host.js` lists them all. The running apps, windows, devices and track
 are made up, so the pictures never show your own PC.
 
-`tools\preview\shots.ps1` renders the README's images again with headless Edge, Chrome or another
-Chromium browser, on a fixed clock. With `-Demo` it renders the animation at the top of the
-README (`docs/images/demo.webp`) frame by frame from `?demo=1`, which needs
-[ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`). With `-Icons` it renders `assets\lintel.svg` and makes the app
-icons from it (needs Python with [Pillow](https://pypi.org/project/pillow/)).
+`tools\preview\shots.ps1` renders the README's images and the repo's social preview again with
+headless Edge, Chrome or another Chromium browser, on a fixed clock. With `-Demo` it records the
+animation at the top of the README (`docs/images/demo.webp`) from `?demo=1` (`demo.py`), which
+needs [ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`). With `-Icons` it renders
+`assets\lintel.svg` and makes the app icons from it (needs Python with
+[Pillow](https://pypi.org/project/pillow/)).
 `python -I tools\banner.py assets` draws the banners from the logo.
 
 ```powershell

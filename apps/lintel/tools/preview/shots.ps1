@@ -86,6 +86,28 @@ try {
     Shot "$base&theme=dark&edge=left&open=clock&palette=nord" (Join-Path $images "side.png") 900 620
     Shot "$base&theme=dark&open=control" (Join-Path $images "control.png") 1440 560
     Shot "$base&theme=dark&glass=on&open=clock" (Join-Path $images "glass.png") 1440 520
+
+    # The repo's social preview (GitHub wants 1280x640): the name beside a glass bar with the
+    # Control Centre open, in the style of Oriel's. Upload it under the repo's Settings.
+    $raw = Join-Path $env:TEMP "lintel-social-bar.png"
+    Shot "$base&theme=dark&glass=on&open=control" $raw 1440 640
+    $page = Join-Path $env:TEMP "lintel-social.html"
+    $file = { param($path) ([Uri]$path).AbsoluteUri }
+    Set-Content $page -Encoding utf8 ("<!doctype html><meta charset=`"utf-8`"><style>" +
+        "html,body{margin:0;width:1280px;height:640px;overflow:hidden}" +
+        "body{background:radial-gradient(circle at 88% 10%,#9085e938,transparent 50%),radial-gradient(circle at 0 100%,#3987e52e,transparent 45%),linear-gradient(#1a1a21,#0c0c10);" +
+        "color:#f0efec;font-family:'Segoe UI Variable Text','Segoe UI',sans-serif}" +
+        ".t{position:absolute;left:80px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center}" +
+        ".t img{width:104px;height:104px;margin-bottom:28px}" +
+        "h1{margin:0 0 18px;font:600 100px/1 'Segoe UI Variable Display','Segoe UI',sans-serif;letter-spacing:-2px}" +
+        "p{margin:0;font-size:33px;line-height:1.3;color:#b4b8c2}" +
+        ".s{margin-top:30px;font-size:21px;color:#7c818d}" +
+        ".d{position:absolute;left:610px;top:110px;width:640px;height:560px;border-radius:16px;overflow:hidden;box-shadow:0 30px 90px #000a,0 0 0 1px #ffffff14}" +
+        ".d img{position:absolute;right:0;top:0;width:1440px}" +
+        "</style><div class=`"d`"><img src=`"$(& $file $raw)`"></div>" +
+        "<div class=`"t`"><img src=`"$(& $file (Join-Path $root 'assets\lintel.svg'))`"><h1>Lintel</h1>" +
+        "<p>A menu bar for Windows.</p><div class=`"s`">Free and open source &middot; Rust + Tauri</div></div>")
+    Shot (& $file $page) (Join-Path $images "social-preview.png") 1280 640 "1a1a21ff"
 } finally {
     Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
 }
