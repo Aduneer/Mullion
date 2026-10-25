@@ -13,8 +13,13 @@
     #bar { position: absolute; left: 0; top: 0; width: 100%; border: 0; display: block; }
     /* The menu window: see-through, along the bar (host.js); the page draws the menu in it. Its
        color-scheme matches the page's, or Chromium paints the frame opaque. */
-    #menu { position: absolute; border: 0; display: none; background: transparent; color-scheme: dark; }
+    /* Hidden, not undisplayed: like a hidden window, it still lays its page out at its size. */
+    #menu { position: absolute; border: 0; visibility: hidden; background: transparent; color-scheme: dark; }
     body.light #menu { color-scheme: light; }
+    /* The stand-in pointer for ?demo=1. */
+    #pointer { position: absolute; left: 62%; top: 46%; width: 14px; height: 21px; opacity: 0; pointer-events: none; z-index: 2;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s; }
+    #pointer.on { opacity: 1; }
     #log {
       position: absolute; right: 12px; bottom: 12px; max-width: 420px; padding: 8px 10px; border-radius: 8px;
       background: rgba(0,0,0,.45); color: #fff; font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap;
@@ -38,6 +43,7 @@
   </div>
   <iframe id="bar" title="bar"></iframe>
   <iframe id="menu" title="menu"></iframe>
+  <svg id="pointer" viewBox="0 0 14 21" aria-hidden="true"><path d="M1 1v16.5l4-3.8 2.6 6 2.6-1.1-2.6-5.9h5.6z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
   <div id="log"></div>
   <script src="host.js"></script>
 </body>

@@ -61,9 +61,11 @@ function measure() {
   readied = current;
   const id = current;
   // Once the window is on screen, the menu grows out of the bar (from closed, at its place).
-  invoke("menu_ready", { id }).then(() => requestAnimationFrame(() => {
-    if (opening && current === id) panel.classList.add("open");
-  }));
+  invoke("menu_ready", { id }).then(() => {
+    if (!opening || current !== id) return;
+    void panel.offsetWidth; // lay it out closed first, so the opening animates
+    panel.classList.add("open");
+  });
 }
 new ResizeObserver(measure).observe(root);
 

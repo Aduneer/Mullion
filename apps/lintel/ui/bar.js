@@ -54,6 +54,12 @@ function showTab(el) {
   tab.classList.add("on");
 }
 
+/** Keep the tab on its item as the bar changes around it (a wider number, an app opening). */
+function retab() {
+  const el = openMenu && menuItems().find(([k]) => k === openMenu)?.[1];
+  if (el) showTab(el);
+}
+
 listen("menu-opened", id => {
   openMenu = id;
   for (const [k, item] of menuItems()) {
@@ -284,7 +290,7 @@ async function refreshBackdrop() {
 
 let backdropTimer = 0;
 const backdropSoon = () => { clearTimeout(backdropTimer); backdropTimer = setTimeout(refreshBackdrop, 150); };
-window.addEventListener("resize", backdropSoon);
+window.addEventListener("resize", () => { backdropSoon(); retab(); });
 listen("backdrop", () => { backdropSoon(); refreshPlace(); });
 
 // --- data ----------------------------------------------------------------------------
@@ -297,14 +303,17 @@ listen("sample", s => {
   renderNetwork();
   renderBluetooth();
   renderBattery();
+  retab();
 });
 listen("front", f => {
   front = f;
   renderFront();
+  retab();
 });
 listen("apps", a => {
   running = a;
   renderApps();
+  retab();
 });
 listen("settings", s => {
   settings = s;
@@ -312,6 +321,7 @@ listen("settings", s => {
   renderAll();
   tick();
   backdropSoon();
+  retab();
 });
 
 // The clock ticks on the minute (or second), whatever the samples do.
@@ -319,6 +329,7 @@ let timer = 0;
 function tick() {
   clearTimeout(timer);
   renderClock();
+  retab();
   const ms = settings.seconds ? 1000 - (Date.now() % 1000) : 60000 - (Date.now() % 60000);
   timer = setTimeout(tick, ms + 5);
 }

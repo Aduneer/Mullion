@@ -4,7 +4,8 @@
 // URL options, all optional:
 //   theme=auto|dark|light  palette=nord  height=30  edge=top|bottom|left|right  open=clock (a menu open at start)
 //   media=off  battery=off  wifi=off (wired)  offline=1  desktop=1 (the desktop in front)  hot=1 (high CPU and memory)
-//   screens=2 (a second screen)
+//   screens=2 (a second screen)  glass=on  apps=off (no open apps)
+//   demo=1 (a stand-in pointer opens a menu and slides along the bar, for the README's animation)
 "use strict";
 (() => {
   const q = new URLSearchParams(location.search);
@@ -38,6 +39,17 @@
     { hwnd: 4242, pid: 812, title: "Lintel — a menu bar for Windows - GitHub", minimized: false, front: true },
     { hwnd: 4243, pid: 812, title: "Inbox (3) - Gmail", minimized: false, front: false },
     { hwnd: 4244, pid: 812, title: "YouTube Music", minimized: true, front: false },
+  ];
+  // The open apps in the middle of the bar, with plain made-up icons (no real apps' logos).
+  const appIcon = (from, to, glyph) => "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect x="4" y="4" width="56" height="56" rx="14" fill="url(#g)"/><g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`);
+  const win = (hwnd, pid, extra = {}) => ({ hwnd, pid, minimized: false, front: false, monitor: 1, ...extra });
+  const running = q.get("apps") === "off" ? [] : [
+    { key: "chrome", name: "Google Chrome", exe: "chrome", pid: 812, icon: appIcon("#5aa0f2", "#2f6fd1", `<circle cx="32" cy="32" r="15"/><path d="M17 32h30M32 17c-6 8-6 22 0 30M32 17c6 8 6 22 0 30"/>`),
+      windows: [win(4242, 812, { front: true }), win(4243, 812), win(4244, 812, { minimized: true })] },
+    { key: "explorer", name: "File Explorer", exe: "explorer", pid: 4, icon: appIcon("#ffd36b", "#f0a92e", `<path d="M16 22h12l4 4h16v16H16z"/>`), windows: [win(5001, 4)] },
+    { key: "terminal", name: "Terminal", exe: "WindowsTerminal", pid: 1210, icon: appIcon("#4a4f5c", "#22252c", `<path d="M19 24l8 8-8 8M31 41h14"/>`), windows: [win(5002, 1210)] },
+    { key: "spotify", name: "Spotify", exe: "Spotify", pid: 990, icon: appIcon("#4fd18a", "#1f9d57", `<path d="M26 40V22l16-4v18"/><circle cx="23" cy="40" r="3"/><circle cx="39" cy="36" r="3"/>`), windows: [win(5003, 990)] },
+    { key: "code", name: "Visual Studio Code", exe: "Code", pid: 1404, icon: appIcon("#7a8cff", "#4a5ae0", `<path d="M26 22l-10 10 10 10M38 22l10 10-10 10"/>`), windows: [win(5004, 1404), win(5005, 1404)] },
   ];
   let media = q.get("media") === "off" ? null : {
     app: "Spotify.exe", title: "Midnight City", artist: "M83", album: "Hurry Up, We're Dreaming", playing: true,
@@ -98,7 +110,7 @@
     if (!open) return;
     open = null;
     emit("menu-closed", null);
-    setTimeout(() => { if (!open) menuFrame.style.display = "none"; }, 220);
+    setTimeout(() => { if (!open) menuFrame.style.visibility = "hidden"; }, 220);
   }
   function placeStage() {
     const b = barFrame.getBoundingClientRect();
@@ -120,7 +132,7 @@
 
   const commands = {
     hello: () => ({
-      settings, sample: latest, front, has_battery: hasBattery, oriel: true, autostart, clock24: true, first_day: 0,
+      settings, sample: latest, front, apps: running, has_battery: hasBattery, oriel: true, autostart, clock24: true, first_day: 0,
       version: "0.1.0", host: "DESKTOP-7Q2K4M", settings_path: "C:\\Users\\you\\AppData\\Roaming\\Lintel\\settings.json",
     }),
     open_menu({ id, item, toggle }) {
@@ -131,7 +143,7 @@
     },
     menu_ready({ id }) {
       if (open?.[0] !== id) return;
-      menuFrame.style.display = "block";
+      menuFrame.style.visibility = "visible";
       menuFrame.contentWindow.focus();
       emitTo("bar", "menu-opened", id);
     },
@@ -157,7 +169,9 @@
       if (volume != null) target.volume = Math.round(volume);
       if (muted != null) target.muted = muted;
     },
-    app_windows: () => windows,
+    app_windows: ({ pid } = {}) => pid == null || pid === 812 ? windows
+      : (running.find(a => a.pid === pid)?.windows ?? []).map((w, i) => ({ ...w, title: `${running.find(a => a.pid === pid).name}${i ? ` (${i + 1})` : ""}` })),
+    launch_app: ({ key }) => log(`launch ${key}`),
     set_radio: ({ kind, on }) => { radios[kind] = on; },
     bluetooth_devices: () => [{ name: "AirPods Pro", connected: true }, { name: "MX Master 3S", connected: true }, { name: "Keychron K2", connected: false }],
     displays: () => [{ id: "built-in", name: "Built-in display", builtin: true, brightness: displayLevel }],
@@ -212,6 +226,39 @@
     latest = sample();
     emit("sample", latest);
   }, 1000);
+
+  // The README's animation (shots.ps1 -Demo): a pointer opens the track's menu and runs along
+  // the bar through the others, the calendar changes palette under it, the bar turns to glass,
+  // and the app menu opens. Timed from page load; demo.py steps the clock one frame at a time.
+  if (q.get("demo")) {
+    const pointer = $("pointer");
+    const item = id => barFrame.contentDocument.querySelector(`[data-menu="${id}"]`);
+    const moveTo = id => {
+      const r = item(id).getBoundingClientRect();
+      Object.assign(pointer.style, { left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2 + 2}px` });
+    };
+    const fire = (id, type) => item(id).dispatchEvent(new PointerEvent(type, { button: 0 }));
+    const look = patch => commands.save_settings({ settings: { ...settings, ...patch } });
+    const steps = [
+      [800, () => pointer.classList.add("on")],
+      [850, () => moveTo("media")], [1200, () => fire("media", "pointerdown")],
+      [1900, () => moveTo("stats")], [2050, () => fire("stats", "pointerenter")],
+      [2600, () => moveTo("volume")], [2700, () => fire("volume", "pointerenter")],
+      [3250, () => moveTo("bluetooth")], [3350, () => fire("bluetooth", "pointerenter")],
+      [3900, () => moveTo("control")], [4000, () => fire("control", "pointerenter")],
+      [4800, () => moveTo("clock")], [4950, () => fire("clock", "pointerenter")],
+      [5600, () => look({ palette: "catppuccin" })],
+      [6100, () => look({ palette: "nord", theme: "light" })],
+      [6600, () => look({ palette: "rose-pine", theme: "dark" })],
+      [7100, () => look({ palette: "gruvbox", theme: "light" })],
+      [7600, () => look({ palette: "oriel", theme: "dark", glass: true })],
+      [8300, () => moveTo("app")], [8650, () => fire("app", "pointerenter")],
+      [9500, () => fire("app", "pointerdown")],
+      // Back to how it started, so the animation loops without a jump.
+      [9900, () => { pointer.classList.remove("on"); pointer.style.left = pointer.style.top = ""; look({ glass: false }); }],
+    ];
+    for (const [t, step] of steps) setTimeout(step, t);
+  }
 
   if (q.get("open")) {
     setTimeout(() => {

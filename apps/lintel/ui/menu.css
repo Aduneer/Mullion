@@ -56,6 +56,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: transparen
 #menu.entering { animation: fade-in 0.16s ease-out; }
 @keyframes fade-out { to { opacity: 0; } }
 @keyframes fade-in { from { opacity: 0; } }
+/* With Windows' animation effects off, menus just appear, change and go. */
+@media (prefers-reduced-motion: reduce) {
+  #panel, #panel.moving, #menu { transition: none; }
+  #panel .ghost { display: none; }
+  #menu.entering { animation: none; }
+}
 body {
   color: var(--ink);
   font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;

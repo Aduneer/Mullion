@@ -40,12 +40,17 @@ space back when the process ends.
 ```
 src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/main.rs         the bar and menu windows, settings, and the commands the pages can call
-  src/appbar.rs       registers the bar as a Windows app bar (SHAppBarMessage) on the edge you pick
-  src/apps.rs         which app is in front (a WinEvent hook on its own thread) and its windows
+  src/appbar.rs       registers each bar as a Windows app bar (SHAppBarMessage) on its screen
+  src/apps.rs         the app in front and the running apps (WinEvent hooks on their own thread)
+  src/icons.rs        the running apps' icons, as PNG
   src/stats.rs        CPU, memory, network, battery and the network's name, once a second
   src/pdh.rs          Windows performance counters
   src/media.rs        what's playing, from Windows' media controls, on its own thread
   src/audio.rs        output and per-app volume via Core Audio, on its own thread
+  src/radios.rs       Wi-Fi and Bluetooth on and off, and the paired Bluetooth devices
+  src/brightness.rs   screen brightness: the power plan for a laptop's own, DDC/CI for monitors
+  src/wallpaper.rs    the wallpaper behind each bar, for the glass look
+  src/taskbar.rs      auto-hiding Windows' taskbar while Lintel runs, and putting it back
   src/power.rs        lock, sleep, sign out, restart and shut down
   src/settings.rs     the settings file
   src/ffi.rs          the few Win32 functions not taken from the windows crate
@@ -61,22 +66,34 @@ tools/icons.py        makes the app icons from the logo
 assets/               the logo and banners
 ```
 
-There are two windows. The **bar** is the app bar: it never takes focus, so clicking it doesn't
-pull the keyboard away from the window you're in. The **menu** is one popup window that shows
-whichever item's menu is open, sizes itself to its content (`menu_ready`) and hides when it
-loses focus. A click on the item whose menu just closed that way is treated as "close", not
-"open again" (`BLUR_CLICK` in `main.rs`).
+There are two kinds of window. Each **bar** is an app bar, one per screen it's on: it never
+takes focus, so clicking it doesn't pull the keyboard away from the window you're in. The
+**menu** is one see-through popup window, a "stage" lying along the bar it opened from (`stage`
+in `main.rs`). The page draws the panel inside it, places it against the bar under its item and
+says so (`menu_ready`); only then does the backend show the window. Because the stage stays put
+while menus change, the panel can grow out of the bar, slide and reshape between items and fold
+back in with CSS alone (`menu.css`), while the bar's tab under the open item follows it. The
+stage hides a moment after a menu closes, once that has played, and whenever it loses focus. A
+click on the item whose menu just closed that way is treated as "close", not "open again"
+(`BLUR_CLICK` in `main.rs`).
+
+With glass on, the bar and the menu each paint the blurred wallpaper behind themselves
+(`backdrop` in `common.js`) under the palette's tint, since Windows only blurs behind windows
+that have the focus.
 
 The backend pushes a sample to both pages every second over Tauri's IPC, with no local web
 server and no open port. While an app is full screen the bar hides and nothing is sampled.
 
 The pages can only ask Windows to open a fixed list of things (Task Manager, File Explorer,
-Oriel if it's installed, `ms-settings:` pages and the Wi-Fi list; `run_action` in `main.rs`), act
-on windows of the app in front (`window_action`, `quit_app`), control media and volume, and run
-the power actions in `power.rs`.
+Oriel if it's installed, `ms-settings:` pages and the Wi-Fi list; `run_action` in `main.rs`),
+press the shortcuts for the panels Windows has no API for, open a new window of a running app
+(`launch_app`), act on running apps' windows (`window_action`, `quit_app`), control media,
+volume, brightness and the radios, and run the power actions in `power.rs`.
+[SECURITY.md](SECURITY.md) has the full list.
 
 Anything Windows-specific that a test can check without a screen has one (`cargo test`): app bar
-geometry, where a menu opens on each edge, settings validation, the Wi-Fi API's struct layout.
+geometry, which screens get a bar, where the menu's stage lies on each edge, settings validation,
+the Wi-Fi API's struct layout, app icons.
 
 ## Working on the bar
 
@@ -89,12 +106,15 @@ python -I tools\preview\serve.py
 ```
 
 Then open <http://127.0.0.1:5299/tools/preview/>. Options go after the address, for example
-`?edge=left&palette=nord&theme=light`, `?open=clock` (a menu open from the start), `?media=off`,
-`?battery=off`, `?wifi=off`, `?offline=1`, `?desktop=1` or `?hot=1`. The top of `host.js` lists
-them all.
+`?edge=left&palette=nord&theme=light`, `?open=clock` (a menu open from the start), `?glass=on`,
+`?screens=2`, `?apps=off`, `?media=off`, `?battery=off`, `?wifi=off`, `?offline=1`, `?desktop=1`
+or `?hot=1`. The top of `host.js` lists them all. The running apps, windows, devices and track
+are made up, so the pictures never show your own PC.
 
 `tools\preview\shots.ps1` renders the README's images again with headless Edge, Chrome or another
-Chromium browser, on a fixed clock. With `-Icons` it renders `assets\lintel.svg` and makes the app
+Chromium browser, on a fixed clock. With `-Demo` it renders the animation at the top of the
+README (`docs/images/demo.webp`) frame by frame from `?demo=1`, which needs
+[ffmpeg](https://ffmpeg.org) (`winget install Gyan.FFmpeg`). With `-Icons` it renders `assets\lintel.svg` and makes the app
 icons from it (needs Python with [Pillow](https://pypi.org/project/pillow/)).
 `python -I tools\banner.py assets` draws the banners from the logo.
 
