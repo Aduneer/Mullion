@@ -129,8 +129,11 @@ jobs:
           $dir = Join-Path $env:LOCALAPPDATA "Mullion"
           $apps = Get-ChildItem apps -Directory | ForEach-Object Name
           foreach ($a in $apps) { if (-not (Test-Path "$dir/$a.exe")) { throw "No $a.exe in $dir" } }
-          if (-not (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion -ErrorAction SilentlyContinue)) {
-            throw "Mullion isn't listed in Installed apps"
+          $entry = Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion -ErrorAction SilentlyContinue
+          if (-not $entry) { throw "Mullion isn't listed in Installed apps" }
+          # The uninstaller has to run where it is: a copy in %TEMP% is what Smart App Control blocks.
+          if ($entry.UninstallString -notmatch '_\?=' -or $entry.QuietUninstallString -notmatch '_\?=') {
+            throw "Mullion's uninstall entry doesn't run the uninstaller in place: $($entry.UninstallString)"
           }
           Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
           Start-Sleep -Seconds 15
@@ -142,19 +145,18 @@ jobs:
           foreach ($a in @("mullion") + $apps) {
             if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a kept running after Mullion quit" }
           }
-          # _?= runs the uninstaller in place, so this waits for it; it can't delete itself then,
-          # so that's left to here.
-          $un = Start-Process "$dir/uninstall.exe" -ArgumentList "/S", "_?=$dir" -Wait -PassThru
+          # Uninstall the way Windows does, from the entry's QuietUninstallString. Run in place, it
+          # leaves uninstall.exe and the folder to a cmd that removes them once it has quit.
+          $un = Start-Process cmd -ArgumentList "/c", $entry.QuietUninstallString -Wait -PassThru
           if ($un.ExitCode) { throw "The uninstaller failed (exit code $($un.ExitCode))" }
-          $left = Get-ChildItem $dir -Exclude uninstall.exe
-          if ($left) {
+          for ($i = 0; $i -lt 30 -and (Test-Path $dir); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $dir) {
             Get-Process | Where-Object Path -like "$dir*" | Format-Table Id, Name, Path
-            throw "The uninstaller left $($left.Name -join ', ') in $dir"
+            throw "The uninstaller left $((Get-ChildItem $dir).Name -join ', ') in $dir"
           }
           if (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion -ErrorAction SilentlyContinue) {
             throw "Mullion is still listed in Installed apps"
           }
-          Remove-Item -Recurse $dir
           Write-Host "Mullion installed $($apps.Count) apps to $dir, ran them, quit them and uninstalled."
 
       - name: Checksums

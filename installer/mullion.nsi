@@ -69,8 +69,10 @@ Section "Mullion" SecMullion
   WriteRegStr HKCU "${UNINST}\Mullion" "Publisher" "Aduneer"
   WriteRegStr HKCU "${UNINST}\Mullion" "URLInfoAbout" "https://github.com/Aduneer/Mullion"
   WriteRegStr HKCU "${UNINST}\Mullion" "InstallLocation" '"$INSTDIR"'
-  WriteRegStr HKCU "${UNINST}\Mullion" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegStr HKCU "${UNINST}\Mullion" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
+  ; _?= runs the uninstaller where it is. Without it, NSIS copies the uninstaller to %TEMP% and
+  ; runs the copy, which Smart App Control blocks: a new unsigned exe nobody installed.
+  WriteRegStr HKCU "${UNINST}\Mullion" "UninstallString" '"$INSTDIR\uninstall.exe" _?=$INSTDIR'
+  WriteRegStr HKCU "${UNINST}\Mullion" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S _?=$INSTDIR'
   WriteRegDWORD HKCU "${UNINST}\Mullion" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST}\Mullion" "NoRepair" 1
 SectionEnd
@@ -198,8 +200,7 @@ Section "un.Mullion and its apps" SecUnMullion
   !insertmacro DeleteWhenFree "$INSTDIR\oriel.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\lintel.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\fanlight.exe"
-  Delete "$INSTDIR\uninstall.exe"
-  RMDir "$INSTDIR"
+  ; uninstall.exe and the folder go once it has quit (un.onUninstSuccess).
   Delete "$SMPROGRAMS\Mullion.lnk"
   DeleteRegValue HKCU "${RUN}" "Mullion"
   DeleteRegValue HKCU "${APPROVED}" "Mullion"
@@ -228,3 +229,9 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecUnData} "Also the apps' settings, history and saved data, except for an app that's still installed on its own."
 !insertmacro MUI_UNFUNCTION_DESCRIPTION_END
 ; The uninstaller's $INSTDIR is the folder it was installed in, which is Mullion's.
+
+; Run in place, the uninstaller can't delete itself, so a hidden cmd (signed by Windows, so Smart
+; App Control lets it run) waits for it to quit, then removes it and the folder, if that's empty.
+Function un.onUninstSuccess
+  ExecShell "open" "$SYSDIR\cmd.exe" '/c ping -n 4 127.0.0.1 >nul & del /f /q "$INSTDIR\uninstall.exe" & rmdir "$INSTDIR"' SW_HIDE
+FunctionEnd
