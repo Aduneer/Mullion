@@ -63,7 +63,8 @@ pub struct Sources<'a> {
 /// The buttons in the field (and Ctrl+1–4), and the kinds of result each keeps.
 pub const CATEGORIES: &[(&str, &[&str])] =
     &[("apps", &["app", "window"]), ("files", &["file", "folder"]), ("actions", &["command", "page"]), ("clipboard", &["clip"])];
-/// How many of a kind a category shows.
+/// How many of a kind a category shows; with nothing typed, it shows them all (every app, for
+/// the grid).
 const MORE: usize = 60;
 
 /// The sections, in the order they're shown, each with how many it shows and how much a match in
@@ -184,7 +185,11 @@ pub fn search(text: &str, src: &Sources) -> Results {
     }
     hits.sort_by_key(|h| -h.score);
 
-    let shown = |l: usize| if only.is_some() { MORE } else { l };
+    let shown = |l: usize| match (only.is_some(), all) {
+        (true, true) => usize::MAX,
+        (true, false) => MORE,
+        _ => l,
+    };
     let mut top = None;
     if only.is_some() {
         // A category is a list: no sums or addresses, and nothing typed has no Top Hit.

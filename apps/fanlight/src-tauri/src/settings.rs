@@ -27,6 +27,8 @@ pub struct Settings {
     pub folders: Vec<String>,
     /// Open windows in the results, to switch to.
     pub windows: bool,
+    /// How the Apps category shows apps: "grid" (icons, as Launchpad does) or "list".
+    pub apps_view: String,
     /// Keep a history of what's copied, to search and paste again.
     pub clipboard: bool,
     /// How many copied texts the history keeps.
@@ -47,6 +49,7 @@ impl Default for Settings {
             files: true,
             folders: Vec::new(),
             windows: true,
+            apps_view: "grid".into(),
             clipboard: true,
             clipboard_size: 100,
             keep_clipboard: false,
@@ -108,6 +111,9 @@ impl Settings {
         if !ENGINES.contains(&self.engine.as_str()) {
             self.engine = d.engine;
         }
+        if !["grid", "list"].contains(&self.apps_view.as_str()) {
+            self.apps_view = d.apps_view;
+        }
         let mut seen = Vec::new();
         self.folders.retain(|f| {
             let f = f.trim().trim_end_matches(['\\', '/']).to_lowercase();
@@ -131,7 +137,7 @@ mod tests {
         let s: Settings = serde_json::from_str(r#"{"palette":"nord","clipboard_size":5000,"theme":"neon","hotkey":"Ctrl+Space"}"#).unwrap();
         let s = s.clamp();
         assert_eq!((s.palette.as_str(), s.clipboard_size, s.theme.as_str(), s.hotkey.as_str()), ("nord", 1000, "auto", "ctrl+space"));
-        let s: Settings = serde_json::from_str(r#"{"palette":"<script>","engine":"evil.example","hotkey":"f13"}"#).unwrap();
+        let s: Settings = serde_json::from_str(r#"{"palette":"<script>","engine":"evil.example","hotkey":"f13","apps_view":"tiles"}"#).unwrap();
         assert_eq!(s.clamp(), Settings::default());
     }
 

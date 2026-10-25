@@ -15,7 +15,7 @@ what you copied and the web, in one field that opens over whatever you're doing.
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
-[Install](#install) · [What it finds](#what-it-finds) · [Keys](#keys) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
+[Install](#install) · [What it finds](#what-it-finds) · [Launchpad](#launchpad) · [Keys](#keys) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -97,6 +97,15 @@ folders), **Actions** (commands and Settings pages) and **Clipboard**. With noth
 category lists everything in it. <kbd>Backspace</kbd> in an empty field or <kbd>Esc</kbd> goes
 back to everything.
 
+## Launchpad
+
+The Apps category (<kbd>Ctrl</kbd> + <kbd>1</kbd>) shows your apps as a grid of icons, as
+Launchpad does on a Mac: every app in the Start menu, in alphabetical order, with your open windows
+under them. Type to narrow it down, move with the arrow keys and press <kbd>Enter</kbd>. Prefer a
+list? Settings → **Apps** → List.
+
+<img alt="The Apps category in the Nord palette with nothing typed: every app as an icon in a grid of six across, Calculator selected, and the open windows below" src="docs/images/launchpad.png">
+
 <img alt="The Clipboard category as glass in the Catppuccin palette: six things copied, with where from and when, and a code snippet previewed in full" src="docs/images/clipboard.png">
 
 <img alt="The Actions category in the Rosé Pine palette with nothing typed: Lock, Sleep, Sign out, Restart, Shut down, Show desktop and the other commands" src="docs/images/actions.png">
@@ -106,7 +115,7 @@ back to everything.
 | Key | What it does |
 | --- | --- |
 | <kbd>Alt</kbd> + <kbd>Space</kbd> | Open or close Fanlight (you can pick another shortcut) |
-| <kbd>↑</kbd> <kbd>↓</kbd>, <kbd>Tab</kbd> | Move through the results |
+| <kbd>↑</kbd> <kbd>↓</kbd>, <kbd>Tab</kbd> | Move through the results (and <kbd>←</kbd> <kbd>→</kbd> in the apps' grid) |
 | <kbd>Enter</kbd> | Open, run, switch to, paste, copy the answer |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Show a file in its folder; copy a clipboard entry without pasting |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> | Run an app as administrator |
@@ -158,6 +167,7 @@ To uninstall, go to **Settings → Apps → Installed apps → Fanlight**. Tick
 - **Theme**: Auto, dark or light; a **palette**; and **glass**
 - **Files and folders**, on or off, and more folders to search
 - **Open windows**, on or off
+- **Apps**: the Apps category as a grid or a list
 - **Search the web with** Google, Bing, DuckDuckGo, Brave Search, Ecosia, Startpage or Kagi
 - **Clipboard history**, on or off, how much it keeps, and whether it's kept after Fanlight quits
 - **Start at sign-in**

@@ -69,25 +69,39 @@ function pic(hit) {
   const thumb = hit.icon?.startsWith("thumb:") ? " thumb" : "";
   return `<span class="pic${thumb}" data-icon="${esc(hit.icon ?? "")}">${url ? `<img src="${esc(url)}" alt="">` : glyph(hit)}</span>`;
 }
-function loadIcons() {
-  for (const el of list.querySelectorAll(".pic[data-icon]")) {
-    const key = el.dataset.icon;
-    if (!key || icons.has(key)) continue;
-    icons.set(key, null);
-    invoke("icon", { key }).then(url => {
-      icons.set(key, url);
-      if (!url) return;
-      for (const p of list.querySelectorAll(".pic[data-icon]")) {
-        if (p.dataset.icon === key) p.innerHTML = `<img src="${esc(url)}" alt="">`;
-      }
-    }).catch(() => {});
+// Only for what's on screen, or nearly: a grid of every app would otherwise ask for a few hundred
+// at once, and the shell draws them one at a time.
+const iconWatch = new IntersectionObserver(entries => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    iconWatch.unobserve(e.target);
+    fetchIcon(e.target.dataset.icon);
   }
+}, { root: list, rootMargin: "240px" });
+function loadIcons() {
+  iconWatch.disconnect();
+  for (const el of list.querySelectorAll(".pic[data-icon]")) {
+    if (el.dataset.icon && !icons.has(el.dataset.icon)) iconWatch.observe(el);
+  }
+}
+function fetchIcon(key) {
+  if (icons.has(key)) return;
+  icons.set(key, null);
+  invoke("icon", { key }).then(url => {
+    icons.set(key, url);
+    if (!url) return;
+    for (const p of list.querySelectorAll(".pic[data-icon]")) {
+      if (p.dataset.icon === key) p.innerHTML = `<img src="${esc(url)}" alt="">`;
+    }
+  }).catch(() => {});
 }
 
 // --- state ------------------------------------------------------------------------------
 let hello = null, settings = null;
 /** The rows on screen, in order (the Top Hit first), and which is selected. */
 let rows = [], sel = 0;
+/** Where the apps' grid is among the rows, when the Apps category shows one: [start, end). */
+let grid = null;
 /** A row waiting for its second Enter ("Restart"), by key. */
 let asking = null;
 let seq = 0, shown = 0;
@@ -138,6 +152,7 @@ async function run(text) {
 
 function render(results) {
   rows = [];
+  grid = null;
   if (!results) {
     list.innerHTML = "";
     foot.hidden = true;
@@ -145,12 +160,34 @@ function render(results) {
     return;
   }
   let html = "";
+  // The Apps category as a grid, as Launchpad has them: the best match is just the first tile, and
+  // with nothing typed, they're in alphabetical order.
+  const gridded = only === "apps" && settings?.apps_view !== "list";
+  if (gridded) {
+    let apps = results.sections.find(s => s.hits[0]?.kind === "app");
+    if (results.top?.kind === "app") {
+      if (!apps) results.sections.unshift(apps = { title: "Applications", hits: [] });
+      apps.hits.unshift(results.top);
+      delete results.top;
+    }
+    if (apps && !input.value.trim()) apps.hits.sort((a, b) => a.title.localeCompare(b.title));
+  }
   if (results.top) {
     rows.push(results.top);
     html += `<div class="top" role="group" aria-label="Top Hit">${row(results.top, 0, true)}</div>`;
   }
   for (const s of results.sections) {
     html += `<div class="section" role="group" aria-label="${esc(s.title)}"><h3>${esc(s.title)}</h3>`;
+    if (gridded && s.hits[0]?.kind === "app") {
+      grid = [rows.length, rows.length + s.hits.length];
+      html += `<div class="grid">`;
+      for (const h of s.hits) {
+        rows.push(h);
+        html += tile(h, rows.length - 1);
+      }
+      html += `</div></div>`;
+      continue;
+    }
     for (const h of s.hits) {
       rows.push(h);
       html += row(h, rows.length - 1, false);
@@ -175,6 +212,24 @@ function row(h, i, top) {
   return `<button class="${cls}" role="option" data-i="${i}" tabindex="-1">${pic(h)}<span class="text"><span class="title">${esc(h.title)}</span><span class="sub">${esc(h.subtitle)}</span></span></button>`;
 }
 
+function tile(h, i) {
+  return `<button class="tile" role="option" data-i="${i}" tabindex="-1" title="${esc(h.title)}">${pic(h)}<span class="title">${esc(h.title)}</span></button>`;
+}
+
+const inGrid = () => grid && sel >= grid[0] && sel < grid[1];
+/** ↑ and ↓: a line at a time in the grid, and out of it at its edges. */
+function step(down) {
+  if (!inGrid()) return select(sel + (down ? 1 : -1));
+  const [start, end] = grid, cols = previewing ? 4 : 6;
+  const line = i => Math.floor((i - start) / cols);
+  if (down) {
+    const to = sel + cols;
+    // Onto the short last line if there is one below, else out of the grid.
+    return select(to < end ? to : line(sel) < line(end - 1) ? end - 1 : end);
+  }
+  select(sel - cols >= start ? sel - cols : start - 1);
+}
+
 function select(i, scroll = true) {
   if (!rows.length) {
     if (previewing) setPreview(false);
@@ -182,7 +237,7 @@ function select(i, scroll = true) {
   }
   sel = (i + rows.length) % rows.length;
   if (asking && rows[sel].key !== asking) unask();
-  for (const el of list.querySelectorAll(".row")) {
+  for (const el of list.querySelectorAll("[data-i]")) {
     const on = Number(el.dataset.i) === sel;
     el.classList.toggle("sel", on);
     el.setAttribute("aria-selected", on);
@@ -368,8 +423,18 @@ input.addEventListener("keydown", e => {
     const at = back >= 0 && past[back] === input.value ? back : past.indexOf(input.value);
     if (at >= 0) recall(at - 1);
   }
-  else if (k === "ArrowDown" || (k === "Tab" && !e.shiftKey)) { e.preventDefault(); moved = true; select(sel + 1); }
-  else if (k === "ArrowUp" || (k === "Tab" && e.shiftKey)) { e.preventDefault(); moved = true; select(sel - 1); }
+  else if (k === "ArrowDown") { e.preventDefault(); moved = true; step(true); }
+  else if (k === "ArrowUp") { e.preventDefault(); moved = true; step(false); }
+  else if (k === "Tab") { e.preventDefault(); moved = true; select(sel + (e.shiftKey ? -1 : 1)); }
+  // ← and → move through the grid, unless they'd move the caret: → only from the end of what's
+  // typed, ← once you've moved through the results or with nothing typed.
+  else if ((k === "ArrowRight" || k === "ArrowLeft") && !e.shiftKey && !e.ctrlKey && inGrid()
+    && input.selectionStart === input.value.length && input.selectionEnd === input.value.length
+    && (k === "ArrowRight" || moved || !input.value)) {
+    e.preventDefault();
+    moved = true;
+    select(sel + (k === "ArrowRight" ? 1 : -1));
+  }
   else if (k === "PageDown") { e.preventDefault(); moved = true; select(Math.min(rows.length - 1, sel + 8)); }
   else if (k === "PageUp") { e.preventDefault(); moved = true; select(Math.max(0, sel - 8)); }
   // Space previews once you've moved through the results (while typing it's a space);
@@ -410,11 +475,11 @@ input.addEventListener("keydown", e => {
 });
 
 list.addEventListener("mousemove", e => {
-  const el = e.target.closest(".row");
+  const el = e.target.closest("[data-i]");
   if (el && Number(el.dataset.i) !== sel) select(Number(el.dataset.i), false);
 });
 list.addEventListener("click", e => {
-  const el = e.target.closest(".row");
+  const el = e.target.closest("[data-i]");
   if (!el) return;
   select(Number(el.dataset.i), false);
   choose(e.ctrlKey ? "reveal" : "open");
@@ -493,6 +558,7 @@ function drawSettings(error = hello.hotkey_error) {
     <div class="folders">${s.folders.map((f, i) => `<div class="folder"><span>${esc(f)}</span><button class="x" data-remove="${i}" title="Stop searching this folder">${GLYPHS.x}</button></div>`).join("")}</div>
     <div class="add"><input class="text-in" id="new-folder" placeholder="Another folder to search, like D:\\Work" spellcheck="false"><button class="btn" data-do="add-folder">Add</button></div>
     ${setRow("Open windows", "To switch to by their title", sw("windows", s.windows))}
+    ${setRow("Apps", "How the Apps category (Ctrl+1) shows them", `<div class="seg">${[["grid", "Grid"], ["list", "List"]].map(([v, t]) => `<button data-apps="${v}" aria-pressed="${s.apps_view === v}">${t}</button>`).join("")}</div>`)}
     ${setRow("Search the web with", "For “Search the web”, and queries that start with ?", `<select data-set="engine">${hello.engines.map(([id, name]) => opt(id, name, s.engine)).join("")}</select>`)}
     <h3>CLIPBOARD</h3>
     ${setRow("Clipboard history", "Text you copy, to search and paste again. Type cb to see it all", sw("clipboard", s.clipboard))}
@@ -527,6 +593,7 @@ setv.addEventListener("click", async e => {
   if (!t) return;
   if (t.dataset.set) return save({ [t.dataset.set]: t.getAttribute("aria-checked") !== "true" });
   if (t.dataset.theme) return save({ theme: t.dataset.theme });
+  if (t.dataset.apps) return save({ apps_view: t.dataset.apps });
   if (t.dataset.palette) return save({ palette: t.dataset.palette });
   if (t.dataset.remove) return save({ folders: settings.folders.filter((_, i) => i !== Number(t.dataset.remove)) });
   switch (t.dataset.do) {

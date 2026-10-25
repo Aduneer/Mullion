@@ -85,6 +85,7 @@ try {
     Shot "$base&q=$([Uri]::EscapeDataString('10 km in mi'))&palette=gruvbox" (Join-Path $images "calc.png") 1280 440
     Shot "$base&only=clipboard&sel=2&preview=1&glass=on&palette=catppuccin" (Join-Path $images "clipboard.png") 1280 800
     Shot "$base&only=actions&palette=rose-pine" (Join-Path $images "actions.png") 1280 800
+    Shot "$base&only=apps&palette=nord" (Join-Path $images "launchpad.png") 1280 800
     Shot "$base&q=$([Uri]::EscapeDataString('(1200+340)*1.2'))&glass=on" (Join-Path $images "glass.png") 1280 440
     Shot "$base&view=settings" (Join-Path $images "settings.png") 1280 800
 

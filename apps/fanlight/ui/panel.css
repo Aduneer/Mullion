@@ -95,6 +95,17 @@ body {
 .top .row.answer .title::before { content: "= "; opacity: 0.45; }
 .top .row.answer .sub { font-variant-numeric: tabular-nums; }
 
+/* The Apps category as a grid, as Launchpad has it: six across, four beside the preview
+   (`step` in panel.js counts the same). */
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; padding: 2px 0 4px; }
+#panel.wide .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; padding: 12px 6px 10px; border-radius: 12px; }
+.tile .pic, .tile .pic img { width: 52px; height: 52px; }
+.tile .pic .ic { width: 34px; height: 34px; stroke-width: 1.5; }
+.tile .title { max-width: 100%; font-size: 12.5px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile.sel { background: var(--accent); color: var(--on-accent); }
+.tile.sel .pic { color: inherit; }
+
 /* A clipboard entry's text keeps its spaces, but stays on one line in the list. */
 .row.clip .title { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 12.5px; max-width: 62%; }
 

@@ -5,7 +5,7 @@
 // URL options, all optional:
 //   theme=dark|light  palette=nord  glass=on
 //   q=lisbon (typed in)  only=apps|files|actions|clipboard  sel=2 (↓ that many times)  preview=1 (Space)
-//   view=settings
+//   view=settings  apps=list (the Apps category as a list, not a grid)
 //   demo=1 (types a tour of it, for the README's animation)
 "use strict";
 (() => {
@@ -20,7 +20,7 @@
 
   let settings = {
     theme: q.get("theme") || "dark", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", hotkey: "alt+space", engine: "google",
-    files: true, folders: [], windows: true, clipboard: true, clipboard_size: 100, keep_clipboard: false,
+    files: true, folders: [], windows: true, apps_view: q.get("apps") || "grid", clipboard: true, clipboard_size: 100, keep_clipboard: false,
   };
   let autostart = true;
 

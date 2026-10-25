@@ -102,7 +102,7 @@ python -I tools\preview\serve.py
 
 Then open <http://127.0.0.1:5297/tools/preview/>. Options go after the address, for example
 `?q=lisbon&sel=1&preview=1` (typed in, ↓ once, then Space), `?only=clipboard`,
-`?palette=nord&theme=light`, `?glass=on` or `?view=settings`. The top of `host.js` lists them
+`?palette=nord&theme=light`, `?glass=on`, `?apps=list` or `?view=settings`. The top of `host.js` lists them
 all. The apps, files, windows and clipboard are made up, so the pictures never show your own PC.
 The stand-in searches roughly as `search.rs` does; it's there for the look, so check ranking in
 the app or with `cargo test`.
