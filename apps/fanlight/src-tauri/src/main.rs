@@ -394,6 +394,10 @@ async fn preview(app: AppHandle, key: String) -> Option<preview::Preview> {
             let page = catalog::page_by_uri(rest)?;
             Preview { facts: vec![fact("Kind", "Settings page"), fact("Opens", page.uri), fact("Also found by", page.words)], ..Default::default() }
         }
+        "place" => {
+            let place = catalog::place_by_uri(rest)?;
+            Preview { image: Some(format!("big:place:{}", place.uri)), facts: vec![fact("Kind", "Windows place"), fact("Opens", place.uri), fact("Also found by", place.words)], ..Default::default() }
+        }
         "cmd" => {
             let c = catalog::command_by_id(rest)?;
             let mut facts = vec![fact("Kind", "Command"), fact("Does", c.detail)];
@@ -431,8 +435,8 @@ enum Next {
 /// Open a result: `how` is "open" (Enter), "reveal" (Ctrl+Enter: show in File Explorer), "copy"
 /// (Ctrl+C on a result: its path, value or text), "paste" (a clipboard entry, into the app you
 /// were in) or "admin" (Ctrl+Shift+Enter: an app, as administrator). The key must be one the
-/// search gave: an app Start lists, a file that's there, a Settings page or command from the
-/// catalog, an open window. The page can't name anything else to run.
+/// search gave: an app Start lists, a file that's there, a Settings page, place or command from
+/// the catalog, an open window. The page can't name anything else to run.
 #[tauri::command]
 async fn open(app: AppHandle, key: String, how: String, query: String) -> Result<Next, String> {
     let next = open_result(&app, &key, &how, &query)?;
@@ -485,6 +489,12 @@ fn open_result(app: &AppHandle, key: &str, how: &str, query: &str) -> Result<Nex
             let page = catalog::page_by_uri(rest).ok_or("not a Settings page")?;
             hide_panel(&app, false);
             ffi::shell_open(page.uri, None, "open")?;
+            remember(&app);
+        }
+        ("place", "open") => {
+            let place = catalog::place_by_uri(rest).ok_or("not a place Fanlight knows")?;
+            hide_panel(&app, false);
+            ffi::shell_open(place.uri, None, "open")?;
             remember(&app);
         }
         ("cmd", "open") => {

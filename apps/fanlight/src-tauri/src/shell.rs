@@ -126,7 +126,8 @@ const BIG_ICON: i32 = 256;
 const BIG_THUMB: i32 = 768;
 
 /// `app:<id>` an app's icon, `file:<path>` and `folder:<path>` a file's or folder's,
-/// `thumb:<path>` a picture's thumbnail (or its icon, if it has none). `big:` before any of them,
+/// `thumb:<path>` a picture's thumbnail (or its icon, if it has none), `place:shell:<folder>` one
+/// of Windows' places. `big:` before any of them,
 /// the same for the preview, larger.
 fn make_icon(key: &str) -> Option<String> {
     let (big, key) = key.strip_prefix("big:").map_or((false, key), |k| (true, k));
@@ -134,7 +135,7 @@ fn make_icon(key: &str) -> Option<String> {
     let (kind, rest) = key.split_once(':')?;
     match kind {
         "app" => icons::icon(&format!(r"shell:AppsFolder\{rest}"), icon),
-        "file" | "folder" => icons::icon(rest, icon),
+        "file" | "folder" | "place" => icons::icon(rest, icon),
         "thumb" => icons::thumbnail(rest, thumb).or_else(|| icons::icon(rest, icon)),
         _ => None,
     }

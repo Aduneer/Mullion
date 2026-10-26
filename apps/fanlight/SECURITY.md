@@ -44,7 +44,8 @@ and Windows versions you tried.
     its own prompt;
   - a file or folder must exist, and opens as a double-click in File Explorer would, or is shown
     in its folder;
-  - a Settings page or a command must be one of Fanlight's own (`src-tauri/src/catalog.rs`);
+  - a Settings page, a Windows place (Recycle Bin, This PC …) or a command must be one of
+    Fanlight's own (`src-tauri/src/catalog.rs`);
   - a window must still belong to the process it did when it was listed, since Windows reuses
     window handles. Fanlight only brings it to the front.
 - **Paste** puts the entry on the clipboard, gives the focus back to the window you were in and

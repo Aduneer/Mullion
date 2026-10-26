@@ -35,7 +35,8 @@ press <kbd>Enter</kbd>.
 - **Learns what you pick.** Things you open often and lately rank higher, and what you picked for
   a query comes first the next time you type it.
 - **More than search.** Do sums and convert units, switch to an open window, paste something you
-  copied an hour ago, lock or restart the PC, open a Settings page, or search the web.
+  copied an hour ago, lock or restart the PC, open a Settings page or the Recycle Bin, or search
+  the web.
 - **Look before you open.** <kbd>Space</kbd> shows the selected result beside the list: a photo,
   the start of a document, what's in a folder, a clipboard entry in full.
 - **Private.** No account, no telemetry, and it never goes online by itself; web searches open in
@@ -93,8 +94,9 @@ so a preview never downloads anything.
 
 The four buttons in the field, or <kbd>Ctrl</kbd> + <kbd>1</kbd> to <kbd>4</kbd>, keep the
 search to one kind of result, and show more of it: **Apps** (and their windows), **Files** (and
-folders), **Actions** (commands and Settings pages) and **Clipboard**. With nothing typed, a
-category lists everything in it. <kbd>Backspace</kbd> in an empty field or <kbd>Esc</kbd> goes
+folders, and Windows' own places: Recycle Bin, This PC, Control Panel and Network), **Actions**
+(commands and Settings pages) and **Clipboard**. With nothing typed, a category lists everything
+in it. <kbd>Backspace</kbd> in an empty field or <kbd>Esc</kbd> goes
 back to everything.
 
 ## App grid

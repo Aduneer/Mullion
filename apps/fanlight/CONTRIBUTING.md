@@ -47,7 +47,7 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/shell.rs        the Start menu's apps, and icons and thumbnails, on a COM thread of its own
   src/preview.rs      what the preview shows: a file's start, a folder's items, the facts
   src/calc.rs         sums and unit conversions
-  src/catalog.rs      the commands and the Settings pages, with the words they go by
+  src/catalog.rs      the commands, the Settings pages and Windows' places, with the words they go by
   src/clipboard.rs    the clipboard history (a clipboard format listener, nothing polled)
   src/history.rs      what you've opened, so it ranks higher, and the searches for ↑
   src/wins.rs         the open windows, with their apps' names

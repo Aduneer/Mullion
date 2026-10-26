@@ -1,7 +1,9 @@
-//! The fixed results: Windows' Settings pages, and commands (lock, sleep, restart, take a
+//! The fixed results: Windows' Settings pages, its places that aren't folders on disk (Recycle
+//! Bin, This PC …), and commands (lock, sleep, restart, take a
 //! screenshot, Fanlight's own). Each is found by its name or by the other words it goes by.
 
-/// A Settings page: its name, other words for it, and its `ms-settings:` page.
+/// A Settings page or a place: its name, other words for it, and its `ms-settings:` page or
+/// `shell:` folder.
 pub struct Page {
     pub name: &'static str,
     pub words: &'static str,
@@ -71,7 +73,16 @@ pub const PAGES: &[Page] = &[
     page("Troubleshoot", "troubleshooter fix problems", "ms-settings:troubleshoot"),
     page("For developers", "developer mode sudo", "ms-settings:developers"),
     page("Nearby sharing", "share", "ms-settings:crossdevice"),
-    page("Settings", "control panel preferences", "ms-settings:"),
+    page("Settings", "preferences options", "ms-settings:"),
+];
+
+/// Windows' own places that aren't a folder on disk or an app in Start, so neither the file
+/// index nor the apps find them.
+pub const PLACES: &[Page] = &[
+    page("Recycle Bin", "trash bin deleted wastebasket rubbish restore", "shell:RecycleBinFolder"),
+    page("This PC", "my computer drives disks", "shell:MyComputerFolder"),
+    page("Control Panel", "control classic cpl", "shell:ControlPanelFolder"),
+    page("Network", "network places shares computers nas", "shell:NetworkPlacesFolder"),
 ];
 
 /// A command: what it does, and other words for it.
@@ -112,6 +123,10 @@ pub fn page_by_uri(uri: &str) -> Option<&'static Page> {
     PAGES.iter().find(|p| p.uri == uri)
 }
 
+pub fn place_by_uri(uri: &str) -> Option<&'static Page> {
+    PLACES.iter().find(|p| p.uri == uri)
+}
+
 /// The best score of `name` and each of `words` (a little less for those), for the matcher.
 pub fn score(q: &crate::matcher::Query, name: &str, words: &str) -> Option<i32> {
     let by_name = q.score(name);
@@ -142,12 +157,20 @@ mod tests {
         let q = Query::new("code");
         let clipboard = command_by_id("clipboard").unwrap();
         assert!(score(&q, clipboard.name, clipboard.words).is_none_or(|s| s < 0));
+        for typed in ["recycle bin", "recycle", "trash"] {
+            let q = Query::new(typed);
+            let bin = place_by_uri("shell:RecycleBinFolder").unwrap();
+            assert!(score(&q, bin.name, bin.words).is_some_and(|s| s > 0), "{typed}");
+        }
     }
 
     #[test]
     fn pages_are_settings_uris() {
         for p in PAGES {
             assert!(p.uri.starts_with("ms-settings:") && p.uri.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == ':'), "{}", p.uri);
+        }
+        for p in PLACES {
+            assert!(p.uri.strip_prefix("shell:").is_some_and(|f| !f.is_empty() && f.chars().all(|c| c.is_ascii_alphanumeric())), "{}", p.uri);
         }
         let mut ids: Vec<_> = COMMANDS.iter().map(|c| c.id).collect();
         ids.sort();

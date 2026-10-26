@@ -2,7 +2,7 @@
 //! the best of them all can be the Top Hit, and the rest grouped as Spotlight groups them.
 
 use crate::calc;
-use crate::catalog::{self, COMMANDS, PAGES};
+use crate::catalog::{self, COMMANDS, PAGES, PLACES};
 use crate::clipboard::Clip;
 use crate::files::Files;
 use crate::history::History;
@@ -129,6 +129,14 @@ pub fn search(text: &str, src: &Sources) -> Results {
         for p in PAGES {
             if let Some(s) = listed(p.name, p.words) {
                 hits.push(hit(format!("page:{}", p.uri), "page", p.name.into(), "Settings".into(), None, s));
+            }
+        }
+    }
+    if wants("folder") {
+        for p in PLACES {
+            if let Some(s) = listed(p.name, p.words) {
+                let key = format!("place:{}", p.uri);
+                hits.push(hit(key.clone(), "folder", p.name.into(), "Windows".into(), Some(key), s));
             }
         }
     }
@@ -439,8 +447,14 @@ mod tests {
         src.only = Some("actions");
         assert!(search("", &src).sections.iter().any(|s| s.title == "Commands"));
         assert!(search("2+2", &src).top.is_none_or(|t| t.kind != "calc"));
+        // With no files indexed, just Windows' places.
         src.only = Some("files");
-        assert!(search("", &src).sections.is_empty());
+        let r = search("", &src);
+        assert!(r.sections.iter().flat_map(|s| &s.hits).all(|h| h.key.starts_with("place:")));
+        // Found in an ordinary search too.
+        src.only = None;
+        let r = search("recycle bin", &src);
+        assert_eq!(r.top.unwrap().key, "place:shell:RecycleBinFolder");
     }
 
     #[test]
