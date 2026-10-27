@@ -1,6 +1,6 @@
 [package]
 name = "mullion"
-version = "0.3.1"
+version = "0.4.0"
 description = "Mullion: one tray icon, sign-in entry and settings window for the suite's apps"
 license = "MIT"
 edition = "2021"
