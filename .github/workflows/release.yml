@@ -135,6 +135,18 @@ jobs:
           if ($entry.UninstallString -notmatch '_\?=' -or $entry.QuietUninstallString -notmatch '_\?=') {
             throw "Mullion's uninstall entry doesn't run the uninstaller in place: $($entry.UninstallString)"
           }
+          # The first start is the welcome: no app starts until Start.
+          Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
+          Start-Sleep -Seconds 10
+          foreach ($a in $apps) {
+            if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a started before the welcome's Start" }
+          }
+          Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 3
+          # Then as if Start was pressed with every app on.
+          $settings = Join-Path $env:APPDATA "Mullion"
+          New-Item -ItemType Directory -Force $settings | Out-Null
+          Set-Content (Join-Path $settings "settings.json") '{"off": [], "welcomed": true}'
           Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
           Start-Sleep -Seconds 15
           foreach ($a in $apps) {
