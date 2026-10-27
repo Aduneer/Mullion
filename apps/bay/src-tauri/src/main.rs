@@ -83,7 +83,7 @@ fn main() {
             }
             .unwrap_or_default()
         })
-        .invoke_handler(tauri::generate_handler![page, pick, dismiss, next_screen, drag, desktops, hello, save_settings, set_autostart, settings_ready, quit])
+        .invoke_handler(tauri::generate_handler![page, pick, dismiss, next_screen, drag, let_go, desktops, hello, save_settings, set_autostart, settings_ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Bay running, so there's nothing to quit.
@@ -245,6 +245,11 @@ fn next_screen(app: AppHandle, window: WebviewWindow, dir: i32) {
 #[tauri::command]
 fn drag(app: AppHandle, hwnd: u64, pid: u32, fx: f64, fy: f64) -> Result<(), String> {
     overview::drag(&app, mullion_core::wins::handle(hwnd)?, pid, fx, fy)
+}
+
+#[tauri::command]
+fn let_go() {
+    overview::let_go();
 }
 
 /// The Desktops button: close, and open Windows' Task View.

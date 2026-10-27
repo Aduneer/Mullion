@@ -171,7 +171,9 @@ function dismiss() {
 
 // --- dragging to another screen ---------------------------------------------------------------
 // Past a few pixels a press on a window is a drag, and the backend takes it from there; this page
-// just stops drawing that window's ring and label. "moved" brings the grid back.
+// just stops drawing that window's ring and label, and says when the button's let go, which it
+// hears even over another screen since it holds the mouse while it's down. "moved" brings the
+// grid back.
 let down = null, dragged = false;
 
 grid.addEventListener("mousedown", e => {
@@ -179,7 +181,12 @@ grid.addEventListener("mousedown", e => {
   const t = e.target.closest(".slot");
   down = e.button === 0 && t && open && !slots[t.dataset.i].minimized ? { i: Number(t.dataset.i), x: e.clientX, y: e.clientY } : null;
 });
-document.addEventListener("mouseup", () => { down = null; });
+document.addEventListener("mouseup", e => {
+  down = null;
+  if (dragged && e.button === 0) invoke("let_go");
+});
+// If the page loses the mouse some other way (another window taking the focus), the drag ends there.
+window.addEventListener("blur", () => { if (dragged) invoke("let_go"); });
 document.addEventListener("mousemove", e => {
   if (!down || dragged || !(e.buttons & 1) || Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6) return;
   const s = slots[down.i];
@@ -232,6 +239,7 @@ document.addEventListener("keydown", e => {
 // --- from the backend ---------------------------------------------------------------------------
 listen("open", shown => draw(shown));
 listen("moved", ({ shown }) => { dragged = false; draw(shown, true); });
+listen("note", note);
 listen("close", () => { open = false; document.body.classList.add("closing"); });
 listen("closed", () => {
   open = false;

@@ -20,6 +20,7 @@ use crate::SettingsState;
 use mullion_core::{icons, look, thumbs, wins};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::window::Color;
@@ -561,10 +562,15 @@ struct Moved<'a> {
     shown: &'a Shown,
 }
 
+/// The button that's dragging a window was let go. The page it started on hears that wherever the
+/// pointer is, since it holds the mouse while the button's down.
+static LET_GO: AtomicBool = AtomicBool::new(false);
+
 /// A window's thumbnail was pulled out of its place on a page, held `fx`, `fy` of the way across
 /// it. From here the backend follows the pointer, not the page: a page only hears the mouse
 /// over its own screen, and a thumbnail only shows in the overview it's registered with, so
-/// when the pointer crosses to another screen the thumbnail goes with it.
+/// when the pointer crosses to another screen the thumbnail goes with it. It's dropped when
+/// the page says the button was let go (`let_go`).
 pub fn drag(app: &AppHandle, hwnd: isize, pid: u32, fx: f64, fy: f64) -> Result<(), String> {
     let state = app.state::<State>();
     let mut o = state.0.lock().unwrap();
@@ -575,17 +581,13 @@ pub fn drag(app: &AppHandle, hwnd: isize, pid: u32, fx: f64, fy: f64) -> Result<
     // A minimized window has no thumbnail to carry, and stays where it'll come back.
     let fi = win.flight.ok_or("a minimized window stays on its screen")?;
     wins::check(hwnd, pid)?;
-    if elevated(pid) && !elevated(std::process::id()) {
-        let title = o.shown[win.screen].slots.iter().find(|s| s.hwnd == hwnd).map(|s| s.title.clone()).unwrap_or_default();
-        return Err(format!("{title} runs as administrator, so Windows won’t let Bay move it"));
-    }
     o.drag = Some(hwnd);
+    LET_GO.store(false, Ordering::SeqCst);
     let (screens, flight) = (o.screens.clone(), o.flights[fi]);
     drop(o);
     let (fx, fy) = (fx.clamp(0.0, 1.0), fy.clamp(0.0, 1.0));
     let app = app.clone();
     std::thread::spawn(move || {
-        let button = if unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0 { VK_RBUTTON } else { VK_LBUTTON };
         let size = flight.to;
         let (mut id, mut on) = (flight.id, None);
         let at = loop {
@@ -606,7 +608,7 @@ pub fn drag(app: &AppHandle, hwnd: isize, pid: u32, fx: f64, fy: f64) -> Result<
             let at = Rect { x: (p.x - sc.work[0]) as f64 - fx * size.w, y: (p.y - sc.work[1]) as f64 - fy * size.h, w: size.w, h: size.h };
             thumbs::place(id, flight.crop, flight::rect(at), 255);
             thumbs::next_frame();
-            if unsafe { GetAsyncKeyState(button) } as u16 & 0x8000 == 0 {
+            if LET_GO.load(Ordering::SeqCst) {
                 break at;
             }
         };
@@ -616,6 +618,11 @@ pub fn drag(app: &AppHandle, hwnd: isize, pid: u32, fx: f64, fy: f64) -> Result<
         let _ = app.run_on_main_thread(move || dropped(&handle, hwnd, on, at, moved));
     });
     Ok(())
+}
+
+/// The page that started a drag says its button was let go.
+pub fn let_go() {
+    LET_GO.store(true, Ordering::SeqCst);
 }
 
 /// Move a window from one screen to another: to the same place on the new screen's work area,
@@ -712,6 +719,11 @@ fn dropped(app: &AppHandle, hwnd: isize, on: usize, at: Rect, moved: bool) {
     let to = o.windows[wi].to;
     flights.push(Flight { from: from_at, to, ..o.flights[fi] });
     let label = |s: usize| o.screens[s].label.clone();
+    if !moved && on != origin {
+        let title = o.shown[origin].slots.iter().find(|s| s.hwnd == hwnd).map(|s| s.title.clone()).unwrap_or_default();
+        let why = format!("Windows wouldn’t let Bay move {title}: it may be running as administrator");
+        let _ = app.emit_to(label(origin).as_str(), "note", why);
+    }
     for s in if moved { vec![origin, on] } else { vec![origin] } {
         let _ = app.emit_to(label(s).as_str(), "moved", Moved { shown: &o.shown[s] });
     }

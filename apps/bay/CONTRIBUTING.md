@@ -108,14 +108,16 @@ rather than an old Windows placeholder. **Minimized windows** off in Settings le
 A press on a window that moves a few pixels is a drag, and the page hands it to the backend
 (`drag`): a page only hears the mouse over its own screen, and a thumbnail only shows inside the
 window it's registered with. Each DWM frame the backend reads the pointer, and when it crosses to
-another screen, registers the thumbnail there instead. When the button comes up
-(`GetAsyncKeyState`, with the buttons swapped if Windows has them swapped), it moves the window
+another screen, registers the thumbnail there instead. When the button comes up (the page that
+started the drag hears that wherever the pointer is, since it holds the mouse while the button's
+down, and says so with `let_go`), it moves the window
 (`place_on`: the same place on the new screen's work area, kept inside, no bigger; a maximized
 window is restored, moved and maximized again), lays both screens' grids out again and flies
 everything to its new place.
 
-Windows doesn't let a program move the windows of one running as administrator, so Bay checks
-for that before a drag starts (`elevated`) and the page says so. Moving windows to another
+Windows doesn't let a program move the windows of one running as administrator. Bay doesn't look
+into other programs to find out beforehand: such a window flies back to its own screen and the
+page says why. Moving windows to another
 virtual desktop is left to Windows' Task View (the Desktops button presses Win+Tab once Bay has
 closed): the only way to do it for another program's windows is through undocumented COM
 interfaces that change between Windows builds.

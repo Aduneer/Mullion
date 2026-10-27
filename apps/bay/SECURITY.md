@@ -29,7 +29,7 @@ Windows versions you tried.
     Windows reuses window handles;
   - move one you drag onto another screen there, the way dragging its title bar would, making it
     smaller only if it's bigger than that screen. The same check applies. Windows doesn't let it
-    move the windows of programs running as administrator, and Bay doesn't try;
+    move the windows of programs running as administrator; such a window stays where it was;
   - nothing else: it never closes a window or types into one.
 - The **Desktops** button presses <kbd>Win</kbd> + <kbd>Tab</kbd> with `SendInput` once the
   overview has closed, to open Windows' Task View.
