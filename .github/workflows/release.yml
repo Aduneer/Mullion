@@ -9,7 +9,8 @@
 # Check the draft on the Releases page, add notes, and publish it.
 #
 # Run it by hand from the Actions tab to build and try everything at the version in the
-# Cargo.toml files, without a tag: it does every step but the release.
+# Cargo.toml files, without a tag: it does every step but the release, and keeps what it built as
+# the run's artifact instead.
 #
 # Third-party actions are pinned to a commit (with the version in a comment), so a moved tag
 # can't change what runs with write access to the repo. Dependabot keeps the pins current.
@@ -176,6 +177,15 @@ jobs:
         run: |
           Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist/SHA256SUMS.txt
+
+      # Run by hand, everything it built is kept for a week as the run's artifact, to try on our
+      # own PCs: Smart App Control judges each build afresh.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.RELEASE != 'true'
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         if: env.RELEASE == 'true'
