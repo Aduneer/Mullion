@@ -138,7 +138,7 @@ jobs:
           # The first start is the welcome: no app starts until Start.
           Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
           Start-Sleep -Seconds 10
-          foreach ($a in $apps) {
+          foreach ($a in $apps | Where-Object { $_ -ne "mullion" }) {
             if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a started before the welcome's Start" }
           }
           Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
