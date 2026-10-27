@@ -75,13 +75,16 @@ fn store_app_pid(frame: isize, frame_pid: u32) -> Option<u32> {
     found.1
 }
 
-/// The same test Alt+Tab applies, as far as it's documented.
+/// The same test Alt+Tab applies, as far as it's documented. A window that can't be activated
+/// is never one to switch to, even marked as an app window: Tauri marks every window so, and
+/// Lintel's bar is one.
 pub fn listed(w: &Raw, own_pid: u32) -> bool {
     let app = w.ex_style & WS_EX_APPWINDOW != 0;
     !w.title.is_empty()
         && w.pid != own_pid
         && !w.cloaked
-        && (app || (w.ex_style & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) == 0 && !w.owned))
+        && w.ex_style & WS_EX_NOACTIVATE == 0
+        && (app || (w.ex_style & WS_EX_TOOLWINDOW == 0 && !w.owned))
         && !SHELL_CLASSES.contains(&w.class.as_str())
 }
 
@@ -165,6 +168,9 @@ mod tests {
         assert!(!listed(&Raw { ex_style: WS_EX_TOOLWINDOW, ..win(7, "X", "Palette") }, ME));
         assert!(!listed(&Raw { owned: true, ..win(7, "X", "Save as") }, ME));
         assert!(!listed(&win(7, "Progman", "Program Manager"), ME));
+        // Lintel's bar: an app window, as Tauri makes every window, that can't be activated.
+        assert!(!listed(&Raw { ex_style: WS_EX_APPWINDOW | WS_EX_NOACTIVATE, ..win(7, "X", "Lintel") }, ME));
+        assert!(listed(&Raw { ex_style: WS_EX_APPWINDOW, ..win(7, "X", "Oriel") }, ME));
     }
 
     #[test]

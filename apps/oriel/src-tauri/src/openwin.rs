@@ -54,13 +54,16 @@ struct Raw {
 
 /// The same test Alt+Tab applies, as far as it's documented: a window with a title that isn't a
 /// tool window, a helper of another window, hidden by the system (cloaked: a suspended Store app,
-/// another virtual desktop) or part of the shell. Oriel's own windows are left out.
+/// another virtual desktop) or part of the shell. Oriel's own windows are left out, and so is one
+/// that can't be activated even if it's marked as an app window (Lintel's bar: Tauri marks every
+/// window so).
 fn listed(w: &Raw, own_pid: u32) -> bool {
     let app = w.ex_style & WS_EX_APPWINDOW != 0;
     !w.title.is_empty()
         && w.pid != own_pid
         && !w.cloaked
-        && (app || (w.ex_style & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) == 0 && !w.owned))
+        && w.ex_style & WS_EX_NOACTIVATE == 0
+        && (app || (w.ex_style & WS_EX_TOOLWINDOW == 0 && !w.owned))
         && !SHELL_CLASSES.contains(&w.class.as_str())
 }
 
@@ -233,6 +236,8 @@ mod tests {
         assert!(!listed(&owned, ME));
         assert!(listed(&Raw { ex_style: WS_EX_APPWINDOW, ..owned }, ME));
         assert!(!listed(&Raw { ex_style: WS_EX_NOACTIVATE, ..win(3, 7, "Tooltip") }, ME));
+        // Lintel's bar: an app window, as Tauri makes every window, that can't be activated.
+        assert!(!listed(&Raw { ex_style: WS_EX_APPWINDOW | WS_EX_NOACTIVATE, ..win(4, 7, "Lintel") }, ME));
     }
 
     #[test]
