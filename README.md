@@ -17,13 +17,14 @@
 Mullion is a set of small apps, each named after a part of a window (a mullion is the bar between
 two panes). Each one is its own program: install the ones you want, quit any of them, and the
 rest carry on. They share six palettes, dark or light, solid or glass, so they look like one
-desktop. More are on the way: a dock, hot corners, an overview of every window.
+desktop. More are on the way: a dock, hot corners, window snapping.
 
 | App | What it is |
 | --- | --- |
 | [**Fanlight**](apps/fanlight/README.md) | Search and launch on <kbd>Alt</kbd> + <kbd>Space</kbd>: apps, files, settings, windows, sums and what you copied |
 | [**Oriel**](apps/oriel/README.md) | A dashboard for your second screen: CPU, GPU, memory, network, disks and processes, what's playing, the weather and your calendar |
 | [**Lintel**](apps/lintel/README.md) | A menu bar along the top of the screen: the app in front, your open apps, what's playing, a Control Centre and the clock |
+| [**Bay**](apps/bay/README.md) | Every open window at once on <kbd>Win</kbd> + <kbd>Ctrl</kbd> + <kbd>↑</kbd>, as live pictures on each screen: pick one and it comes to the front |
 
 ## Install
 
@@ -38,7 +39,7 @@ when you sign in. Nothing starts until you press Start, and Oriel waits until yo
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="apps/mullion/docs/images/settings-light.png">
-  <img alt="Mullion Settings: Oriel, Lintel and Fanlight, each with a switch to run it or not and a way into its own settings, then Start Mullion when I sign in and Quit Mullion" src="apps/mullion/docs/images/settings-dark.png" width="560">
+  <img alt="Mullion Settings: Oriel, Lintel, Fanlight and Bay, each with a switch to run it or not and a way into its own settings, then Start Mullion when I sign in and Quit Mullion" src="apps/mullion/docs/images/settings-dark.png" width="560">
 </picture>
 
 Mullion Settings, from its icon, turns each app on or off, and opens each one's own settings.

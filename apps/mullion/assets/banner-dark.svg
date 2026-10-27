@@ -26,4 +26,7 @@
 <rect x="723.6" y="380" width="113" height="40" rx="10" fill="#1f1e1c" stroke="rgba(240,239,236,0.12)"/>
 <rect x="737.6" y="393" width="14" height="14" rx="4" fill="#dd9d2c"/>
 <text x="759.6" y="406" font-size="16" fill="#f0efec" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Fanlight</text>
+<rect x="848.4" y="380" width="65" height="40" rx="10" fill="#1f1e1c" stroke="rgba(240,239,236,0.12)"/>
+<rect x="862.4" y="393" width="14" height="14" rx="4" fill="#2f5d8c"/>
+<text x="884.4" y="406" font-size="16" fill="#f0efec" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Bay</text>
 </svg>

@@ -1,5 +1,5 @@
-//! Hand-written bindings for the flat Win32 calls only Fanlight uses: the clipboard, the shortcut
-//! and its message-only window. The ones the apps share come from `mullion_core::ffi`.
+//! Hand-written bindings for the flat Win32 calls only Fanlight uses: the clipboard and its
+//! message-only window. The ones the apps share come from `mullion_core::ffi`.
 //! COM (the shell's app list, icons, known folders) goes through the `windows` crate instead.
 #![allow(non_snake_case, non_camel_case_types, clippy::upper_case_acronyms, dead_code)]
 
@@ -13,7 +13,6 @@ pub const GMEM_MOVEABLE: u32 = 0x0002;
 
 #[link(name = "kernel32", kind = "raw-dylib")]
 extern "system" {
-    pub fn GetCurrentThreadId() -> u32;
     pub fn GlobalAlloc(flags: u32, bytes: usize) -> HANDLE;
     pub fn GlobalLock(mem: HANDLE) -> *mut c_void;
     pub fn GlobalUnlock(mem: HANDLE) -> i32;
@@ -24,20 +23,12 @@ extern "system" {
 
 // --- windows -------------------------------------------------------------------
 
-pub const WM_HOTKEY: u32 = 0x0312;
 pub const WM_CLIPBOARDUPDATE: u32 = 0x031D;
 pub const HWND_MESSAGE: isize = -3;
-
-pub const MOD_ALT: u32 = 0x0001;
-pub const MOD_CONTROL: u32 = 0x0002;
-pub const MOD_SHIFT: u32 = 0x0004;
-pub const MOD_WIN: u32 = 0x0008;
-pub const MOD_NOREPEAT: u32 = 0x4000;
 
 pub const VK_CONTROL: u16 = 0x11;
 pub const VK_SHIFT: u16 = 0x10;
 pub const VK_MENU: u16 = 0x12;
-pub const VK_SPACE: u16 = 0x20;
 
 pub const CF_UNICODETEXT: u32 = 13;
 
@@ -60,10 +51,6 @@ pub struct WNDCLASSW {
 #[link(name = "user32", kind = "raw-dylib")]
 extern "system" {
     pub fn GetCursorPos(pt: *mut POINT) -> i32;
-    pub fn RegisterHotKey(hwnd: isize, id: i32, modifiers: u32, vk: u32) -> i32;
-    pub fn UnregisterHotKey(hwnd: isize, id: i32) -> i32;
-    pub fn PeekMessageW(msg: *mut MSG, hwnd: isize, min: u32, max: u32, remove: u32) -> i32;
-    pub fn PostThreadMessageW(thread: u32, msg: u32, wparam: usize, lparam: isize) -> i32;
     pub fn RegisterClassW(class: *const WNDCLASSW) -> u16;
     pub fn CreateWindowExW(
         ex_style: u32,

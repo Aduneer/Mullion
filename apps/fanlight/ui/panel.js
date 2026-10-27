@@ -571,7 +571,7 @@ function drawSettings(error = hello.hotkey_error) {
     ${setRow("What you’ve opened", "Fanlight ranks things you open often higher", `<button class="btn danger" data-do="clear-history">Forget</button>`)}
     ${setRow("File index", "Fanlight keeps it up to date by itself", `<button class="btn" data-do="reindex">Update now</button>`)}
     ${setRow("Quit Fanlight", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}
-    <p class="about">Fanlight ${esc(hello.version)} · part of the Mullion suite, with Oriel and Lintel<br>Settings: ${esc(hello.settings_path)}</p>`;
+    <p class="about">Fanlight ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel and Bay<br>Settings: ${esc(hello.settings_path)}</p>`;
   for (const [k, v] of Object.entries(s.clipboard ? {} : { clipboard_size: 1, keep_clipboard: 1 })) {
     void v;
     setv.querySelector(`[data-set="${k}"]`)?.closest(".set")?.style.setProperty("opacity", "0.45");

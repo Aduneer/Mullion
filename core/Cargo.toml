@@ -1,7 +1,7 @@
 [package]
 name = "mullion-core"
 version = "0.1.0"
-description = "What Mullion's apps share: Win32 bindings, settings files, shell icons, the window list, power and look"
+description = "What Mullion's apps share: Win32 bindings, settings files, shell icons, the window list and its thumbnails, shortcuts, power and look"
 license = "MIT"
 edition = "2021"
 publish = false

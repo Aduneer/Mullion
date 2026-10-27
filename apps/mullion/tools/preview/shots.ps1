@@ -43,20 +43,20 @@ if ($Installer) {
     $out = (Resolve-Path (Join-Path $root "..\..\installer")).Path
     $url = { param($path) ([Uri]$path).AbsoluteUri }
     $logo = & $url (Join-Path $root "assets\mullion.svg")
-    $tiles = foreach ($a in "oriel", "lintel", "fanlight") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
+    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
     $fonts = "'Segoe UI Variable Display','Segoe UI',sans-serif"
     # Drawn at four times the size and scaled down, so the edges stay smooth.
     $S = 4
     $pictures = [ordered]@{
         # The first and last pages' sidebar: the logo, the name and the line on the suite's dark,
-        # with the apps' three colours along the top and their logos along the bottom.
+        # with the apps' colours along the top and their logos along the bottom.
         "sidebar" = @{ w = 164; h = 314; css =
             "body{background:#161513;color:#f0efec;font-family:$fonts;text-align:center}" +
-            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 33.3%,#b84d35 33.3% 66.6%,#dd9d2c 66.6%)}" +
+            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 25%,#b84d35 25% 50%,#dd9d2c 50% 75%,#2f5d8c 75%)}" +
             ".logo{display:block;width:64px;height:64px;margin:62px auto 16px}" +
             "h1{margin:0 0 9px;font-weight:600;font-size:32px;line-height:1;letter-spacing:-.6px}" +
             "p{margin:0 auto;width:124px;font-size:11.5px;line-height:1.4;color:#b8b5ad}" +
-            ".apps{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:10px}" +
+            ".apps{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:8px}" +
             ".apps img{width:24px;height:24px}"
             html = "<img class=`"logo`" src=`"$logo`"><h1>Mullion</h1><p>Well-made parts for the Windows desktop</p><div class=`"apps`">$($tiles -join '')</div>" }
         # The other pages' header, at the right of their white top band.

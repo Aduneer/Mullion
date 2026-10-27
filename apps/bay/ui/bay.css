@@ -1,0 +1,95 @@
+/* The overview on one screen. DWM draws each window's live thumbnail on top of this page (and,
+   as it opens, one of the desktop over everything), so the page only draws what's around them:
+   the backdrop, a ring around the window you're on, each window's icon and title below it, and
+   a card for a minimized window, which has no picture. Colors are tokens from themes.css. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--page);
+  color: var(--ink);
+  font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* The wallpaper, drawn small with a blur and stretched back up (cheap, and softer still), under
+   a wash of the palette's page colour. */
+#backdrop { position: fixed; inset: 0; background: var(--paper-color, var(--page)); }
+#paper { position: absolute; inset: 0; width: 100%; height: 100%; }
+#tint { position: absolute; inset: 0; background: color-mix(in srgb, var(--page) 42%, transparent); }
+[data-mode="light"] #tint { background: color-mix(in srgb, var(--page) 34%, transparent); }
+body.plain #paper { display: none; }
+body.plain #tint { background: var(--page); }
+
+.slot { position: absolute; border-radius: 8px; outline: 3px solid transparent; outline-offset: 6px; }
+.slot.selected { outline-color: var(--accent); }
+
+/* A minimized window: Windows has nothing live to show, so a card with its icon. */
+.card {
+  display: grid; place-content: center; justify-items: center; gap: 10px; padding: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px var(--shadow);
+  color: var(--muted);
+  font-size: 12px;
+}
+.card img { width: 48px; height: 48px; }
+
+.label {
+  position: absolute; display: flex; gap: 8px; align-items: center; justify-content: center;
+  height: 40px; padding-top: 12px;
+  transition: opacity 120ms;
+}
+.label .name {
+  display: flex; gap: 7px; align-items: center; min-width: 0; max-width: 100%;
+  padding: 3px 10px 3px 6px; border-radius: 8px;
+  text-shadow: 0 1px 3px var(--shadow);
+}
+.label img, .label .ic { width: 20px; height: 20px; flex: none; }
+.label span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.selected + .label .name { background: color-mix(in srgb, var(--surface-hi) 80%, transparent); text-shadow: none; }
+.ic { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+body.closing .label, body.closing .card { opacity: 0; transition: opacity 100ms; }
+
+/* A window being dragged: the backend carries its thumbnail, so its ring and label go. While the
+   windows fly to new places after a drop, the labels wait for them. */
+.slot.dragging { outline-color: transparent; }
+.label.dragging, body.settling .label, body.settling .card { opacity: 0; transition: none; }
+
+/* Desktops are Windows' own: this opens its Task View. In the margin above the grid, where no
+   window goes. */
+#desktops {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 7px; align-items: center; height: 30px; padding: 0 12px 0 10px;
+  border: 1px solid var(--border); border-radius: 15px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--ink-2); font: inherit; cursor: default;
+  transition: opacity 120ms;
+}
+#desktops:hover { background: color-mix(in srgb, var(--surface-hi) 85%, transparent); color: var(--ink); }
+#desktops .ic { width: 17px; height: 17px; }
+body.closing #desktops { opacity: 0; }
+
+/* Why a dragged window didn't move: at the foot of the screen, under the grid. */
+#note {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 32px); padding: 7px 14px; border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-hi) 90%, transparent); border: 1px solid var(--border);
+  color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 6px 20px var(--shadow);
+}
+body.closing #note { opacity: 0; }
+
+#empty {
+  position: fixed; inset: 0; display: grid; place-content: center;
+  color: var(--ink-2); font-size: 15px; text-shadow: 0 1px 3px var(--shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label, body.closing .label, body.closing .card, #desktops { transition: none; }
+}

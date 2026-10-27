@@ -18,6 +18,7 @@ apps/fanlight/        Fanlight: its Rust side (src-tauri/), pages (ui/), preview
                       CONTRIBUTING and SECURITY
 apps/lintel/          Lintel, laid out the same way
 apps/oriel/           Oriel, laid out the same way
+apps/bay/             Bay, laid out the same way
 apps/mullion/         Mullion.exe: the suite's tray icon, sign-in entry and settings window (below)
 ui-common/            the page files every app shares word for word (themes.css)
 tools/                scripts every app's preview uses: icons.py, preview/demo.py and
@@ -40,6 +41,8 @@ src/settings.rs       each app's folder in %APPDATA%, the palettes, and reading 
                       files safely (a temporary file, then renamed over the old one)
 src/icons.rs          an icon or thumbnail from the shell, as an image a page can show
 src/wins.rs           the windows Alt+Tab would list, and bringing one to the front
+src/thumbs.rs         DWM's live thumbnails of those windows, and where each window really is
+src/hotkey.rs         a global shortcut on a thread of its own, changed without restarting
 src/power.rs          lock, sleep, sign out, restart and shut down
 src/look.rs           following the theme, Windows 11's rounded corners, the WebView2 flags
 src/suite.rs          the apps Mullion has, finding each one's exe, and the flags Mullion.exe
@@ -90,6 +93,12 @@ To try it, build the apps and Mullion (`cargo build --workspace`) and run
 3. In `installer/mullion.nsi`: an `!insertmacro App` line, its line in the `-Tidy` section and
    `.onInit`, an `UnData` line and a `MUI_DESCRIPTION_TEXT` line.
 4. It in the root README's table and SECURITY.md, and the bug form's list of apps.
+5. Its first-run hint in `FIRST` in `apps/mullion/ui/settings.js`, its row in Mullion's preview
+   (`apps/mullion/tools/preview/mock.js`), and its name and colour in `tools/banner.py`. Then
+   draw the pictures again: the banners (`python -I tools\banner.py apps\<app>` and
+   `apps\mullion`), Mullion's settings screenshots, and the installer's pictures
+   (`apps\mullion\tools\preview\shots.ps1 -Installer`), whose logos and colours list every app.
+6. Each other app's "Part of Mullion" paragraph, and Fanlight's About line, name it too.
 
 ### The shared page files
 

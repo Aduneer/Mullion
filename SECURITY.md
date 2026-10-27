@@ -15,6 +15,7 @@ Each app lists exactly what it reads, keeps and can do in its own SECURITY.md:
 - [Oriel](apps/oriel/SECURITY.md)
 - [Lintel](apps/lintel/SECURITY.md)
 - [Fanlight](apps/fanlight/SECURITY.md)
+- [Bay](apps/bay/SECURITY.md)
 
 The apps share code (`core/`), not data: each keeps its own files in its own folder under
 `%APPDATA%`, and none of them reads another's.

@@ -16,6 +16,7 @@ body:
         - Oriel
         - Lintel
         - Fanlight
+        - Bay
         - Mullion itself (its icon, settings or installer)
     validations:
       required: true
@@ -24,7 +25,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: At the bottom of the app's settings (in Oriel, press , on the dashboard; in Fanlight, Ctrl+, in the panel; in Lintel, Menu Bar Settings, in the logo menu).
+      description: At the bottom of the app's settings (in Oriel, press , on the dashboard; in Fanlight, Ctrl+, in the panel; in Lintel, Menu Bar Settings, in the logo menu; in Bay, Settings in its icon's menu).
       placeholder: "0.3.1"
     validations:
       required: true
@@ -70,5 +71,5 @@ body:
     attributes:
       label: Screenshots, hardware, anything else
       description: |
-        Your screens and their scaling (100%, 150%…) help with layout problems; for a missing file in Fanlight, where it is and its name.
+        Your screens and their scaling (100%, 150%…) help with layout problems; for a missing file in Fanlight, where it is and its name; for a window missing from Bay, which app it is.
         Before you attach a screenshot, check it doesn't show anything private: file names, window titles, what you copied.

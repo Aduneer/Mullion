@@ -161,8 +161,9 @@ Logo menu → **Menu Bar Settings**. Changes apply and save as you make them, to
 ## Part of Mullion
 
 Lintel is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
-desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen, and
-[Fanlight](../fanlight/README.md), search and launch. They share their themes, and Mullion's
+desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
+[Fanlight](../fanlight/README.md), search and launch, and [Bay](../bay/README.md), every window at
+once. They share their themes, and Mullion's
 installer installs any of them in one go. Each is still its own program, which works alone. If
 Oriel is installed, the logo menu has a shortcut to it.
 

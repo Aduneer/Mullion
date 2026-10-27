@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Bay</title>
+  <!-- Harbour blue: a bay is also the sea's wide opening, as a bay window is a wide view out. -->
+  <rect width="1024" height="1024" rx="224" fill="#2f5d8c"/>
+  <!-- a bay: every window at once, side by side above the sill, the one you're on ringed -->
+  <g fill="#f0efec">
+    <rect x="236" y="262" width="292" height="206" rx="22"/>
+    <rect x="594" y="290" width="194" height="178" rx="22" fill-opacity="0.62"/>
+    <rect x="236" y="534" width="210" height="166" rx="22" fill-opacity="0.62"/>
+    <rect x="484" y="534" width="304" height="166" rx="22" fill-opacity="0.62"/>
+    <rect x="200" y="746" width="624" height="40" rx="14"/>
+  </g>
+  <rect x="208" y="234" width="348" height="262" rx="40" fill="none" stroke="#f0efec" stroke-width="14"/>
+</svg>

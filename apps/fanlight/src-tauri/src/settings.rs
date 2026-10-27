@@ -122,6 +122,13 @@ mod tests {
     }
 
     #[test]
+    fn every_shortcut_offered_is_one_windows_takes() {
+        for h in HOTKEYS {
+            assert!(mullion_core::hotkey::parse(h).is_some(), "{h}");
+        }
+    }
+
+    #[test]
     fn folders_are_tidied() {
         let s = Settings { folders: vec![r"D:\Work\".into(), r"d:\work".into(), "  ".into(), r"E:\Photos".into()], ..Default::default() }.clamp();
         assert_eq!(s.folders, [r"D:\Work\", r"E:\Photos"]);

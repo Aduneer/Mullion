@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560">
+<title>Bay</title>
+<g transform="translate(140,120) scale(0.3125)">
+  
+  
+  <rect width="1024" height="1024" rx="224" fill="#2f5d8c"/>
+  
+  <g fill="#f0efec">
+    <rect x="236" y="262" width="292" height="206" rx="22"/>
+    <rect x="594" y="290" width="194" height="178" rx="22" fill-opacity="0.62"/>
+    <rect x="236" y="534" width="210" height="166" rx="22" fill-opacity="0.62"/>
+    <rect x="484" y="534" width="304" height="166" rx="22" fill-opacity="0.62"/>
+    <rect x="200" y="746" width="624" height="40" rx="14"/>
+  </g>
+  <rect x="208" y="234" width="348" height="262" rx="40" fill="none" stroke="#f0efec" stroke-width="14"/>
+</g>
+<text x="516" y="262" font-size="132" font-weight="700" letter-spacing="-3" fill="#f0efec" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Bay</text>
+<rect x="522" y="292" width="72" height="8" rx="4" fill="#2f5d8c"/>
+<text x="522" y="352" font-size="34" fill="#898781" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Every window at once, for Windows</text>
+</svg>

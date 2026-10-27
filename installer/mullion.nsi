@@ -117,6 +117,7 @@ SectionEnd
 !insertmacro App "Oriel" "oriel" "A command centre for your second screen: your PC's vitals, calendar, weather, what's playing and more."
 !insertmacro App "Lintel" "lintel" "A menu bar along the top of the screen: the app in front, your open apps, what's playing and the clock."
 !insertmacro App "Fanlight" "fanlight" "Search and launch on Alt+Space: apps, files, windows, sums and the clipboard."
+!insertmacro App "Bay" "bay" "Every open window at once on Win+Ctrl+Up, as live pictures, to pick the one you want."
 
 Section "Start Mullion when I sign in" SecSignIn
   WriteRegStr HKCU "${RUN}" "Mullion" '"$INSTDIR\mullion.exe" --sign-in'
@@ -133,6 +134,9 @@ Section "-Tidy"
   ${IfNot} ${SectionIsSelected} ${SecFanlight}
     Delete "$INSTDIR\fanlight.exe"
   ${EndIf}
+  ${IfNot} ${SectionIsSelected} ${SecBay}
+    Delete "$INSTDIR\bay.exe"
+  ${EndIf}
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${UNINST}\Mullion" "EstimatedSize" "$0"
@@ -143,6 +147,7 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOriel} $(DESC_Oriel)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecLintel} $(DESC_Lintel)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecFanlight} $(DESC_Fanlight)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecBay} $(DESC_Bay)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecSignIn} "Start Mullion, and the apps you picked, each time you sign in to Windows."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
@@ -163,6 +168,9 @@ Function .onInit
     ${EndIf}
     ${IfNot} ${FileExists} "$INSTDIR\fanlight.exe"
       !insertmacro UnselectSection ${SecFanlight}
+    ${EndIf}
+    ${IfNot} ${FileExists} "$INSTDIR\bay.exe"
+      !insertmacro UnselectSection ${SecBay}
     ${EndIf}
     ReadRegStr $0 HKCU "${RUN}" "Mullion"
     ${If} $0 == ""
@@ -208,6 +216,7 @@ Section "un.Mullion and its apps" SecUnMullion
   !insertmacro DeleteWhenFree "$INSTDIR\oriel.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\lintel.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\fanlight.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\bay.exe"
   ; uninstall.exe and the folder go once it has quit (un.onUninstSuccess).
   Delete "$SMPROGRAMS\Mullion.lnk"
   DeleteRegValue HKCU "${RUN}" "Mullion"
@@ -230,6 +239,7 @@ Section /o "un.Delete the application data" SecUnData
   !insertmacro UnData "Oriel" "dev.oriel.dashboard"
   !insertmacro UnData "Lintel" "com.aduneer.lintel"
   !insertmacro UnData "Fanlight" "com.aduneer.fanlight"
+  !insertmacro UnData "Bay" "com.aduneer.bay"
 SectionEnd
 
 !insertmacro MUI_UNFUNCTION_DESCRIPTION_BEGIN

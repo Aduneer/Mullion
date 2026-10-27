@@ -7,7 +7,6 @@ mod clipboard;
 mod ffi;
 mod files;
 mod history;
-mod hotkey;
 mod matcher;
 mod preview;
 mod search;
@@ -18,8 +17,8 @@ mod wins;
 use clipboard::Clipboard;
 use files::Files;
 use history::History;
-use hotkey::Hotkey;
 use mullion_core::suite::{self, Ask};
+use mullion_core::hotkey::{self, Hotkey};
 use mullion_core::{look, power};
 use serde::Serialize;
 use settings::Settings;
@@ -254,14 +253,9 @@ fn apply_look(app: &AppHandle, settings: &Settings) {
 
 // --- tray ------------------------------------------------------------------------------
 
-/// "alt+space" as menus write it: "Alt+Space".
-fn shortcut_label(spec: &str) -> String {
-    spec.split('+').map(|p| p[..1].to_uppercase() + &p[1..]).collect::<Vec<_>>().join("+")
-}
-
 fn build_tray(app: &AppHandle, hotkey: &str) -> tauri::Result<()> {
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
-    let open_i = MenuItem::with_id(app, "open", format!("Open Fanlight\t{}", shortcut_label(hotkey)), true, None::<&str>)?;
+    let open_i = MenuItem::with_id(app, "open", format!("Open Fanlight\t{}", hotkey::label(hotkey)), true, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let autostart_i = CheckMenuItem::with_id(app, "autostart", "Start at sign-in", true, autostart_on, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit Fanlight", true, None::<&str>)?;
@@ -643,11 +637,11 @@ fn save_settings(
         match hotkey.0.set(&settings.hotkey) {
             Ok(()) => {
                 *hotkey.1.lock().unwrap() = None;
-                let _ = app.state::<OpenItem>().0.set_text(format!("Open Fanlight\t{}", shortcut_label(&settings.hotkey)));
+                let _ = app.state::<OpenItem>().0.set_text(format!("Open Fanlight\t{}", hotkey::label(&settings.hotkey)));
             }
             Err(e) => {
                 settings.hotkey = previous.hotkey.clone();
-                return Err(format!("{}: {e}", shortcut_label(&settings.hotkey)));
+                return Err(format!("{}: {e}", hotkey::label(&settings.hotkey)));
             }
         }
     }
@@ -693,15 +687,4 @@ fn clear_history(history: State<History>) {
 #[tauri::command]
 fn quit(app: AppHandle) {
     app.exit(0);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn shortcuts_read_as_in_menus() {
-        assert_eq!(shortcut_label("alt+space"), "Alt+Space");
-        assert_eq!(shortcut_label("ctrl+shift+space"), "Ctrl+Shift+Space");
-    }
 }

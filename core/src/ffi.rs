@@ -82,6 +82,7 @@ extern "system" {
     pub fn GetSystemPowerStatus(status: *mut SYSTEM_POWER_STATUS) -> i32;
     pub fn GetSystemDirectoryW(buf: *mut u16, len: u32) -> u32;
     pub fn K32EnumProcesses(pids: *mut u32, size: u32, needed: *mut u32) -> i32;
+    pub fn GetCurrentThreadId() -> u32;
 }
 
 pub const TOKEN_ADJUST_PRIVILEGES: u32 = 0x0020;
@@ -170,6 +171,20 @@ pub const INPUT_KEYBOARD: u32 = 1;
 pub const KEYEVENTF_KEYUP: u32 = 0x0002;
 pub const VK_LWIN: u16 = 0x5B;
 
+pub const WM_HOTKEY: u32 = 0x0312;
+pub const MOD_ALT: u32 = 0x0001;
+pub const MOD_CONTROL: u32 = 0x0002;
+pub const MOD_SHIFT: u32 = 0x0004;
+pub const MOD_WIN: u32 = 0x0008;
+pub const MOD_NOREPEAT: u32 = 0x4000;
+pub const VK_TAB: u16 = 0x09;
+pub const VK_SPACE: u16 = 0x20;
+pub const VK_LEFT: u16 = 0x25;
+pub const VK_UP: u16 = 0x26;
+pub const VK_RIGHT: u16 = 0x27;
+pub const VK_DOWN: u16 = 0x28;
+pub const VK_F1: u16 = 0x70;
+
 
 #[repr(C)]
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
@@ -185,6 +200,18 @@ pub struct RECT {
 pub struct POINT {
     pub x: i32,
     pub y: i32,
+}
+
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct WINDOWPLACEMENT {
+    pub length: u32,
+    pub flags: u32,
+    pub showCmd: u32,
+    pub ptMinPosition: POINT,
+    pub ptMaxPosition: POINT,
+    pub rcNormalPosition: RECT,
+    pub rcDevice: RECT,
 }
 
 #[repr(C)]
@@ -257,16 +284,43 @@ extern "system" {
     pub fn LockWorkStation() -> i32;
     pub fn ExitWindowsEx(flags: u32, reason: u32) -> i32;
     pub fn SendInput(count: u32, inputs: *const INPUT, size: i32) -> u32;
+    pub fn GetWindowPlacement(hwnd: isize, placement: *mut WINDOWPLACEMENT) -> i32;
+    pub fn RegisterHotKey(hwnd: isize, id: i32, modifiers: u32, vk: u32) -> i32;
+    pub fn UnregisterHotKey(hwnd: isize, id: i32) -> i32;
+    pub fn PeekMessageW(msg: *mut MSG, hwnd: isize, min: u32, max: u32, remove: u32) -> i32;
+    pub fn PostThreadMessageW(thread: u32, msg: u32, wparam: usize, lparam: isize) -> i32;
 }
 
 #[link(name = "dwmapi", kind = "raw-dylib")]
 extern "system" {
     pub fn DwmGetWindowAttribute(hwnd: isize, attr: u32, value: *mut c_void, size: u32) -> i32;
     pub fn DwmSetWindowAttribute(hwnd: isize, attr: u32, value: *const c_void, size: u32) -> i32;
+    pub fn DwmRegisterThumbnail(dest: isize, source: isize, thumb: *mut isize) -> i32;
+    pub fn DwmUnregisterThumbnail(thumb: isize) -> i32;
+    pub fn DwmUpdateThumbnailProperties(thumb: isize, props: *const DWM_THUMBNAIL_PROPERTIES) -> i32;
+    /// Returns once DWM has composed its next frame.
+    pub fn DwmFlush() -> i32;
 }
 
+pub const DWMWA_EXTENDED_FRAME_BOUNDS: u32 = 9;
 pub const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
 pub const DWMWCP_ROUND: u32 = 2;
+pub const DWM_TNP_RECTDESTINATION: u32 = 0x01;
+pub const DWM_TNP_RECTSOURCE: u32 = 0x02;
+pub const DWM_TNP_OPACITY: u32 = 0x04;
+pub const DWM_TNP_VISIBLE: u32 = 0x08;
+
+/// dwmapi.h packs its structs to one byte (`pshpack1.h`), so this is 45 bytes, not 48.
+#[repr(C, packed)]
+#[derive(Default, Clone, Copy)]
+pub struct DWM_THUMBNAIL_PROPERTIES {
+    pub dwFlags: u32,
+    pub rcDestination: RECT,
+    pub rcSource: RECT,
+    pub opacity: u8,
+    pub fVisible: i32,
+    pub fSourceClientAreaOnly: i32,
+}
 
 // --- power ---------------------------------------------------------------------
 
