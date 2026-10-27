@@ -13,13 +13,17 @@ With -Installer it renders the pictures in Mullion's installer, the sidebar of i
 pages and the header of the others, into the repo's installer/ folder (24-bit BMPs, which is what
 NSIS needs).
 
+With -Social it renders the repo's social preview (docs/images/social-preview.png, 1280x640):
+the name and line beside assets/social-window.svg, the logo's window at dusk. It names no app, so
+it needn't change as apps are added. Upload it under the repo's Settings, General, Social preview.
+
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1
 
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\shots.ps1 -Installer
 #>
-param([switch]$Icons, [switch]$Installer, [string]$Browser)
+param([switch]$Icons, [switch]$Installer, [switch]$Social, [string]$Browser)
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -34,6 +38,16 @@ $userData = Join-Path $env:TEMP "mullion-shots"
 if ($Icons) {
     $logo = Join-Path $root "assets\mullion.svg"
     New-AppIcons $Browser $userData $logo (Join-Path $root "src-tauri\icons") "mullion" $logo
+    return
+}
+
+if ($Social) {
+    $file = Join-Path $root "docs\images\social-preview.png"
+    New-SocialPreview $Browser $userData (Join-Path $root "assets\social-window.svg") (Join-Path $root "assets\mullion.svg") `
+        "Mullion" "Well-made parts for the Windows desktop." $file "470px" "112px" `
+        "position:absolute;left:560px;top:0;width:700px;height:640px;box-shadow:none!important" "width:700px;height:640px" `
+        "#161513"
+    Write-Host "  $file"
     return
 }
 

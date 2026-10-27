@@ -133,7 +133,9 @@ Mullion's installer (`installer/mullion.nsi`) is its own NSIS script: a box for 
 ticked app's exe beside `mullion.exe` in one folder, and one uninstaller for them all. It can only
 be built in Actions, with the NSIS that Tauri's build downloads; run the release workflow by hand
 for a dry run that builds and tries everything without releasing. Its sidebar and header pictures
-(`installer/*.bmp`) come from `apps\mullion\tools\preview\shots.ps1 -Installer`.
+(`installer/*.bmp`) come from `apps\mullion\tools\preview\shots.ps1 -Installer`, and the repo's
+social preview (`apps/mullion/docs/images/social-preview.png`, uploaded under Settings, General)
+from the same script's `-Social`. It names no app, so it stays right as apps are added.
 
 Its uninstaller runs in place (`_?=` in its Installed apps entry): started the usual NSIS way, it
 copies itself to `%TEMP%` and runs the copy, which Smart App Control blocks.

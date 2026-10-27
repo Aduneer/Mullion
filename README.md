@@ -12,42 +12,96 @@
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-1c1b19)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
+[The apps](#the-apps) · [Install](#install) · [One icon for all of them](#one-icon-for-all-of-them) · [Contributing](#contributing)
+
 </div>
 
-Mullion is a set of small apps, each named after a part of a window (a mullion is the bar between
-two panes). Each one is its own program: install the ones you want, quit any of them, and the
-rest carry on. They share six palettes, dark or light, solid or glass, so they look like one
-desktop. More are on the way: a dock, hot corners, window snapping.
+Mullion is a set of small apps for Windows, each named after a part of a window (a mullion is the
+bar between two panes). A menu bar, a search field, a dashboard for your second screen, every
+window at once: the parts a desktop is missing, made to feel like they came with it.
 
-| App | What it is |
-| --- | --- |
-| [**Fanlight**](apps/fanlight/README.md) | Search and launch on <kbd>Alt</kbd> + <kbd>Space</kbd>: apps, files, settings, windows, sums and what you copied |
-| [**Oriel**](apps/oriel/README.md) | A dashboard for your second screen: CPU, GPU, memory, network, disks and processes, what's playing, the weather and your calendar |
-| [**Lintel**](apps/lintel/README.md) | A menu bar along the top of the screen: the app in front, your open apps, what's playing, a Control Centre and the clock |
-| [**Bay**](apps/bay/README.md) | Every open window at once on <kbd>Win</kbd> + <kbd>Ctrl</kbd> + <kbd>↑</kbd>, as live pictures on each screen: pick one and it comes to the front |
+- **Take what you want.** Each app is its own program. Install one or all of them, quit any of
+  them, and the rest carry on.
+- **One desktop.** They share six palettes, each in dark and light, solid or glass, and follow
+  Windows' own light or dark if you like.
+- **Private.** No accounts and no telemetry. Nothing goes online but Oriel's weather and calendar,
+  and only once you add them.
+- **Small.** Rust and the WebView2 that Windows already has, so each app's installer is under
+  2 MB.
+
+## The apps
+
+### <img src="apps/lintel/assets/lintel.svg" width="32" align="top" alt=""> Lintel
+
+**A menu bar along the top of the screen.** The app you're in, your open apps, what's playing, a
+Control Centre and the clock, in one slim bar, the way macOS and Linux desktops have it. Click an
+item and its menu grows out of the bar. [More about Lintel](apps/lintel/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/lintel/docs/images/bar-light.png">
+  <img alt="Lintel along the top of a desktop: the app in front, the open apps, the track playing, CPU and memory, volume, Bluetooth, Wi-Fi, battery, the Control Centre and the clock, with Now playing open below the bar" src="apps/lintel/docs/images/bar-dark.png">
+</picture>
+
+### <img src="apps/fanlight/assets/fanlight.svg" width="32" align="top" alt=""> Fanlight
+
+**Search and launch on <kbd>Alt</kbd> + <kbd>Space</kbd>.** Apps, files, settings, open windows,
+sums, what you copied and the web, in one field that opens over whatever you're doing. Press
+<kbd>Space</kbd> to look at a result before you open it. [More about Fanlight](apps/fanlight/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/fanlight/docs/images/search-light.png">
+  <img alt="Fanlight open over a desktop: code typed in the field, Visual Studio Code as the top result, then an open window, something copied from it and a web search" src="apps/fanlight/docs/images/search-dark.png">
+</picture>
+
+### <img src="apps/bay/assets/bay.svg" width="32" align="top" alt=""> Bay
+
+**Every open window at once, on <kbd>Win</kbd> + <kbd>Ctrl</kbd> + <kbd>↑</kbd>.** Your windows
+step back into a grid, live, over your blurred wallpaper. Pick one and it comes to the front, or
+drag it to another screen. [More about Bay](apps/bay/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/bay/docs/images/overview-light.png">
+  <img alt="Bay open over a desktop: windows in a grid over the blurred wallpaper, each with its icon and title below it, one of them selected" src="apps/bay/docs/images/overview-dark.png">
+</picture>
+
+### <img src="apps/oriel/assets/oriel.svg" width="32" align="top" alt=""> Oriel
+
+**A dashboard for your second screen.** CPU, GPU, memory, network, disks and processes, plus
+what's playing, the weather and your calendar, on one calm, full-screen page you can read from
+across the desk. Arrange it as you like, over as many pages as you want. [More about Oriel](apps/oriel/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/oriel/docs/images/widgets-light.png">
+  <img alt="Oriel full screen on its Desk page: the weather, the calendar, now playing, gauges for CPU, GPU and memory, the volume mixer and the open windows" src="apps/oriel/docs/images/widgets-dark.png">
+</picture>
+
+More are on the way: a dock, hot corners and window snapping.
 
 ## Install
 
 Download **Mullion-*version*-setup.exe** from the [latest release](../../releases/latest) and tick
-the apps you want. It installs just for you, with no admin prompt, and puts Mullion in the Start
-menu: one icon in the notification area, one entry in Installed apps and one sign-in entry for
-all of them, instead of one of each per app. If you already have one of the apps on its own,
-Mullion offers to take its place, and keeps its settings.
+the apps you want. It installs just for you, with no admin prompt. If you already have one of the
+apps on its own, Mullion offers to take its place and keeps its settings.
 
 The first time Mullion opens, it welcomes you: pick which apps to run and whether Mullion starts
-when you sign in. Nothing starts until you press Start, and Oriel waits until you open it.
+when you sign in. Nothing starts until you press Start.
+
+Want just one app? The same release has each app's own installer and a portable zip. None of it
+is code-signed yet, so SmartScreen may warn you and Smart App Control may block it; each app's
+README says what to do.
+
+## One icon for all of them
+
+Installed together, the apps share one icon in the notification area, one entry in Installed apps
+and one sign-in entry, instead of one of each per app. Click the icon for Mullion Settings: turn
+each app on or off, and open each one's own settings.
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="apps/mullion/docs/images/settings-light.png">
-  <img alt="Mullion Settings: Oriel, Lintel, Fanlight and Bay, each with a switch to run it or not and a way into its own settings, then Start Mullion when I sign in and Quit Mullion" src="apps/mullion/docs/images/settings-dark.png" width="560">
+  <img alt="Mullion Settings: each app with a switch to run it or not and a way into its own settings, then Start Mullion when I sign in and Quit Mullion" src="apps/mullion/docs/images/settings-dark.png" width="560">
 </picture>
 
-Mullion Settings, from its icon, turns each app on or off, and opens each one's own settings.
 Each app is still its own program underneath: one crashing or quitting leaves the others running.
-
-Want just one? The same release has each app's own installer and a portable zip. Each app's README
-says more, including what to do about SmartScreen and Smart App Control while the releases aren't
-signed yet.
 
 ## Contributing
 
