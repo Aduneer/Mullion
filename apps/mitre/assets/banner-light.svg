@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560">
+<title>Mitre</title>
+<g transform="translate(140,120) scale(0.3125)">
+  
+  
+  <rect width="1024" height="1024" rx="224" fill="#8b5e34"/>
+  <defs>
+    <clipPath id="inside"><rect x="204" y="252" width="616" height="480" rx="18"/></clipPath>
+  </defs>
+  
+  <g clip-path="url(#inside)" fill="#f0efec">
+    <circle cx="204" cy="252" r="330" fill-opacity="0.16"/>
+    <circle cx="204" cy="252" r="230" fill-opacity="0.32"/>
+    <circle cx="204" cy="252" r="136" fill-opacity="0.7"/>
+  </g>
+  <rect x="184" y="232" width="656" height="520" rx="38" fill="none" stroke="#f0efec" stroke-width="40"/>
+  <path d="M476 476 L476 700 L532 646 L576 740 L622 720 L578 628 L656 628 Z" fill="#f0efec" stroke="#8b5e34" stroke-width="22" stroke-linejoin="round"/>
+</g>
+<text x="516" y="262" font-size="132" font-weight="700" letter-spacing="-3" fill="#1c1b19" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Mitre</text>
+<rect x="522" y="292" width="72" height="8" rx="4" fill="#8b5e34"/>
+<text x="522" y="352" font-size="34" fill="#6b6a66" font-family="Segoe UI Variable Display, Segoe UI, system-ui, -apple-system, sans-serif">Hot corners for Windows</text>
+</svg>

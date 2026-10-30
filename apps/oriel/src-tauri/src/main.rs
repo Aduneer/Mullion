@@ -92,7 +92,7 @@ fn main() {
             match suite::ask(&args) {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
-                Ask::Show => show(app),
+                Ask::Show | Ask::Toggle => show(app),
                 Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion && !args.iter().any(|a| a == SIGN_IN) => show(app),
                 Ask::Nothing => {}

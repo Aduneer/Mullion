@@ -1,7 +1,7 @@
 # Mullion: the shared core and every app, in one Cargo workspace. Each app is still its own exe
 # and process, and works alone; they share this lockfile, the release profile and one target/.
 [workspace]
-members = ["core", "apps/mullion/src-tauri", "apps/oriel/src-tauri", "apps/lintel/src-tauri", "apps/fanlight/src-tauri", "apps/bay/src-tauri", "apps/sash/src-tauri"]
+members = ["core", "apps/mullion/src-tauri", "apps/oriel/src-tauri", "apps/lintel/src-tauri", "apps/fanlight/src-tauri", "apps/bay/src-tauri", "apps/sash/src-tauri", "apps/mitre/src-tauri"]
 resolver = "2"
 
 [workspace.dependencies]

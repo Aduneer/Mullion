@@ -83,7 +83,10 @@ fn main() {
             match suite::ask(&args) {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
-                Ask::Show => show(app),
+                Ask::Show => show_for(app, &args),
+                // Mitre's corner, pushed again, closes what it opened.
+                Ask::Toggle if panel(app).is_some_and(|w| w.is_visible().unwrap_or(false)) => hide_panel(app, true),
+                Ask::Toggle => show_for(app, &args),
                 Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => show(app),
                 Ask::Nothing => {}
@@ -124,7 +127,7 @@ fn main() {
             apply_look(app.handle(), &settings.shown());
             app.manage(SettingsState(Mutex::new(settings)));
             match suite::ask(&args) {
-                Ask::Show => show(app.handle()),
+                Ask::Show | Ask::Toggle => show_for(app.handle(), &args),
                 Ask::Settings => show_settings(app.handle()),
                 _ => {}
             }
@@ -182,6 +185,17 @@ fn show(app: &AppHandle) {
     let _ = w.emit("open", ());
     let _ = w.show();
     let _ = w.set_focus();
+}
+
+/// Open the panel as `--show` or `--toggle` asks: on the Apps grid, with `--apps` (Mitre's corner
+/// for it), else the search.
+fn show_for(app: &AppHandle, args: &[String]) {
+    show(app);
+    if args.iter().any(|a| a == suite::APPS_GRID) {
+        if let Some(w) = panel(app) {
+            let _ = w.emit("only", "apps");
+        }
+    }
 }
 
 fn place(app: &AppHandle, w: &WebviewWindow) {

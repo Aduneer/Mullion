@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mitre preview</title>
+  <style>
+    /* A stand-in screen: a made-up wallpaper, a window and a taskbar. Push the mouse into a corner
+       and wait: the glow grows there as Mitre's does (the same curve as glow.rs), then flashes,
+       and a card names what that corner would do. */
+    html, body { margin: 0; height: 100%; overflow: hidden; font: 13px "Segoe UI", system-ui, sans-serif; }
+    #desktop { position: absolute; inset: 0; background: var(--wallpaper) center / cover, #27375a; overflow: hidden; }
+    #taskbar {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 48px; display: flex; justify-content: center; align-items: center; gap: 6px;
+      background: rgba(28, 28, 30, .86); border-top: 1px solid rgba(255,255,255,.08);
+    }
+    #taskbar span { width: 24px; height: 24px; margin: 6px; border-radius: 7px; background: linear-gradient(#7a8cff, #4a5ae0); }
+    #taskbar span:nth-child(2) { background: linear-gradient(#5aa0f2, #2f6fd1); }
+    #taskbar span:nth-child(3) { background: linear-gradient(#ffd36b, #f0a92e); }
+    .window {
+      position: absolute; left: 30%; top: 22%; width: 48%; height: 52%; border-radius: 8px; overflow: hidden;
+      background: #f9f9f9; box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 16px 48px rgba(0,0,0,.35);
+    }
+    .window .caption { height: 32px; display: flex; align-items: center; padding: 0 12px; background: #eee; font-size: 12px; color: #333; }
+    .window .body { padding: 18px; display: grid; gap: 10px; }
+    .line { height: 10px; border-radius: 5px; background: #e2e2e2; }
+    .block { height: 150px; border-radius: 8px; background: linear-gradient(135deg, #ffb36b, #e0577a); }
+    /* Mitre's glow: drawn by glow.rs pixel by pixel, here by a canvas the same way. */
+    #glow { position: absolute; pointer-events: none; z-index: 50; }
+    /* What the corner does, as a demo shows it. */
+    #card {
+      position: absolute; display: none; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; z-index: 60;
+      background: rgba(20,20,22,.8); color: #f0efec; font: 600 18px "Segoe UI Variable Display", "Segoe UI", sans-serif; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    #card.on { display: flex; }
+    #card small { font: 400 13px "Segoe UI", sans-serif; color: #b8b5ad; }
+  </style>
+</head>
+<body>
+  <div id="desktop">
+    <div class="window"><div class="caption">Weekend away - Notes</div><div class="body">
+      <div class="line" style="width:58%"></div><div class="line" style="width:86%"></div><div class="block"></div><div class="line" style="width:40%"></div>
+    </div></div>
+  </div>
+  <div id="taskbar"><span></span><span></span><span></span></div>
+  <canvas id="glow"></canvas>
+  <div id="card"></div>
+  <script src="host.js"></script>
+</body>
+</html>

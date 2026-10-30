@@ -57,7 +57,7 @@ if ($Installer) {
     $out = (Resolve-Path (Join-Path $root "..\..\installer")).Path
     $url = { param($path) ([Uri]$path).AbsoluteUri }
     $logo = & $url (Join-Path $root "assets\mullion.svg")
-    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay", "sash") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
+    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay", "sash", "mitre") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
     $fonts = "'Segoe UI Variable Display','Segoe UI',sans-serif"
     # Drawn at four times the size and scaled down, so the edges stay smooth.
     $S = 4
@@ -66,12 +66,12 @@ if ($Installer) {
         # with the apps' colours along the top and their logos along the bottom.
         "sidebar" = @{ w = 164; h = 314; css =
             "body{background:#161513;color:#f0efec;font-family:$fonts;text-align:center}" +
-            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 20%,#b84d35 20% 40%,#dd9d2c 40% 60%,#2f5d8c 60% 80%,#6b4c8a 80%)}" +
+            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 16.67%,#b84d35 16.67% 33.33%,#dd9d2c 33.33% 50%,#2f5d8c 50% 66.67%,#6b4c8a 66.67% 83.33%,#8b5e34 83.33%)}" +
             ".logo{display:block;width:64px;height:64px;margin:62px auto 16px}" +
             "h1{margin:0 0 9px;font-weight:600;font-size:32px;line-height:1;letter-spacing:-.6px}" +
             "p{margin:0 auto;width:124px;font-size:11.5px;line-height:1.4;color:#b8b5ad}" +
-            ".apps{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:8px}" +
-            ".apps img{width:24px;height:24px}"
+            ".apps{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:6px}" +
+            ".apps img{width:20px;height:20px}"
             html = "<img class=`"logo`" src=`"$logo`"><h1>Mullion</h1><p>Well-made parts for the Windows desktop</p><div class=`"apps`">$($tiles -join '')</div>" }
         # The other pages' header, at the right of their white top band.
         "header" = @{ w = 150; h = 57; css =

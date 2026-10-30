@@ -153,6 +153,7 @@ fn icon_of(name: &str) -> Option<String> {
         "Fanlight" => include_bytes!("../../../fanlight/src-tauri/icons/128x128.png"),
         "Bay" => include_bytes!("../../../bay/src-tauri/icons/128x128.png"),
         "Sash" => include_bytes!("../../../sash/src-tauri/icons/128x128.png"),
+        "Mitre" => include_bytes!("../../../mitre/src-tauri/icons/128x128.png"),
         _ => return None,
     };
     Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png)))

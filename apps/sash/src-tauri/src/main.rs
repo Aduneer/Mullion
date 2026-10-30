@@ -73,7 +73,7 @@ fn main() {
             }
             match suite::ask(&args) {
                 Ask::Quit => app.exit(0),
-                Ask::Settings | Ask::Show => show_settings(app),
+                Ask::Settings | Ask::Show | Ask::Toggle => show_settings(app),
                 Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => show_settings(app),
                 Ask::Nothing => {}

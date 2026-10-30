@@ -1,8 +1,9 @@
 //! Mullion as a suite: the apps it has, where each one's exe is, and how Mullion.exe (the hub in
 //! apps/mullion) talks to them. It starts each app with `--mullion`, and from then on the app
 //! leaves its tray icon and sign-in entry to Mullion. Later asks (`--show`, `--settings`,
-//! `--quit`) reach the running app the way a second start always does: the single-instance plugin
-//! hands the new process's arguments to the one already running, and the new one exits.
+//! `--quit`, and Mitre's `--toggle`) reach the running app the way a second start always does:
+//! the single-instance plugin hands the new process's arguments to the one already running, and
+//! the new one exits.
 //!
 //! An app started any other way runs on its own, exactly as it always has.
 
@@ -25,6 +26,7 @@ pub const APPS: &[App] = &[
     App { name: "Fanlight", exe: "fanlight", about: "Search and launch on Alt+Space", shows: true },
     App { name: "Bay", exe: "bay", about: "Every open window at once, on Win+Ctrl+Up", shows: true },
     App { name: "Sash", exe: "sash", about: "Windows snapped into place, on Ctrl+Alt+arrows", shows: true },
+    App { name: "Mitre", exe: "mitre", about: "Hot corners: push the pointer into a corner", shows: true },
 ];
 
 /// Mullion started this app: Mullion has the tray icon and the sign-in entry.
@@ -40,7 +42,13 @@ pub enum Ask {
     Quit,
     /// Mullion's look for every app changed (`look::Shared`): look again.
     Look,
+    /// Show it, or hide it if it's showing: a second push on Mitre's corner closes what the first
+    /// opened. Apps with nothing to hide take it as `Show`.
+    Toggle,
 }
+
+/// With `--show` or `--toggle`, Fanlight opens on its Apps grid rather than the search.
+pub const APPS_GRID: &str = "--apps";
 
 pub fn ask(args: &[String]) -> Ask {
     args.iter()
@@ -49,6 +57,7 @@ pub fn ask(args: &[String]) -> Ask {
             "--settings" => Some(Ask::Settings),
             "--quit" => Some(Ask::Quit),
             "--look" => Some(Ask::Look),
+            "--toggle" => Some(Ask::Toggle),
             _ => None,
         })
         .unwrap_or(Ask::Nothing)
@@ -61,6 +70,7 @@ pub fn args_for(ask: Ask) -> &'static [&'static str] {
         Ask::Settings => &[RUN_BY_MULLION, "--settings"],
         Ask::Quit => &[RUN_BY_MULLION, "--quit"],
         Ask::Look => &[RUN_BY_MULLION, "--look"],
+        Ask::Toggle => &[RUN_BY_MULLION, "--toggle"],
     }
 }
 
@@ -141,7 +151,7 @@ mod tests {
         assert_eq!(ask(&args(&["app.exe"])), Ask::Nothing);
         assert_eq!(ask(&args(&["app.exe", "--mullion", "--settings"])), Ask::Settings);
         assert_eq!(ask(&args(&["app.exe", "--quit"])), Ask::Quit);
-        for a in [Ask::Nothing, Ask::Show, Ask::Settings, Ask::Quit, Ask::Look] {
+        for a in [Ask::Nothing, Ask::Show, Ask::Settings, Ask::Quit, Ask::Look, Ask::Toggle] {
             let sent = args(&[&["app.exe"], args_for(a)].concat());
             assert_eq!(ask(&sent), a);
             assert!(sent.iter().any(|s| s == RUN_BY_MULLION));

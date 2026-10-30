@@ -63,7 +63,7 @@ function draw(error = hello.hotkey_error) {
       ? setRow("Start at sign-in", "Mullion starts Bay: see Mullion Settings", "")
       : setRow("Start at sign-in", "", sw(`data-do="autostart"`, hello.autostart, "Start at sign-in"))}
     ${setRow("Quit Bay", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}
-    <p class="about">Bay ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight and Sash<br>Settings: ${esc(hello.settings_path)}</p>`;
+    <p class="about">Bay ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight, Sash and Mitre<br>Settings: ${esc(hello.settings_path)}</p>`;
 }
 
 async function save(change) {

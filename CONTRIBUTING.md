@@ -20,6 +20,7 @@ apps/lintel/          Lintel, laid out the same way
 apps/oriel/           Oriel, laid out the same way
 apps/bay/             Bay, laid out the same way
 apps/sash/            Sash, laid out the same way
+apps/mitre/           Mitre, laid out the same way
 apps/mullion/         Mullion.exe: the suite's tray icon, sign-in entry and settings window (below)
 ui-common/            the page files every app shares word for word (themes.css)
 tools/                scripts every app's preview uses: icons.py, preview/demo.py and
@@ -76,9 +77,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 Installed with Mullion's installer, the apps sit beside `mullion.exe` in one folder, and Mullion
 starts each one that's on with `--mullion`. An app started that way leaves its tray icon and
 sign-in entry to Mullion, and shows "see Mullion Settings" where its own sign-in switch was.
-Mullion asks things of a running app by starting its exe again with `--show`, `--settings` or
-`--quit`: the single-instance plugin hands those to the app that's running, as it hands over any
-second start. Started any other way, an app runs on its own, exactly as before. `suite.rs` has
+Mullion asks things of a running app by starting its exe again with `--show`, `--settings`,
+`--look` or `--quit`: the single-instance plugin hands those to the app that's running, as it
+hands over any second start. Mitre does the same with `--toggle` (open, or close if it's open) for
+the apps its corners open, and Fanlight takes `--apps` with it, to open on its Apps grid. Started any other way, an app runs on its own, exactly as before. `suite.rs` has
 all of it, and each app's `main.rs` acts on it in its single-instance callback and in `setup`.
 
 Mullion keeps no WebView while its settings window is closed: the window is made when it opens

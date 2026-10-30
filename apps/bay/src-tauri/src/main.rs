@@ -70,6 +70,8 @@ fn main() {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
                 Ask::Show => overview::open(app),
+                // Mitre's corner, pushed again, closes what it opened.
+                Ask::Toggle => overview::toggle(app),
                 Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => overview::open(app),
                 Ask::Nothing => {}
@@ -113,7 +115,7 @@ fn main() {
             });
             app.manage(HotkeyState(hk, Mutex::new(first.err())));
             match suite::ask(&args) {
-                Ask::Show => overview::open(app.handle()),
+                Ask::Show | Ask::Toggle => overview::open(app.handle()),
                 Ask::Settings => show_settings(app.handle()),
                 // Nothing on the screen says Bay has started, so the first time it shows its
                 // settings, with the shortcut.

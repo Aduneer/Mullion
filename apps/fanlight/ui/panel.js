@@ -500,6 +500,12 @@ listen("open", () => {
   input.select();
   if (input.value) run(input.value);
 });
+// Opened on one category (Mitre's corner for the Apps grid), with nothing typed.
+listen("only", id => {
+  only = null;
+  input.value = "";
+  setOnly(id);
+});
 listen("view", v => { if (v === "settings") showSettings(); });
 listen("settings", s => { settings = s; applyTheme(); drawCats(); if (view === "settings") drawSettings(); });
 // Mullion's look for every app went on or off; "settings" follows with what to show.
@@ -575,7 +581,7 @@ function drawSettings(error = hello.hotkey_error) {
     ${setRow("What you’ve opened", "Fanlight ranks things you open often higher", `<button class="btn danger" data-do="clear-history">Forget</button>`)}
     ${setRow("File index", "Fanlight keeps it up to date by itself", `<button class="btn" data-do="reindex">Update now</button>`)}
     ${setRow("Quit Fanlight", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}
-    <p class="about">Fanlight ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Bay and Sash<br>Settings: ${esc(hello.settings_path)}</p>`;
+    <p class="about">Fanlight ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Bay, Sash and Mitre<br>Settings: ${esc(hello.settings_path)}</p>`;
   for (const [k, v] of Object.entries(s.clipboard ? {} : { clipboard_size: 1, keep_clipboard: 1 })) {
     void v;
     setv.querySelector(`[data-set="${k}"]`)?.closest(".set")?.style.setProperty("opacity", "0.45");

@@ -17,6 +17,7 @@ Each app lists exactly what it reads, keeps and can do in its own SECURITY.md:
 - [Fanlight](apps/fanlight/SECURITY.md)
 - [Bay](apps/bay/SECURITY.md)
 - [Sash](apps/sash/SECURITY.md)
+- [Mitre](apps/mitre/SECURITY.md)
 
 The apps share code (`core/`), not data: each keeps its own files in its own folder under
 `%APPDATA%`, and none of them reads another's.
@@ -26,9 +27,9 @@ The apps share code (`core/`), not data: each keeps its own files in its own fol
 `Mullion.exe` has the suite's tray icon, sign-in entry and settings window. It:
 
 - starts each app that's on, from its own folder or where the app's own installer put it, and
-  asks a running app to show itself, open its settings or quit, by starting its exe again with
-  `--mullion` and `--show`, `--settings` or `--quit` (`core/src/suite.rs`). It can't start any
-  other program.
+  asks a running app to show itself, open its settings, look again or quit, by starting its exe
+  again with `--mullion` and `--show`, `--settings`, `--look` or `--quit` (`core/src/suite.rs`).
+  It can't start any other program.
 - reads which of the apps are running, by their exe's path, while its settings window is open.
 - turns off an app's own sign-in entry when it starts it, so the app isn't started twice.
 - keeps one file, `%APPDATA%\Mullion\settings.json`: the apps you turned off.

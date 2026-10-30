@@ -100,7 +100,7 @@ function draw() {
       ? setRow("Start at sign-in", "Mullion starts Sash: see Mullion Settings", "")
       : setRow("Start at sign-in", "", sw(`data-do="autostart"`, hello.autostart, "Start at sign-in"))}
     ${setRow("Quit Sash", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}
-    <p class="about">Sash ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight and Bay<br>Settings: ${esc(hello.settings_path)}</p>`;
+    <p class="about">Sash ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight, Bay and Mitre<br>Settings: ${esc(hello.settings_path)}</p>`;
   if (listening) setv.querySelector(`[data-keys="${CSS.escape(listening)}"]`)?.focus();
 }
 

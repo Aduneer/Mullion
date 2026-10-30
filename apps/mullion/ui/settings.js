@@ -62,6 +62,7 @@ const FIRST = {
   Fanlight: "Press Alt+Space to try it",
   Bay: "Press Win+Ctrl+↑ to see every window",
   Sash: "Press Ctrl+Alt+← to snap a window to the left half",
+  Mitre: "Open its settings to give each corner of your screens something to do",
 };
 
 const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} aria-checked="${on}" aria-label="${esc(label)}"></button>`;
