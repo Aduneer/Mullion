@@ -17,7 +17,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const LATEST: &str = "https://api.github.com/repos/Aduneer/Mullion/releases/latest";
 /// Where a release's page and files must be: anything else in the API's reply is ignored.
-const PAGES: &str = "https://github.com/Aduneer/Mullion/releases/";
+pub const PAGES: &str = "https://github.com/Aduneer/Mullion/releases/";
 const FILES: &str = "https://github.com/Aduneer/Mullion/releases/download/";
 const MAX_REPLY: usize = 1 << 20;
 const MAX_SETUP: usize = 64 << 20;

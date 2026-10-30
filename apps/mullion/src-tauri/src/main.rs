@@ -44,6 +44,8 @@ struct AppInfo {
     installed: bool,
     on: bool,
     running: bool,
+    /// As its exe's version info has it, when it's installed.
+    version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     icon: Option<String>,
 }
@@ -74,7 +76,7 @@ fn main() {
             _ => open_settings(app),
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![SIGN_IN])))
-        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, set_check_updates, set_look, check_updates, release_notes, update, ready, quit])
+        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, set_check_updates, set_look, check_updates, release_notes, open_page, update, ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Mullion running, so there's nothing to quit.
@@ -134,6 +136,7 @@ fn list(settings: &Settings, with_icons: bool) -> Vec<AppInfo> {
                 installed: exe.is_some(),
                 on: settings.is_on(a.name),
                 running: exe.as_ref().is_some_and(|e| !suite::running(e).is_empty()),
+                version: exe.as_ref().and_then(|e| ffi::file_version(&e.to_string_lossy())),
                 icon: exe.filter(|_| with_icons).and_then(|_| icon_of(a.name)),
             }
         })
@@ -431,6 +434,17 @@ fn check_updates(app: AppHandle) {
 fn release_notes(state: State<UpdateState>) -> Result<(), String> {
     let page = state.0.lock().unwrap().newer.as_ref().map(|r| r.page.clone()).ok_or("Mullion is up to date")?;
     ffi::shell_open(&page, None, "open")
+}
+
+/// One of About's links: this version's release notes, or Mullion's source.
+#[tauri::command]
+fn open_page(page: &str) -> Result<(), String> {
+    let url = match page {
+        "notes" => format!("{}tag/v{}", updates::PAGES, env!("CARGO_PKG_VERSION")),
+        "source" => "https://github.com/Aduneer/Mullion".into(),
+        _ => return Err(format!("no page called {page}")),
+    };
+    ffi::shell_open(&url, None, "open")
 }
 
 /// Install the newer release: download and run its installer, which quits Mullion and starts

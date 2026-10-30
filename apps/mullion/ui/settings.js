@@ -29,6 +29,9 @@ document.addEventListener("wheel", e => { if (e.ctrlKey) e.preventDefault(); }, 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const svg = body => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
 const APP_GLYPH = svg(`<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M4 9h16"/>`);
+// On a button that opens a page in the browser, so it never does that unannounced.
+const OUT = `<svg class="ic out" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4"/></svg>`;
+const web = (attrs, text) => `<button class="btn" ${attrs} title="Opens GitHub in your browser">${text}${OUT}</button>`;
 
 let hello = null, apps = [], error = "";
 
@@ -117,10 +120,10 @@ function drawUpdate() {
   $("update").innerHTML = `<div class="text">
       <span class="name">Mullion ${esc(r.version)} is out</span>
       <span class="sub">${esc(gist(r.notes)) || "A newer version of Mullion and its apps"}</span>
-      ${u.can_install ? "" : `<span class="sub">This copy isn’t from Mullion’s installer, so Update opens the release page</span>`}
+      ${u.can_install ? "" : `<span class="sub">This copy isn’t from Mullion’s installer, so Update opens the release page in your browser</span>`}
     </div>
-    <div class="side"><button class="btn" data-do="notes">What’s new</button>
-      <button class="btn primary" data-do="update" ${u.installing ? "disabled" : ""}>${u.installing ? "Updating…" : "Update"}</button></div>`;
+    <div class="side">${web(`data-do="notes"`, "What’s new")}
+      <button class="btn primary" data-do="update" ${u.installing ? "disabled" : ""}>${u.installing ? "Updating…" : "Update"}${u.can_install ? "" : OUT}</button></div>`;
 }
 
 function drawApps() {
@@ -172,8 +175,23 @@ function drawGeneral() {
   general.innerHTML = `${autostartSet()}${updatesSet()}
     <div class="set"><div class="label"><span>Quit Mullion</span><small>And the apps it runs, until you start it again</small></div>
       <button class="btn danger" data-do="quit">Quit</button></div>`;
-  $("about").innerHTML = `Mullion ${esc(hello.version)} · each app is its own program, and works without the others<br>Settings: ${esc(hello.settings_path)}`;
+  $("about").innerHTML = `Settings: ${esc(hello.settings_path)}`;
 }
+
+// Mullion's version and each installed app's, which should be the same: an app that isn't was
+// put there some other way (its own installer, or a portable copy).
+function drawAbout() {
+  $("versions").innerHTML = setRow(`Mullion ${esc(hello.version)}`, "What’s new and Source open GitHub in your browser",
+      `<div class="side">${web(`data-page="notes"`, "What’s new")}${web(`data-page="source"`, "Source")}</div>`)
+    + apps.filter(a => a.installed).map(a => setRow(esc(a.name),
+      a.version && a.version !== hello.version ? "Not the same as Mullion’s: installing Mullion again brings it in step" : "",
+      `<span class="ver">${esc(a.version ?? "Unknown")}</span>`)).join("");
+}
+
+$("versions").addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (t?.dataset.page) invoke("open_page", { page: t.dataset.page });
+});
 
 async function refresh() {
   try {
@@ -191,7 +209,7 @@ function draw() {
   $("settings").hidden = welcome;
   $("title").textContent = welcome ? "Welcome to Mullion" : "Mullion";
   if (welcome) drawWelcome();
-  else { drawUpdate(); drawApps(); drawLook(); drawGeneral(); }
+  else { drawUpdate(); drawApps(); drawLook(); drawGeneral(); drawAbout(); }
 }
 
 $("picks").addEventListener("click", e => {

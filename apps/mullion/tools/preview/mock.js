@@ -4,7 +4,7 @@
 // URL options, all optional:
 //   mode=dark|light (otherwise Windows' own)  off=Lintel (turned off)  missing=Oriel (not installed)
 //   welcome=1 (the first time, before Start)  update=1 (a newer Mullion is out)
-//   look=nord (the same look for every app, in that palette)
+//   look=nord (the same look for every app, in that palette)  old=Bay (an older version than Mullion's)
 (() => {
   const q = new URLSearchParams(location.search);
   if (q.get("mode")) {
@@ -15,7 +15,7 @@
       : real(query);
   }
   const list = n => (q.get(n) || "").split(",").filter(Boolean);
-  const off = new Set(list("off")), missing = new Set(list("missing"));
+  const off = new Set(list("off")), missing = new Set(list("missing")), old = new Set(list("old"));
   let autostart = true, welcomed = q.get("welcome") !== "1", checkUpdates = true;
   let look = { on: !!q.get("look"), theme: "auto", palette: q.get("look") || "oriel", glass: false };
   const updates = q.get("update") === "1"
@@ -31,18 +31,19 @@
   ];
   const apps = icons => APPS.map(([name, about, shows]) => {
     const installed = !missing.has(name), on = !off.has(name);
-    const a = { name, about, shows, installed, on, running: installed && on };
+    const a = { name, about, shows, installed, on, running: installed && on, version: installed ? (old.has(name) ? "0.3.0" : "0.4.1") : null };
     if (icons && installed) a.icon = `/icons/${name.toLowerCase()}.png`;
     return a;
   });
   const commands = {
-    hello: () => ({ apps: apps(true), icon: "/icons/mullion.png", autostart, welcomed, check_updates: checkUpdates, updates, look, version: "0.1.0", settings_path: String.raw`C:\Users\you\AppData\Roaming\Mullion\settings.json` }),
+    hello: () => ({ apps: apps(true), icon: "/icons/mullion.png", autostart, welcomed, check_updates: checkUpdates, updates, look, version: "0.4.1", settings_path: String.raw`C:\Users\you\AppData\Roaming\Mullion\settings.json` }),
     apps: () => apps(false),
     set_app: ({ name, on }) => { (on ? off.delete(name) : off.add(name)); return apps(false); },
     welcome: ({ off: picked }) => { off.clear(); picked.forEach(n => off.add(n)); welcomed = true; },
     set_autostart: ({ enabled }) => (autostart = enabled),
     set_check_updates: ({ on }) => (checkUpdates = on),
     set_look: ({ look: l }) => (look = l),
+    open_page: () => null,
   };
   window.__TAURI__ = {
     core: { invoke: async (cmd, args = {}) => (commands[cmd] ?? (() => null))(args) },

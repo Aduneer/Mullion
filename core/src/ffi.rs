@@ -408,9 +408,8 @@ pub fn image_path(pid: u32) -> Option<String> {
     }
 }
 
-/// The name a program gives itself in its file's version info ("Google Chrome", "Visual Studio
-/// Code"). None when it has none.
-pub fn file_description(path: &str) -> Option<String> {
+/// A file's version info, as one block for `VerQueryValueW`. None when it has none.
+fn version_info(path: &str) -> Option<Vec<u8>> {
     let p = wide(path);
     unsafe {
         let mut handle = 0;
@@ -419,9 +418,34 @@ pub fn file_description(path: &str) -> Option<String> {
             return None;
         }
         let mut block = vec![0u8; size as usize];
-        if GetFileVersionInfoExW(FILE_VER_GET_LOCALISED, p.as_ptr(), 0, size, block.as_mut_ptr().cast()) == 0 {
+        (GetFileVersionInfoExW(FILE_VER_GET_LOCALISED, p.as_ptr(), 0, size, block.as_mut_ptr().cast()) != 0).then_some(block)
+    }
+}
+
+/// A program's version, as its file's version info has it ("0.4.1"): major, minor and patch.
+/// None when it has none.
+pub fn file_version(path: &str) -> Option<String> {
+    let block = version_info(path)?;
+    unsafe {
+        let (mut ptr, mut len) = (null_mut(), 0u32);
+        // VS_FIXEDFILEINFO: a signature, the structure's version, then the file's version.
+        if VerQueryValueW(block.as_ptr().cast(), wide("\\").as_ptr(), &mut ptr, &mut len) == 0 || ptr.is_null() || len < 16 {
             return None;
         }
+        let fixed = std::slice::from_raw_parts(ptr as *const u32, 4);
+        if fixed[0] != 0xFEEF_04BD {
+            return None;
+        }
+        let (ms, ls) = (fixed[2], fixed[3]);
+        Some(format!("{}.{}.{}", ms >> 16, ms & 0xFFFF, ls >> 16))
+    }
+}
+
+/// The name a program gives itself in its file's version info ("Google Chrome", "Visual Studio
+/// Code"). None when it has none.
+pub fn file_description(path: &str) -> Option<String> {
+    let block = version_info(path)?;
+    unsafe {
         let query = |sub: &str| -> Option<(*mut c_void, u32)> {
             let s = wide(sub);
             let (mut ptr, mut len) = (null_mut(), 0u32);
@@ -472,4 +496,18 @@ pub fn send_keys(keys: &[u16]) {
     };
     let all: Vec<INPUT> = keys.iter().map(|&k| input(k, false)).chain(keys.iter().rev().map(|&k| input(k, true))).collect();
     unsafe { SendInput(all.len() as u32, all.as_ptr(), std::mem::size_of::<INPUT>() as i32) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn programs_have_versions() {
+        let notepad = format!(r"{}\System32\notepad.exe", std::env::var("SystemRoot").unwrap());
+        let v = file_version(&notepad).expect("Notepad has a version");
+        assert_eq!(v.split('.').count(), 3, "{v}");
+        assert!(v.split('.').all(|n| n.parse::<u32>().is_ok()), "{v}");
+        assert_eq!(file_version(r"C:\no such folder\nothing.exe"), None);
+    }
 }

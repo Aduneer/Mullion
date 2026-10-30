@@ -100,7 +100,8 @@ The first time Mullion opens, it welcomes you: pick which apps to run, whether M
 when you sign in, and whether it checks for updates. Nothing starts until you press Start.
 
 When there's a newer version, Mullion's icon and its settings say so, and **Update** installs it
-for you: Mullion closes, updates every app you have and opens again.
+for you: Mullion closes, updates every app you have and opens again. **About**, at the end of
+Mullion Settings, has the version of Mullion and of each app.
 
 Want just one app? The same release has each app's own installer and a portable zip. None of it
 is code-signed yet, so SmartScreen may warn you and Smart App Control may block it; each app's
