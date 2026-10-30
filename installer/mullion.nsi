@@ -191,6 +191,17 @@ Function .onInit
   ${EndIf}
 FunctionEnd
 
+; Mullion's Update runs this silently with /update (apps/mullion/src-tauri/src/updates.rs): the
+; install quit Mullion, so start it again, with its settings open to show the new version.
+Function .onInstSuccess
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/update" $1
+  ${IfNot} ${Errors}
+    Exec '"$INSTDIR\mullion.exe"'
+  ${EndIf}
+FunctionEnd
+
 ; --- uninstall ------------------------------------------------------------------------------
 
 ; An exe that has only just quit can stay locked for a moment, so try again for up to 10 s.

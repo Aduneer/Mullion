@@ -9,7 +9,7 @@ edition = "2021"
 tauri-build = { workspace = true, features = [] }
 
 [dependencies]
-mullion-core = { workspace = true, features = ["audio", "media", "pdh"] }
+mullion-core = { workspace = true, features = ["audio", "media", "net", "pdh"] }
 tauri = { workspace = true, features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = { workspace = true }
 tauri-plugin-single-instance = { workspace = true }
@@ -17,6 +17,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 nvml-wrapper = "0.13"
 windows = { workspace = true, features = [
-    "Win32_Foundation", "Win32_Graphics_Dxgi", "Win32_System_Com", "Globalization", "Web_Http", "Web_Http_Filters", "Web_Http_Headers",
+    "Win32_Foundation", "Win32_Graphics_Dxgi", "Win32_System_Com", "Globalization",
 ] }
 base64 = { workspace = true }

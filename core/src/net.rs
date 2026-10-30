@@ -1,10 +1,12 @@
-//! HTTPS GET, for the widgets that go online (weather, calendar). Nothing else in Oriel uses it.
+//! HTTPS GET, for what goes online: Oriel's weather and calendar, and Mullion's check for
+//! updates (the `net` feature). Nothing else in the apps uses it.
 //!
 //! It goes through Windows' own HTTP client (WinRT's `Windows.Web.Http`), so TLS, certificates
-//! and the proxy settings are the system's, and Oriel links nothing it didn't already. Only
+//! and the proxy settings are the system's, and the apps link nothing they didn't already. Only
 //! https:// is fetched, redirects included; each response is cut off at a size limit, and each
 //! request has a deadline. Errors never carry the URL, because calendar links are secrets.
 
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use windows::core::{Interface, HSTRING};
 use windows::Foundation::Uri;
@@ -15,6 +17,15 @@ use windows::Web::Http::{HttpClient, HttpCompletionOption, HttpMethod, HttpReque
 const MAX_URL: usize = 2048;
 const MAX_REDIRECTS: usize = 4;
 const CHUNK: u32 = 32 * 1024;
+
+/// Who's asking, as "App/version": each app says so once at start (`user_agent`).
+static AGENT: OnceLock<String> = OnceLock::new();
+
+/// Name the app in its requests' User-Agent, e.g. "Oriel/0.4.1". Some services (GitHub's API)
+/// refuse a request without one. The first call stands.
+pub fn user_agent(agent: String) {
+    let _ = AGENT.set(agent);
+}
 
 /// Why a fetch failed, in terms that are safe to show.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -80,7 +91,7 @@ pub fn init_thread() {
     COM.with(|_| {});
 }
 
-/// Keeps the multithreaded apartment up until Oriel quits. Otherwise it goes when the last
+/// Keeps the multithreaded apartment up until the app quits. Otherwise it goes when the last
 /// thread in it ends, taking the runtime objects other threads still hold with it (the tests
 /// start and end a thread for each test).
 pub fn keep_mta() {
@@ -161,7 +172,8 @@ fn client(accept: &str) -> Result<HttpClient, Fail> {
     filter.SetCookieUsageBehavior(HttpCookieUsageBehavior::NoCookies).map_err(classify)?;
     let client = HttpClient::Create(&filter.cast::<IHttpFilter>().map_err(classify)?).map_err(classify)?;
     let headers = client.DefaultRequestHeaders().map_err(classify)?;
-    let _ = headers.TryAppendWithoutValidation(&HSTRING::from("User-Agent"), &HSTRING::from(concat!("Oriel/", env!("CARGO_PKG_VERSION"))));
+    let agent = AGENT.get().map(String::as_str).unwrap_or("Mullion");
+    let _ = headers.TryAppendWithoutValidation(&HSTRING::from("User-Agent"), &HSTRING::from(agent));
     let _ = headers.TryAppendWithoutValidation(&HSTRING::from("Accept"), &HSTRING::from(accept));
     // Without this Windows asks for gzip and deflate, and then fails to decode Open-Meteo's
     // "deflate" replies (error 0x80072F8F). Plain also keeps the size limit about what's on the wire.

@@ -4,8 +4,8 @@
 //! the apps and Mullion.exe find and talk to each other.
 //! Windows only, as the apps are.
 //!
-//! The volume mixer (`audio`), what's playing (`media`) and performance counters (`pdh`) are
-//! behind cargo features of the same names, for the apps that show them.
+//! The volume mixer (`audio`), what's playing (`media`), HTTPS (`net`) and performance counters
+//! (`pdh`) are behind cargo features of the same names, for the apps that use them.
 
 #[cfg(feature = "audio")]
 pub mod audio;
@@ -15,6 +15,8 @@ pub mod icons;
 pub mod look;
 #[cfg(feature = "media")]
 pub mod media;
+#[cfg(feature = "net")]
+pub mod net;
 #[cfg(feature = "pdh")]
 pub mod pdh;
 pub mod power;

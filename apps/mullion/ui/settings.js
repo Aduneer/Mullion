@@ -5,6 +5,9 @@
 //
 // The first time, it's a welcome instead: the same apps, each with its first step, switched on
 // or off before any of them starts, and Start to start them.
+//
+// It says when there's a newer Mullion, and its Update button installs it (or opens the release
+// page where it can't). The backend checks once a day and tells the page ("updates").
 {
 const T = window.__TAURI__;
 const invoke = (cmd, args) => T.core.invoke(cmd, args);
@@ -73,6 +76,41 @@ const autostartSet = () => `
   <div class="set"><div class="label"><span>Start Mullion when I sign in</span><small>And with it, every app that’s on</small></div>
     ${sw(`data-do="autostart"`, hello.autostart, "Start Mullion when I sign in")}</div>`;
 
+// --- updates ---------------------------------------------------------------------------------
+const clock = secs => new Date(secs * 1000).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
+// What the check last found, under its switch.
+function updateLine(u) {
+  if (u.installing) return `Downloading Mullion ${esc(u.newer?.version)}… Mullion closes, updates and opens again`;
+  if (u.checking) return "Checking…";
+  if (u.error) return `<span class="bad">${esc(u.error)}</span>`;
+  if (u.newer) return `Mullion ${esc(u.newer.version)} is out`;
+  if (u.checked) return `Up to date · checked ${esc(clock(u.checked))}`;
+  return "Once a day, from GitHub. Nothing else is sent";
+}
+
+const updatesSet = () => `
+  <div class="set"><div class="label"><span>Check for updates</span><small>${updateLine(hello.updates)}</small></div>
+    <div class="side">${hello.welcomed && !hello.updates.checking && !hello.updates.installing ? `<button class="btn" data-do="check">Check now</button>` : ""}
+    ${sw(`data-do="updates"`, hello.check_updates, "Check for updates")}</div></div>`;
+
+// The release notes' first line, which says what the release is, without Markdown's marks.
+const gist = notes => (String(notes ?? "").split(/\r?\n/).find(l => l.trim()) ?? "").replace(/[*_`#>]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+
+// Above the apps when there's a newer Mullion: what it is, and Update.
+function drawUpdate() {
+  const u = hello.updates, r = u.newer;
+  $("update").hidden = !r;
+  if (!r) return;
+  $("update").innerHTML = `<div class="text">
+      <span class="name">Mullion ${esc(r.version)} is out</span>
+      <span class="sub">${esc(gist(r.notes)) || "A newer version of Mullion and its apps"}</span>
+      ${u.can_install ? "" : `<span class="sub">This copy isn’t from Mullion’s installer, so Update opens the release page</span>`}
+    </div>
+    <div class="side"><button class="btn" data-do="notes">What’s new</button>
+      <button class="btn primary" data-do="update" ${u.installing ? "disabled" : ""}>${u.installing ? "Updating…" : "Update"}</button></div>`;
+}
+
 function drawApps() {
   appsEl.innerHTML = apps.map(a => card(a,
     `<span class="state${a.running ? " up" : ""}">${state(a)}</span>`,
@@ -90,11 +128,11 @@ function drawWelcome() {
     + (apps.some(a => a.name === "Lintel" && a.installed && !off.has(a.name))
       ? `<p class="note">When Lintel starts, Windows makes room for its bar: the screen may pause for a moment and windows move down.</p>` : "")
     + errLine();
-  $("first").innerHTML = autostartSet();
+  $("first").innerHTML = autostartSet() + updatesSet();
 }
 
 function drawGeneral() {
-  general.innerHTML = `${autostartSet()}
+  general.innerHTML = `${autostartSet()}${updatesSet()}
     <div class="set"><div class="label"><span>Quit Mullion</span><small>And the apps it runs, until you start it again</small></div>
       <button class="btn danger" data-do="quit">Quit</button></div>`;
   $("about").innerHTML = `Mullion ${esc(hello.version)} · each app is its own program, and works without the others<br>Settings: ${esc(hello.settings_path)}`;
@@ -116,7 +154,7 @@ function draw() {
   $("settings").hidden = welcome;
   $("title").textContent = welcome ? "Welcome to Mullion" : "Mullion";
   if (welcome) drawWelcome();
-  else { drawApps(); drawGeneral(); }
+  else { drawUpdate(); drawApps(); drawGeneral(); }
 }
 
 $("picks").addEventListener("click", e => {
@@ -163,6 +201,11 @@ const onGeneral = async e => {
   if (t.dataset.do === "autostart") {
     hello.autostart = await invoke("set_autostart", { enabled: t.getAttribute("aria-checked") !== "true" }).catch(() => hello.autostart);
     draw();
+  } else if (t.dataset.do === "updates") {
+    hello.check_updates = await invoke("set_check_updates", { on: t.getAttribute("aria-checked") !== "true" }).catch(() => hello.check_updates);
+    draw();
+  } else if (t.dataset.do === "check") {
+    invoke("check_updates");
   } else if (t.dataset.do === "quit") {
     invoke("quit");
   }
@@ -171,6 +214,13 @@ general.addEventListener("click", onGeneral);
 $("first").addEventListener("click", onGeneral);
 
 listen("autostart", on => { if (hello) { hello.autostart = on; draw(); } });
+listen("updates", u => { if (hello) { hello.updates = u; draw(); } });
+
+$("update").addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (t?.dataset.do === "update") invoke("update").catch(err => { error = String(err); draw(); });
+  else if (t?.dataset.do === "notes") invoke("release_notes");
+});
 
 async function start() {
   hello = await invoke("hello");

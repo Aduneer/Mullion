@@ -8,7 +8,7 @@ mod ffi;
 mod gpu;
 mod ics;
 mod lhm;
-mod net;
+use mullion_core::net;
 mod openwin;
 mod plugins;
 mod procs;
@@ -77,6 +77,7 @@ struct MonitorRect {
 }
 
 fn main() {
+    net::user_agent(format!("Oriel/{}", env!("CARGO_PKG_VERSION")));
     tauri::Builder::default()
         // Starting it again (from Start, say) shows the dashboard. Mullion starts it again to ask
         // something of it (`mullion_core::suite`).

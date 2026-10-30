@@ -10,6 +10,7 @@ publish = false
 [features]
 audio = ["windows/Win32_Media_Audio", "windows/Win32_Media_Audio_Endpoints"]
 media = ["windows/Foundation", "windows/Media_Control", "windows/Storage_Streams"]
+net = ["windows/Foundation", "windows/Storage_Streams", "windows/Web_Http", "windows/Web_Http_Filters", "windows/Web_Http_Headers"]
 pdh = []
 
 [dependencies]

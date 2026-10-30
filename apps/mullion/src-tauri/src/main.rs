@@ -8,12 +8,15 @@
 //!
 //! It keeps no WebView of its own while the settings window is closed: the tray menu is Windows'
 //! own, and the window is made when it opens and dropped when it closes.
+//!
+//! It also checks once a day for a newer Mullion, and can install it (`updates`).
 
 mod settings;
+mod updates;
 
 use mullion_core::suite::{self, Ask, APPS};
 use base64::Engine;
-use mullion_core::{ffi, look};
+use mullion_core::{ffi, look, net};
 use serde::Serialize;
 use settings::Settings;
 use std::sync::Mutex;
@@ -29,6 +32,7 @@ const SIGN_IN: &str = "--sign-in";
 const RELEASES: &str = "https://github.com/Aduneer/Mullion/releases/latest";
 
 struct SettingsState(Mutex<Settings>);
+struct UpdateState(Mutex<updates::Status>);
 
 #[derive(Serialize)]
 struct AppInfo {
@@ -51,11 +55,14 @@ struct Hello {
     autostart: bool,
     /// Off until the welcome has been through, so the page shows it.
     welcomed: bool,
+    check_updates: bool,
+    updates: updates::Status,
     version: String,
     settings_path: String,
 }
 
 fn main() {
+    net::user_agent(format!("Mullion/{}", env!("CARGO_PKG_VERSION")));
     tauri::Builder::default()
         // Starting it again opens the settings; `--quit` (from the installer) quits it and its apps.
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| match suite::ask(&args) {
@@ -64,7 +71,7 @@ fn main() {
             _ => open_settings(app),
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![SIGN_IN])))
-        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, ready, quit])
+        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, set_check_updates, check_updates, release_notes, update, ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Mullion running, so there's nothing to quit.
@@ -78,7 +85,20 @@ fn main() {
                 start_apps(&settings);
             }
             app.manage(SettingsState(Mutex::new(settings)));
+            app.manage(UpdateState(Mutex::new(updates::Status { can_install: updates::installed_here(), ..Default::default() })));
             build_tray(app.handle())?;
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(updates::FIRST_CHECK);
+                loop {
+                    // Someone new sees the switch in the welcome before anything goes online.
+                    let s = handle.state::<SettingsState>().0.lock().unwrap().clone();
+                    if s.check_updates && s.welcomed {
+                        check_for_updates(&handle);
+                    }
+                    std::thread::sleep(updates::EVERY);
+                }
+            });
             if !welcomed || !args.iter().any(|a| a == SIGN_IN) {
                 open_settings(app.handle());
             }
@@ -151,6 +171,42 @@ fn quit_all(app: &AppHandle) {
     app.exit(0);
 }
 
+// --- updates ---------------------------------------------------------------------------
+
+/// Ask GitHub for the latest release, and tell the page and the tray what came back. Blocks
+/// while it asks, so off the main thread.
+fn check_for_updates(app: &AppHandle) {
+    let state = app.state::<UpdateState>();
+    {
+        let mut s = state.0.lock().unwrap();
+        if s.checking || s.installing {
+            return;
+        }
+        s.checking = true;
+    }
+    tell_update(app);
+    let got = updates::check();
+    {
+        let mut s = state.0.lock().unwrap();
+        s.checking = false;
+        match got {
+            Ok(newer) => {
+                s.newer = newer;
+                s.checked = Some(updates::now());
+                s.error = None;
+            }
+            Err(e) => s.error = Some(e),
+        }
+    }
+    tell_update(app);
+    refresh_tray(app);
+}
+
+fn tell_update(app: &AppHandle) {
+    let status = app.state::<UpdateState>().0.lock().unwrap().clone();
+    let _ = app.emit_to("settings", "updates", status);
+}
+
 // --- the settings window -----------------------------------------------------------------
 
 fn open_settings(app: &AppHandle) {
@@ -177,6 +233,10 @@ fn open_settings(app: &AppHandle) {
 fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let settings = app.state::<SettingsState>().0.lock().unwrap().clone();
     let menu = Menu::new(app)?;
+    if let Some(r) = &app.state::<UpdateState>().0.lock().unwrap().newer {
+        menu.append(&MenuItem::with_id(app, "update", format!("Update to Mullion {}…", r.version), true, None::<&str>)?)?;
+        menu.append(&PredefinedMenuItem::separator(app)?)?;
+    }
     let mut opens = false;
     // Before the welcome no app is started, so there's none to open.
     for a in APPS.iter().filter(|a| settings.welcomed && a.shows && settings.is_on(a.name) && suite::find_app(a).is_some()) {
@@ -207,7 +267,8 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&tray_menu(app)?)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
-            "settings" => open_settings(app),
+            // The settings say what's new, and have the Update button.
+            "settings" | "update" => open_settings(app),
             "autostart" => {
                 let on = !app.autolaunch().is_enabled().unwrap_or(false);
                 if let Ok(on) = set_autostart(app.clone(), on) {
@@ -242,6 +303,8 @@ fn hello(app: AppHandle, state: State<SettingsState>) -> Hello {
         icon: icon_of("Mullion"),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         welcomed: settings.welcomed,
+        check_updates: settings.check_updates,
+        updates: app.state::<UpdateState>().0.lock().unwrap().clone(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
     }
@@ -290,6 +353,9 @@ fn welcome(app: AppHandle, window: WebviewWindow, state: State<SettingsState>, o
     start_apps(&settings);
     refresh_tray(&app);
     let _ = window.set_title("Mullion Settings");
+    if settings.check_updates {
+        std::thread::spawn(move || check_for_updates(&app));
+    }
     Ok(())
 }
 
@@ -314,6 +380,68 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
     let on = al.is_enabled().map_err(|e| e.to_string())?;
     refresh_tray(&app);
     Ok(on)
+}
+
+/// Turn the daily check for updates on or off. Turning it on checks straight away, unless it's
+/// the welcome (that checks at Start).
+#[tauri::command]
+fn set_check_updates(app: AppHandle, state: State<SettingsState>, on: bool) -> Result<bool, String> {
+    let welcomed = {
+        let mut s = state.0.lock().unwrap();
+        s.check_updates = on;
+        s.save().map_err(|e| e.to_string())?;
+        s.welcomed
+    };
+    if on && welcomed {
+        std::thread::spawn(move || check_for_updates(&app));
+    }
+    Ok(on)
+}
+
+/// Check now, whatever the setting. The answer comes as an "updates" event.
+#[tauri::command]
+fn check_updates(app: AppHandle) {
+    std::thread::spawn(move || check_for_updates(&app));
+}
+
+/// The newer release's page on GitHub, with its notes.
+#[tauri::command]
+fn release_notes(state: State<UpdateState>) -> Result<(), String> {
+    let page = state.0.lock().unwrap().newer.as_ref().map(|r| r.page.clone()).ok_or("Mullion is up to date")?;
+    ffi::shell_open(&page, None, "open")
+}
+
+/// Install the newer release: download and run its installer, which quits Mullion and starts
+/// it again once it's done. Where that can't happen, or fails, open the release page instead.
+#[tauri::command]
+fn update(app: AppHandle, state: State<UpdateState>) -> Result<(), String> {
+    let (release, can_install) = {
+        let mut s = state.0.lock().unwrap();
+        let release = s.newer.clone().ok_or("Mullion is up to date")?;
+        if s.installing {
+            return Ok(());
+        }
+        s.installing = s.can_install;
+        s.error = None;
+        (release, s.can_install)
+    };
+    if !can_install {
+        return ffi::shell_open(&release.page, None, "open");
+    }
+    tell_update(&app);
+    std::thread::spawn(move || {
+        if let Err(e) = updates::install(&release) {
+            {
+                let state = app.state::<UpdateState>();
+                let mut s = state.0.lock().unwrap();
+                s.installing = false;
+                s.error = Some(format!("{e}. The release page has the installer."));
+            }
+            let _ = ffi::shell_open(&release.page, None, "open");
+            tell_update(&app);
+        }
+    });
+    Ok(())
 }
 
 /// The page has drawn itself: show its window.

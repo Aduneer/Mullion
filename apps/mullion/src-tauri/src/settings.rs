@@ -4,18 +4,27 @@ use mullion_core::settings::{dir, read_json, write_json};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     /// The apps Mullion doesn't start, by name. Every other app it finds, it starts.
     pub off: Vec<String>,
     /// The welcome has been through: until then Mullion starts no apps, and opens the welcome
     /// even at sign-in. A file from before it existed was made by someone who's used Mullion.
-    #[serde(default = "used_before")]
+    #[serde(default = "yes")]
     pub welcomed: bool,
+    /// Ask GitHub once a day whether there's a newer Mullion (`updates`). On unless turned off.
+    #[serde(default = "yes")]
+    pub check_updates: bool,
 }
 
-fn used_before() -> bool {
+impl Default for Settings {
+    fn default() -> Self {
+        Settings { off: Vec::new(), welcomed: false, check_updates: true }
+    }
+}
+
+fn yes() -> bool {
     true
 }
 
@@ -68,5 +77,12 @@ mod tests {
         assert!(!Settings::default().welcomed);
         assert!(serde_json::from_str::<Settings>(r#"{"off":[]}"#).unwrap().welcomed);
         assert!(!serde_json::from_str::<Settings>(r#"{"welcomed":false}"#).unwrap().welcomed);
+    }
+
+    #[test]
+    fn updates_are_checked_unless_turned_off() {
+        assert!(Settings::default().check_updates);
+        assert!(serde_json::from_str::<Settings>(r#"{"off":[]}"#).unwrap().check_updates);
+        assert!(!serde_json::from_str::<Settings>(r#"{"check_updates":false}"#).unwrap().check_updates);
     }
 }

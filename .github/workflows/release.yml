@@ -158,6 +158,18 @@ jobs:
           foreach ($a in @("mullion") + $apps) {
             if (Get-Process $a -ErrorAction SilentlyContinue) { throw "$a kept running after Mullion quit" }
           }
+          # Mullion's Update runs the installer over itself with /S /update: it must keep every
+          # app and start Mullion again.
+          Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
+          Start-Sleep -Seconds 10
+          Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S", "/update" -Wait
+          Start-Sleep -Seconds 15
+          foreach ($a in $apps) {
+            if (-not (Test-Path "$dir/$a.exe")) { throw "The update lost $a.exe" }
+            if (-not (Get-Process $a -ErrorAction SilentlyContinue)) { throw "$a isn't running 15 s after an update" }
+          }
+          Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 5
           # Uninstall the way Windows does, from the entry's QuietUninstallString. Run in place, it
           # leaves uninstall.exe and the folder to a cmd that removes them once it has quit.
           $un = Start-Process cmd -ArgumentList "/c", $entry.QuietUninstallString -Wait -PassThru

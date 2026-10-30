@@ -32,7 +32,19 @@ The apps share code (`core/`), not data: each keeps its own files in its own fol
 - turns off an app's own sign-in entry when it starts it, so the app isn't started twice.
 - keeps one file, `%APPDATA%\Mullion\settings.json`: the apps you turned off.
 - opens the release page on GitHub in your browser if you click **Get it** for an app that isn't
-  installed. It never goes online itself.
+  installed.
+- checks for updates, unless you turn **Check for updates** off: once a day (the first a minute
+  after it starts, and never before you've pressed Start in the welcome), and when you click
+  **Check now**, it asks GitHub's API for the suite's latest release
+  (`api.github.com/repos/Aduneer/Mullion/releases/latest`), with `Mullion/<version>` as the
+  User-Agent. Nothing else is sent. If you click **Update**, it downloads that release's
+  `Mullion-<version>-setup.exe` and `SHA256SUMS.txt` from the release on GitHub (no other
+  address), checks the installer's SHA-256 against that list, saves it in `%TEMP%\Mullion` and
+  runs it silently, which quits Mullion and starts it again. A copy not installed by Mullion's
+  installer only opens the release page (`apps/mullion/src-tauri/src/updates.rs`). That's the
+  only time Mullion goes online. Like any HTTPS download, it trusts GitHub and the release:
+  the checksum catches a broken download, not a release someone else published from the
+  repo.
 
 ## Mullion's installer
 

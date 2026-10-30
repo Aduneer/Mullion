@@ -25,7 +25,7 @@ window at once: the parts a desktop is missing, made to feel like they came with
 - **One desktop.** They share six palettes, each in dark and light, solid or glass, and follow
   Windows' own light or dark if you like.
 - **Private.** No accounts and no telemetry. Nothing goes online but Oriel's weather and calendar,
-  and only once you add them.
+  only once you add them, and Mullion's check for updates, once a day, which you can turn off.
 - **Small.** Rust and the WebView2 that Windows already has, so each app's installer is under
   2 MB.
 
@@ -83,8 +83,11 @@ Download **Mullion-*version*-setup.exe** from the [latest release](../../release
 the apps you want. It installs just for you, with no admin prompt. If you already have one of the
 apps on its own, Mullion offers to take its place and keeps its settings.
 
-The first time Mullion opens, it welcomes you: pick which apps to run and whether Mullion starts
-when you sign in. Nothing starts until you press Start.
+The first time Mullion opens, it welcomes you: pick which apps to run, whether Mullion starts
+when you sign in, and whether it checks for updates. Nothing starts until you press Start.
+
+When there's a newer version, Mullion's icon and its settings say so, and **Update** installs it
+for you: Mullion closes, updates every app you have and opens again.
 
 Want just one app? The same release has each app's own installer and a portable zip. None of it
 is code-signed yet, so SmartScreen may warn you and Smart App Control may block it; each app's

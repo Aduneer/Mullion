@@ -50,10 +50,13 @@ src/suite.rs          the apps Mullion has, finding each one's exe, and the flag
 src/pdh.rs            Windows performance counters (the `pdh` feature)
 src/media.rs          what's playing, from Windows' media controls (the `media` feature)
 src/audio.rs          output and per-app volume via Core Audio (the `audio` feature)
+src/net.rs            HTTPS GET through Windows' own HTTP client (the `net` feature): Oriel's
+                      weather and calendar, and Mullion's check for updates
 ```
 
-The last three are behind Cargo features, so an app that doesn't use them doesn't compile them
-or the windows crate's parts they need; Oriel and Lintel turn all three on.
+The last four are behind Cargo features, so an app that doesn't use them doesn't compile them
+or the windows crate's parts they need; Oriel and Lintel turn on the first three, and Oriel and
+Mullion `net`.
 
 Each app keeps a small `ffi.rs` of its own for the bindings only it uses; it starts with
 `pub use mullion_core::ffi::*`, so the app calls everything as `ffi::…`. A binding moves into the
@@ -140,6 +143,13 @@ from the same script's `-Social`. It names no app, so it stays right as apps are
 
 Its uninstaller runs in place (`_?=` in its Installed apps entry): started the usual NSIS way, it
 copies itself to `%TEMP%` and runs the copy, which Smart App Control blocks.
+
+Mullion finds updates through GitHub's latest release, so publishing one is what offers it to
+everyone with **Check for updates** on; drafts and pre-releases aren't offered. Its **Update**
+downloads `Mullion-<version>-setup.exe` and checks it against `SHA256SUMS.txt`, so keep those
+names, and runs it with `/S /update`: the installer keeps the apps that are there and starts
+Mullion again (`.onInstSuccess`). The release workflow tries that too. Tags must stay
+`v<major>.<minor>.<patch>`, which is all `updates.rs` reads as a version.
 
 Releases aren't code-signed yet, so SmartScreen may warn about them and Smart App Control may
 block them. Signing would slot into the workflow's Build step once there's a certificate.
