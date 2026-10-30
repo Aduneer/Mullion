@@ -1,6 +1,6 @@
 [package]
 name = "sash"
-version = "0.4.1"
+version = "0.5.0"
 description = "Windows snapped to halves, thirds and quarters from the keyboard"
 license = "MIT"
 edition = "2021"

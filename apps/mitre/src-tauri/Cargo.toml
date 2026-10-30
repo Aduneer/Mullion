@@ -1,6 +1,6 @@
 [package]
 name = "mitre"
-version = "0.4.1"
+version = "0.5.0"
 description = "Hot corners: an action for each corner of each screen"
 license = "MIT"
 edition = "2021"

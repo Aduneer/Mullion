@@ -27,8 +27,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: At the bottom of the app's settings (in Oriel, press , on the dashboard; in Fanlight, Ctrl+, in the panel; in Lintel, Menu Bar Settings, in the logo menu; in Bay, Sash and Mitre, Settings in its icon's menu).
-      placeholder: "0.4.1"
+      description: At the bottom of the app's settings (in Oriel, press , on the dashboard; in Fanlight, Ctrl+, in the panel; in Lintel, Menu Bar Settings, in the logo menu; in Bay, Sash and Mitre, Settings in its icon's menu). With Mullion, About in Mullion Settings has every app's version.
+      placeholder: "0.5.0"
     validations:
       required: true
 
