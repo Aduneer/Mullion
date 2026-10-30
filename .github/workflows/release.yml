@@ -79,11 +79,14 @@ jobs:
             $setup = Get-ChildItem "target/release/bundle/nsis/$name*-setup.exe"
             if (@($setup).Count -ne 1) { throw "Expected one installer for $name, found $(@($setup).Count)" }
             Copy-Item $setup.FullName "dist/$name-$v-setup.exe"
-            Compress-Archive "target/release/$($app.Name).exe" "dist/$name-$v-portable.zip"
+            # Sill's guard (sill-guard.exe), which gives the taskbar back if Sill stops, goes with it.
+            $files = @("target/release/$($app.Name).exe") + @(Get-ChildItem "target/release/$($app.Name)-guard.exe" -ErrorAction SilentlyContinue | ForEach-Object FullName)
+            Compress-Archive $files "dist/$name-$v-portable.zip"
           }
           # Mullion's portable zip: Mullion.exe and every app side by side, as its installer lays
           # them out, so Mullion finds them.
           $exes = Get-ChildItem apps -Directory | ForEach-Object { "target/release/$($_.Name).exe" }
+          $exes += Get-ChildItem target/release/*-guard.exe | ForEach-Object FullName
           Compress-Archive $exes "dist/Mullion-$v-portable.zip"
 
       # Smart App Control can stop release builds on our own PCs, so try each installer here on a

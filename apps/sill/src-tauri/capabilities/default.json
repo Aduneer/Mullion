@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The dock, its window picker and the settings window: events and app commands only.",
+  "windows": ["dock", "picker", "settings"],
+  "permissions": ["core:default"]
+}

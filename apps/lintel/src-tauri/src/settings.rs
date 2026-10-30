@@ -27,8 +27,15 @@ pub struct Settings {
     pub seconds: bool,
     /// The date beside the time.
     pub date: bool,
-    /// The running apps' icons, in the middle of the bar, as a taskbar shows them.
-    pub apps: bool,
+    /// The running apps' icons, in the middle of the bar, as a taskbar shows them. Unset until
+    /// it's switched: then on, unless Mullion runs Sill, whose dock shows them (`apps_default`).
+    /// What's shown to the page and its menus is always set (`shown`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apps: Option<bool>,
+    /// `apps` was switched by hand. Lintel used to save `"apps": true` whether or not it was, so
+    /// a file without this has it unset (`load`), and only a `false` is kept.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub apps_chosen: bool,
     /// Which items the bar shows, right to left after the clock.
     pub media: bool,
     pub stats: bool,
@@ -55,7 +62,8 @@ impl Default for Settings {
             clock: "auto".into(),
             seconds: false,
             date: true,
-            apps: true,
+            apps: None,
+            apps_chosen: false,
             media: true,
             stats: true,
             volume: true,
@@ -68,13 +76,27 @@ impl Default for Settings {
     }
 }
 
+/// The open apps are on, unless Mullion runs Sill too: its dock has them, and two rows of the
+/// same icons would be one too many.
+pub fn apps_default() -> bool {
+    !mullion_core::suite::runs("Sill")
+}
+
 pub fn path() -> PathBuf {
     mullion_core::settings::dir("Lintel").join("settings.json")
 }
 
 impl Settings {
     pub fn load() -> Self {
-        read_json(&path()).unwrap_or_default()
+        read_json::<Settings>(&path()).unwrap_or_default().settled()
+    }
+
+    /// A `"apps": true` that was never switched is what Lintel used to save for everyone: unset.
+    fn settled(mut self) -> Self {
+        if !self.apps_chosen && self.apps == Some(true) {
+            self.apps = None;
+        }
+        self
     }
 
     pub fn save(&self) -> std::io::Result<()> {
@@ -86,7 +108,18 @@ impl Settings {
     pub fn shown(&self) -> Self {
         let mut s = self.clone();
         mullion_core::look::overlay(&mut s.theme, &mut s.palette, Some(&mut s.glass));
+        s.apps = Some(self.apps.unwrap_or_else(apps_default));
         s
+    }
+
+    /// A save from the page sends every setting as it was shown; the open apps stay unset unless
+    /// they were switched, so they keep following Sill.
+    pub fn keep_defaults(mut self, own: &Settings) -> Self {
+        if own.apps.is_none() && self.apps == Some(apps_default()) {
+            self.apps = None;
+        }
+        self.apps_chosen = self.apps.is_some();
+        self
     }
 
     /// While Mullion's look stands in for Lintel's own, a save keeps `own`'s, so it comes back
@@ -148,6 +181,31 @@ mod tests {
         assert_eq!((s.palette.as_str(), s.height, s.theme.as_str(), s.media), ("nord", 44, "auto", true));
         let s: Settings = serde_json::from_str(r#"{"palette":"<script>","clock":"25","edge":"middle"}"#).unwrap();
         assert_eq!(s.clamp(), Settings::default());
+    }
+
+    #[test]
+    fn open_apps_follow_sill_until_switched() {
+        // Run on its own (as tests are), the default is on.
+        let s = Settings::default();
+        assert_eq!((s.apps, s.shown().apps), (None, Some(true)));
+        // A save of what was shown keeps it unset; a switch sets it, either way.
+        assert_eq!(s.shown().keep_defaults(&s).apps, None);
+        let off = Settings { apps: Some(false), ..s.shown() };
+        assert_eq!(off.keep_defaults(&s).apps, Some(false));
+        let on = Settings { apps: Some(true), ..Default::default() };
+        assert_eq!(on.clone().keep_defaults(&on).apps, Some(true));
+        // A switch is saved as one.
+        let saved = Settings { apps: Some(true), ..Default::default() }.keep_defaults(&on);
+        assert!(saved.apps_chosen);
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&saved).unwrap()).unwrap();
+        assert_eq!(back.settled().apps, Some(true));
+        // Files from before it could be unset have it on for everyone: that's unset. Off stays off.
+        let old: Settings = serde_json::from_str(r#"{"apps":true}"#).unwrap();
+        assert_eq!(old.settled().apps, None);
+        let old: Settings = serde_json::from_str(r#"{"apps":false}"#).unwrap();
+        assert_eq!(old.settled().apps, Some(false));
+        let plain = serde_json::to_string(&Settings::default()).unwrap();
+        assert!(!plain.contains("\"apps\"") && !plain.contains("apps_chosen"));
     }
 
     #[test]

@@ -1,13 +1,14 @@
-//! The app in front, for the bar's app name and the app menu; the running apps, for the bar's row
-//! of app icons; and acting on their windows.
+//! The app in front, for Lintel's app name and app menu; the running apps, for Lintel's row of
+//! app icons and Sill's dock; and acting on their windows.
 //!
 //! Windows says when the foreground window changes and when windows come and go (WinEvent hooks),
 //! so nothing is polled: the hooks run on a thread of its own that just waits for messages. The
-//! bar and its menus are left out, so opening a menu doesn't change the name next to the logo.
+//! app's own windows are left out, so opening one of its menus doesn't change the name next to
+//! Lintel's logo.
 
 use crate::ffi::*;
-use mullion_core::icons;
-use mullion_core::wins::{self, enumerate, listed, read, Raw};
+use crate::icons;
+use crate::wins::{self, enumerate, listed, read, Raw};
 use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -30,11 +31,11 @@ pub struct Front {
 /// One of the front app's windows, for the app menu.
 #[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct Win {
-    hwnd: u64,
-    pid: u32,
-    title: String,
-    minimized: bool,
-    front: bool,
+    pub hwnd: u64,
+    pub pid: u32,
+    pub title: String,
+    pub minimized: bool,
+    pub front: bool,
 }
 
 /// A running app, for the bar: a program with windows Alt+Tab would list.
@@ -243,6 +244,12 @@ fn name_of(cache: &mut HashMap<String, String>, pid: u32) -> (String, String) {
     (exe, name)
 }
 
+/// The name the bar shows for the program at `path`.
+pub fn program_name(path: &str) -> String {
+    let exe = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    display_name(&exe, file_description(path).as_deref())
+}
+
 /// The name macOS would show for a program: its own, with a few that Windows names oddly fixed.
 fn display_name(exe: &str, description: Option<&str>) -> String {
     match exe.to_lowercase().as_str() {
@@ -355,6 +362,17 @@ pub fn launch(key: &str) -> Result<(), String> {
     }
 }
 
+/// What a page asks of one of the windows it listed: "focus", "minimize" or "close". `hwnd` and
+/// `pid` are what it listed (see `wins::check`).
+pub fn act(action: &str, hwnd: u64, pid: u32) -> Result<(), String> {
+    match action {
+        "focus" => focus(hwnd, pid),
+        "minimize" => minimize(hwnd, pid),
+        "close" => close(hwnd, pid),
+        _ => Err(format!("unknown window action: {action}")),
+    }
+}
+
 /// Whether the window in front is one of ours (the bar took the focus when it was clicked).
 pub fn foreground_is_ours() -> bool {
     let mut pid = 0u32;
@@ -418,6 +436,8 @@ mod tests {
 
     #[test]
     fn refuses_handles_that_are_not_windows() {
+        assert!(act("focus", 0, 1).is_err());
+        assert!(act("explode", 1, 1).is_err());
         assert!(focus(0, 1).is_err());
         assert!(close(u64::MAX, 1).is_err());
         assert!(minimize(0x7fff_fff0, 1).is_err());

@@ -3355,6 +3355,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sill"
+version = "0.5.0"
+dependencies = [
+ "base64 0.23.1",
+ "mullion-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-single-instance",
+ "windows",
+]
+
+[[package]]
 name = "simd-adler32"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"

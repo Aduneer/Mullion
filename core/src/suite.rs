@@ -27,6 +27,7 @@ pub const APPS: &[App] = &[
     App { name: "Bay", exe: "bay", about: "Every open window at once, on Win+Ctrl+Up", shows: true },
     App { name: "Sash", exe: "sash", about: "Windows snapped into place, on Ctrl+Alt+arrows", shows: true },
     App { name: "Mitre", exe: "mitre", about: "Hot corners: push the pointer into a corner", shows: true },
+    App { name: "Sill", exe: "sill", about: "A dock along the bottom of the screen", shows: true },
 ];
 
 /// Mullion started this app: Mullion has the tray icon and the sign-in entry.
@@ -89,6 +90,21 @@ pub fn from_mullion(args: &[String]) -> bool {
 /// Whether Mullion has started or reached this app since it started.
 pub fn is_run_by_mullion() -> bool {
     RUN_BY.load(Ordering::Relaxed)
+}
+
+/// Whether Mullion runs the app called `name` alongside this one: Mullion runs this app, has that
+/// one on, and finds it installed. Lintel leaves the open apps to Sill's dock then, unless asked.
+pub fn runs(name: &str) -> bool {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default)]
+    struct Hub {
+        off: Vec<String>,
+    }
+    if !is_run_by_mullion() {
+        return false;
+    }
+    let hub: Hub = crate::settings::read_json(&crate::settings::dir("Mullion").join("settings.json")).unwrap_or_default();
+    !hub.off.iter().any(|a| a == name) && APPS.iter().find(|a| a.name == name).and_then(find_app).is_some()
 }
 
 const UNINSTALL: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall";
@@ -170,6 +186,13 @@ mod tests {
         let me = std::env::current_exe().unwrap();
         assert!(running(&me).contains(&std::process::id()));
         assert!(running(Path::new(r"C:\nowhere\nothing.exe")).is_empty());
+    }
+
+    #[test]
+    fn nothing_runs_alongside_an_app_on_its_own() {
+        // These tests never come from Mullion.
+        assert!(!runs("Sill"));
+        assert!(!runs("Nothing"));
     }
 
     #[test]

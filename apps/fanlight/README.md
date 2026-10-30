@@ -185,12 +185,13 @@ settings do:
 
 ## Part of Mullion
 
-Fanlight is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
-[Oriel](../oriel/README.md), the dashboard for your second screen,
+Fanlight is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
+desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
 [Lintel](../lintel/README.md), the menu bar, [Bay](../bay/README.md), every window at once,
-[Sash](../sash/README.md), windows snapped from the keyboard, and [Mitre](../mitre/README.md),
-hot corners, one of which can open Fanlight's apps. They share their themes, and Mullion's
-installer installs any of them in one go. Each is still its own program, which works alone.
+[Sash](../sash/README.md), windows snapped from the keyboard, and [Mitre](../mitre/README.md), hot
+corners, one of which can open Fanlight's apps, and [Sill](../sill/README.md), the dock, whose first
+button does too. They share their themes, and Mullion's installer installs any of them in one go.
+Each is still its own program, which works alone.
 
 ## FAQ
 

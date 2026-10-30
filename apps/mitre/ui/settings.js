@@ -116,7 +116,7 @@ function draw() {
       ? setRow("Start at sign-in", "Mullion starts Mitre: see Mullion Settings", "")
       : setRow("Start at sign-in", "", sw(`data-do="autostart"`, hello.autostart, "Start at sign-in"))}
     ${setRow("Quit Mitre", "Until you start it again", `<button class="btn danger" data-do="quit">Quit</button>`)}
-    <p class="about">Mitre ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight, Bay and Sash<br>Settings: ${esc(hello.settings_path)}</p>`;
+    <p class="about">Mitre ${esc(hello.version)} · part of the Mullion suite, with Oriel, Lintel, Fanlight, Bay, Sash and Sill<br>Settings: ${esc(hello.settings_path)}</p>`;
 }
 
 async function save(change) {

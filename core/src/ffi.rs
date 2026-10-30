@@ -112,6 +112,7 @@ const RRF_RT_REG_SZ: u32 = 0x0000_0002;
 extern "system" {
     fn RegGetValueW(hkey: isize, subkey: *const u16, value: *const u16, flags: u32, ty: *mut u32, data: *mut c_void, len: *mut u32) -> i32;
     pub fn OpenProcessToken(process: HANDLE, access: u32, token: *mut HANDLE) -> i32;
+    fn GetTokenInformation(token: HANDLE, class: u32, info: *mut c_void, len: u32, ret_len: *mut u32) -> i32;
     pub fn LookupPrivilegeValueW(system: *const u16, name: *const u16, luid: *mut LUID) -> i32;
     pub fn AdjustTokenPrivileges(token: HANDLE, disable_all: i32, new: *const TOKEN_PRIVILEGES, len: u32, prev: *mut c_void, ret_len: *mut u32) -> i32;
 }
@@ -267,6 +268,22 @@ pub struct INPUT {
 
 pub type WNDENUMPROC = unsafe extern "system" fn(hwnd: isize, lparam: isize) -> i32;
 pub type MONITORENUMPROC = unsafe extern "system" fn(monitor: isize, dc: isize, rect: *mut RECT, lparam: isize) -> i32;
+pub type TIMERPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, id: usize, time: u32);
+pub type WINEVENTPROC = unsafe extern "system" fn(hook: isize, event: u32, hwnd: isize, object: i32, child: i32, thread: u32, time: u32);
+
+// What the WinEvent hooks hear about, for the running apps (`apps`).
+pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
+pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
+pub const EVENT_SYSTEM_MOVESIZEEND: u32 = 0x000B;
+pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
+pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
+pub const EVENT_OBJECT_SHOW: u32 = 0x8002;
+pub const EVENT_OBJECT_HIDE: u32 = 0x8003;
+pub const EVENT_OBJECT_NAMECHANGE: u32 = 0x800C;
+pub const EVENT_OBJECT_CLOAKED: u32 = 0x8017;
+pub const EVENT_OBJECT_UNCLOAKED: u32 = 0x8018;
+pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
+pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
 
 pub const SWP_NOSIZE: u32 = 0x0001;
 pub const SWP_NOMOVE: u32 = 0x0002;
@@ -306,6 +323,10 @@ extern "system" {
     pub fn UnregisterHotKey(hwnd: isize, id: i32) -> i32;
     pub fn PeekMessageW(msg: *mut MSG, hwnd: isize, min: u32, max: u32, remove: u32) -> i32;
     pub fn PostThreadMessageW(thread: u32, msg: u32, wparam: usize, lparam: isize) -> i32;
+    pub fn GetAncestor(hwnd: isize, flags: u32) -> isize;
+    pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
+    pub fn KillTimer(hwnd: isize, id: usize) -> i32;
+    pub fn SetWinEventHook(min: u32, max: u32, module: isize, proc_: WINEVENTPROC, pid: u32, thread: u32, flags: u32) -> isize;
 }
 
 #[link(name = "dwmapi", kind = "raw-dylib")]
@@ -405,6 +426,35 @@ pub fn image_path(pid: u32) -> Option<String> {
         let ok = QueryFullProcessImageNameW(h, 0, buf.as_mut_ptr(), &mut len) != 0;
         CloseHandle(h);
         ok.then(|| String::from_utf16_lossy(&buf[..len as usize]))
+    }
+}
+
+/// Whether `pid` runs as administrator while we don't. Windows keeps a program from reaching such
+/// a program's windows then: bringing them forward, or passing on a click to its tray icon.
+pub fn above_us(pid: u32) -> bool {
+    // TokenElevation: one u32, nonzero when elevated. None when Windows won't say.
+    unsafe fn elevated(process: HANDLE) -> Option<bool> {
+        let mut token: HANDLE = null_mut();
+        if OpenProcessToken(process, TOKEN_QUERY, &mut token) == 0 {
+            return None;
+        }
+        let (mut on, mut len) = (0u32, 0u32);
+        let ok = GetTokenInformation(token, 20, (&mut on as *mut u32).cast(), 4, &mut len) != 0;
+        CloseHandle(token);
+        ok.then_some(on != 0)
+    }
+    unsafe {
+        if elevated(GetCurrentProcess()).unwrap_or(false) {
+            return false;
+        }
+        let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if h.is_null() {
+            return false;
+        }
+        // A token we may not look at is one above ours.
+        let above = elevated(h).unwrap_or(true);
+        CloseHandle(h);
+        above
     }
 }
 

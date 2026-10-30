@@ -39,6 +39,13 @@ pub fn thumbnail(path: &str, px: i32) -> Option<String> {
     data_url(path, SIIGBF_THUMBNAILONLY, px)
 }
 
+/// Pixels drawn some other way (Sill draws other programs' tray icons), as a data: URL: `w` by
+/// `h`, top-down BGRA, premultiplied or not.
+pub fn pixels_url(w: u32, h: u32, mut bgra: Vec<u8>) -> String {
+    unpremultiply(&mut bgra);
+    format!("data:image/bmp;base64,{}", base64::engine::general_purpose::STANDARD.encode(bmp(w, h, &bgra)))
+}
+
 fn data_url(parsing_name: &str, kind: SIIGBF, px: i32) -> Option<String> {
     let (w, h, bgra) = pixels(parsing_name, kind, px)?;
     let bmp = bmp(w, h, &bgra);
@@ -136,6 +143,12 @@ mod tests {
         assert_eq!(u32::from_le_bytes(b[14..18].try_into().unwrap()), 124);
         assert_eq!(b.len(), 14 + 124 + 8);
         assert_eq!(&b[b.len() - 8..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn pixels_become_an_image() {
+        let url = pixels_url(1, 1, vec![64, 64, 64, 128]);
+        assert!(url.starts_with("data:image/bmp;base64,"));
     }
 
     #[test]

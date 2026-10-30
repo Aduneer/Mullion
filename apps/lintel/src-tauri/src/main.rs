@@ -2,20 +2,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod appbar;
-mod apps;
 mod brightness;
 mod ffi;
 mod radios;
 mod settings;
 mod stats;
 mod taskbar;
-mod wallpaper;
 
-use apps::Front;
+use mullion_core::apps::{self, Front};
 use mullion_core::audio::{self, Audio, AudioWatch};
 use mullion_core::look;
 use mullion_core::media::{self, Media, MediaWatch};
 use mullion_core::power;
+use mullion_core::wallpaper;
 use mullion_core::suite::{self, Ask};
 use serde::{Deserialize, Serialize};
 use settings::Settings;
@@ -284,7 +283,7 @@ fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSam
 #[tauri::command]
 fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<MediaWatch>, audio: State<AudioWatch>, settings: Settings) -> Result<Settings, String> {
     let previous = state.0.lock().unwrap().clone();
-    let settings = settings.clamp().keep_look(&previous);
+    let settings = settings.clamp().keep_look(&previous).keep_defaults(&previous);
     *state.0.lock().unwrap() = settings.clone();
     settings.save().map_err(|e| e.to_string())?;
     media.set_wanted(settings.media);
@@ -304,7 +303,8 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     Ok(shown)
 }
 
-/// Mullion's look for every app changed, or went on or off: show what Lintel looks like now.
+/// Mullion's look for every app changed, or went on or off, or Mullion started or stopped Sill
+/// (which the open apps follow): show what Lintel looks like now.
 fn look_again(app: &AppHandle) {
     let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
     apply_look(app, &shown);
@@ -557,12 +557,7 @@ fn app_windows(pid: u32) -> Vec<apps::Win> {
 /// The app menu's window items. `hwnd` and `pid` are what the menu listed (see `apps::target`).
 #[tauri::command]
 fn window_action(action: String, hwnd: u64, pid: u32) -> Result<(), String> {
-    match action.as_str() {
-        "focus" => apps::focus(hwnd, pid),
-        "minimize" => apps::minimize(hwnd, pid),
-        "close" => apps::close(hwnd, pid),
-        _ => Err(format!("unknown window action: {action}")),
-    }
+    apps::act(&action, hwnd, pid)
 }
 
 /// A new window of a running app, as a middle click on a taskbar button opens.

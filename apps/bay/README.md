@@ -145,13 +145,13 @@ To uninstall, go to **Settings → Apps → Installed apps → Bay**. Tick
 
 ## Part of Mullion
 
-Bay is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
-[Oriel](../oriel/README.md), the dashboard for your second screen,
-[Lintel](../lintel/README.md), the menu bar, [Fanlight](../fanlight/README.md), search and
-launch, [Sash](../sash/README.md), windows snapped from the keyboard, and
-[Mitre](../mitre/README.md), hot corners, which can open Bay from a corner of the screen. They
-share their themes, and Mullion's installer installs any of them in one go. Each is still its own
-program, which works alone.
+Bay is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
+desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
+[Lintel](../lintel/README.md), the menu bar, [Fanlight](../fanlight/README.md), search and launch,
+[Sash](../sash/README.md), windows snapped from the keyboard, and [Mitre](../mitre/README.md), hot
+corners, which can open Bay from a corner of the screen, and [Sill](../sill/README.md), the dock.
+They share their themes, and Mullion's installer installs any of them in one go. Each is still its
+own program, which works alone.
 
 ## FAQ
 

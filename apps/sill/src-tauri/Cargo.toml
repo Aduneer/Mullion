@@ -1,0 +1,30 @@
+[package]
+name = "sill"
+version = "0.5.0"
+description = "A dock along the bottom of the screen: pinned and open apps, and the notification area"
+license = "MIT"
+edition = "2021"
+default-run = "sill"
+
+[[bin]]
+name = "sill"
+path = "src/main.rs"
+
+# Puts the taskbar back if Sill ends without doing it (a crash, or ended from Task Manager). Its
+# own name, so ending every sill.exe doesn't end it too.
+[[bin]]
+name = "sill-guard"
+path = "src/guard.rs"
+
+[build-dependencies]
+tauri-build = { workspace = true, features = [] }
+
+[dependencies]
+mullion-core = { workspace = true }
+tauri = { workspace = true, features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = { workspace = true }
+tauri-plugin-single-instance = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+windows = { workspace = true, features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Storage_FileSystem"] }

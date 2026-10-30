@@ -1,0 +1,128 @@
+/* The dock: a shelf of icons, centred along its edge. In the taskbar's place the window is the
+   whole strip, see-through around the shelf; floating, it's just the shelf. Colors are tokens from
+   themes.css; --icon is the icons' size, from the size setting. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+
+html, body { height: 100%; overflow: hidden; background: transparent; }
+body {
+  --icon: 40px;
+  --pad: 4px;
+  color: var(--ink);
+  font: 12px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 2px;
+}
+[data-edge="left"] body { flex-direction: column; align-items: flex-start; justify-content: center; }
+[data-edge="right"] body { flex-direction: column; align-items: flex-end; justify-content: center; }
+
+/* Glass: the wallpaper behind the shelf, blurred (dock.js), with a tint of the palette over it. */
+#backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; z-index: -1; pointer-events: none; }
+
+#shelf {
+  --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--pad) 6px calc(var(--pad) + 4px);
+  border-radius: calc(var(--icon) * 0.36);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 4%, transparent) inset;
+  transition: transform 0.18s var(--ease), opacity 0.18s;
+  position: relative;
+  isolation: isolate;
+}
+[data-glass="on"] #shelf { background: transparent; border-color: color-mix(in srgb, var(--ink) 14%, transparent); }
+/* The tint, over the blurred wallpaper and under the icons. */
+[data-glass="on"] #shelf::after { content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none; background: color-mix(in srgb, var(--page) 38%, transparent); }
+/* Floating over windows there's no wallpaper to paint: just see-through. */
+[data-glass="on"][data-float="on"] #shelf::after { background: color-mix(in srgb, var(--page) 78%, transparent); }
+[data-edge="left"] #shelf, [data-edge="right"] #shelf { flex-direction: column; padding: 6px var(--pad); }
+[data-edge="left"] #shelf { padding-left: calc(var(--pad) + 4px); }
+[data-edge="right"] #shelf { padding-right: calc(var(--pad) + 4px); }
+
+/* Floating: the window is the shelf, which slides in from the edge when called. */
+[data-float="on"] body { padding: 0; display: block; }
+[data-float="on"] #shelf { position: absolute; left: 0; top: 0; width: max-content; height: max-content; }
+[data-float="on"] #shelf.out { opacity: 0; transform: translateY(40%); }
+[data-float="on"][data-edge="left"] #shelf.out { transform: translateX(-40%); }
+[data-float="on"][data-edge="right"] #shelf.out { transform: translateX(40%); }
+
+#apps { display: flex; align-items: center; gap: 2px; }
+[data-edge="left"] #apps, [data-edge="right"] #apps { flex-direction: column; }
+
+.tile {
+  position: relative;
+  width: calc(var(--icon) + 8px);
+  height: calc(var(--icon) + 8px);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--icon) * 0.26);
+  transition: background 0.12s;
+}
+.tile:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.tile:active img, .tile:active .ic { transform: scale(0.92); }
+.tile img { width: var(--icon); height: var(--icon); object-fit: contain; display: block; pointer-events: none; transition: transform 0.1s; }
+.tile .initial { width: var(--icon); height: var(--icon); display: grid; place-items: center; border-radius: 22%; background: var(--surface-hi); font-weight: 650; font-size: calc(var(--icon) * 0.45); }
+.tile .initial:empty { display: none; }
+.tile.minimized img { opacity: 0.6; }
+
+/* A dot for each window (up to four), the app in front's in the accent; along the edge side. */
+.dots { position: absolute; left: 0; right: 0; bottom: -5px; display: flex; justify-content: center; gap: 3px; pointer-events: none; }
+.dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+.tile.front .dots i { background: var(--accent); }
+[data-edge="left"] .dots, [data-edge="right"] .dots { top: 0; bottom: 0; right: auto; left: -5px; flex-direction: column; }
+[data-edge="right"] .dots { left: auto; right: -5px; }
+
+/* The first button: Fanlight's apps. Without Fanlight it does nothing, and looks it. */
+.grid .ic { width: calc(var(--icon) * 0.62); height: calc(var(--icon) * 0.62); }
+.grid.off { opacity: 0.35; }
+.grid.off:hover { background: none; }
+.ic { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ic .fill { fill: currentColor; stroke: none; }
+
+.sep { flex: none; width: 1px; height: calc(var(--icon) * 0.8); margin: 0 5px; background: var(--border); }
+[data-edge="left"] .sep, [data-edge="right"] .sep { width: calc(var(--icon) * 0.8); height: 1px; margin: 5px 0; }
+
+/* The notification area: small icons, two rows of them when the dock is big enough. */
+#tray { display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--rows, 1), auto); gap: 1px 2px; align-items: center; }
+[data-edge="left"] #tray, [data-edge="right"] #tray { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(var(--rows, 1), auto); }
+.tray {
+  width: calc(var(--tray) + 6px);
+  height: calc(var(--tray) + 6px);
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+.tray:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.tray img { width: var(--tray); height: var(--tray); pointer-events: none; }
+.tray.more .ic { width: var(--tray); height: var(--tray); }
+
+/* Dragging a pinned app to a new place. */
+.tile.dragging { opacity: 0.55; }
+
+/* An app being opened bounces until its window shows. */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-28%); }
+  60% { transform: translateY(-22%); }
+}
+@keyframes bounce-side {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(var(--away, 28%)); }
+}
+.tile.bounce img { animation: bounce 0.7s var(--ease) 3; }
+[data-edge="left"] .tile.bounce img { --away: 28%; animation-name: bounce-side; }
+[data-edge="right"] .tile.bounce img { --away: -28%; animation-name: bounce-side; }
+
+@media (prefers-reduced-motion: reduce) {
+  #shelf, .tile img { transition: none; }
+  .tile.bounce img { animation: none; }
+}

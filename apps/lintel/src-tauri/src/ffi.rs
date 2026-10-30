@@ -1,5 +1,5 @@
-//! Hand-written bindings for the flat Win32 calls only Lintel uses: the app bar, the WinEvent
-//! hooks, monitors and Wi-Fi. The ones the apps share come from `mullion_core::ffi`.
+//! Hand-written bindings for the flat Win32 calls only Lintel uses: the app bar, monitors and
+//! Wi-Fi. The ones the apps share come from `mullion_core::ffi`.
 //! COM and WinRT (Core Audio, media controls, network list) go through the `windows` crate instead.
 #![allow(non_snake_case, non_camel_case_types, clippy::upper_case_acronyms, dead_code)]
 
@@ -51,19 +51,6 @@ pub const WM_NCDESTROY: u32 = 0x0082;
 pub const MONITOR_DEFAULTTOPRIMARY: u32 = 1;
 pub const HWND_TOPMOST: isize = -1;
 
-pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
-pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
-pub const EVENT_SYSTEM_MOVESIZEEND: u32 = 0x000B;
-pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
-pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
-pub const EVENT_OBJECT_SHOW: u32 = 0x8002;
-pub const EVENT_OBJECT_HIDE: u32 = 0x8003;
-pub const EVENT_OBJECT_NAMECHANGE: u32 = 0x800C;
-pub const EVENT_OBJECT_CLOAKED: u32 = 0x8017;
-pub const EVENT_OBJECT_UNCLOAKED: u32 = 0x8018;
-pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
-pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
-
 #[repr(C)]
 pub struct MONITORINFOEXW {
     pub info: MONITORINFO,
@@ -71,18 +58,12 @@ pub struct MONITORINFOEXW {
 }
 pub const MONITORINFOF_PRIMARY: u32 = 1;
 
-pub type TIMERPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, id: usize, time: u32);
-pub type WINEVENTPROC = unsafe extern "system" fn(hook: isize, event: u32, hwnd: isize, object: i32, child: i32, thread: u32, time: u32);
 pub type SUBCLASSPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, wparam: usize, lparam: isize, id: usize, data: usize) -> isize;
 
 #[link(name = "user32", kind = "raw-dylib")]
 extern "system" {
     pub fn FindWindowW(class: *const u16, title: *const u16) -> isize;
-    pub fn GetAncestor(hwnd: isize, flags: u32) -> isize;
     pub fn GetDpiForWindow(hwnd: isize) -> u32;
-    pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
-    pub fn KillTimer(hwnd: isize, id: usize) -> i32;
-    pub fn SetWinEventHook(min: u32, max: u32, module: isize, proc_: WINEVENTPROC, pid: u32, thread: u32, flags: u32) -> isize;
 }
 
 #[link(name = "comctl32", kind = "raw-dylib")]

@@ -1,0 +1,78 @@
+/* An app's windows, to pick one: a panel off the dock, drawn as the dock is. The window is
+   see-through around the panel, which leaves room for its shadow. Colors are tokens from themes.css. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+:focus { outline: none; }
+
+html, body { background: transparent; overflow: hidden; }
+body {
+  color: var(--ink);
+  font: 13px/1.3 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  width: max-content;
+  padding: 10px 10px 8px;
+}
+[data-edge="left"] body { padding: 10px 10px 10px 6px; }
+[data-edge="right"] body { padding: 10px 6px 10px 10px; }
+
+#panel {
+  --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  width: max-content;
+  min-width: 250px;
+  max-width: 420px;
+  padding: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 5%, transparent) inset, 0 6px 18px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transform-origin: 50% 100%;
+}
+[data-edge="left"] #panel { transform: translateX(-6px) scale(0.98); transform-origin: 0 50%; }
+[data-edge="right"] #panel { transform: translateX(6px) scale(0.98); transform-origin: 100% 50%; }
+#panel.in { opacity: 1; transform: none; transition: opacity 0.12s, transform 0.16s var(--ease); }
+
+header { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; }
+#icon { display: grid; place-items: center; width: 20px; height: 20px; flex: none; }
+#icon img { width: 20px; height: 20px; object-fit: contain; }
+#icon .initial { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 5px; background: var(--surface-hi); font-size: 11px; font-weight: 650; }
+#name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#count { color: var(--muted); font-size: 12px; }
+
+#list { display: flex; flex-direction: column; gap: 1px; }
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 4px 0 15px;
+  border-radius: 8px;
+}
+.row:hover, .row.sel { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.row:active { background: color-mix(in srgb, var(--ink) 13%, transparent); }
+/* The window in front: a bar in the accent, as the dock's dot is. */
+.row::before { content: ""; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: transparent; }
+.row.front::before { background: var(--accent); }
+.row .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.minimized .title { color: var(--muted); }
+.row .state { color: var(--muted); font-size: 11.5px; flex: none; }
+.row .close {
+  width: 26px; height: 26px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  opacity: 0;
+  color: var(--muted);
+  transition: opacity 0.1s;
+}
+.row:hover .close, .row.sel .close { opacity: 1; }
+.row .close:hover { background: color-mix(in srgb, var(--crit) 18%, transparent); color: var(--crit); }
+.ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+@media (prefers-reduced-motion: reduce) {
+  #panel, #panel.in { transition: none; transform: none; }
+}

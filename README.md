@@ -18,8 +18,8 @@
 
 Mullion is a set of small apps for Windows, each named after a part of a window (a mullion is the
 bar between two panes). A menu bar, a search field, a dashboard for your second screen, every
-window at once, windows that snap into place, hot corners: the parts a desktop is missing, made
-to feel like they came with it.
+window at once, windows that snap into place, hot corners, a dock: the parts a desktop is
+missing, made to feel like they came with it.
 
 - **Take what you want.** Each app is its own program. Install one or all of them, quit any of
   them, and the rest carry on.
@@ -89,6 +89,18 @@ it opened. [More about Mitre](apps/mitre/README.md)
   <img alt="Mitre Settings: two screens side by side, the main one picked, with a menu at each of its corners: Every window (Bay) top left, Desktop bottom left, Apps (Fanlight) bottom right" src="apps/mitre/docs/images/settings-dark.png" width="560">
 </picture>
 
+### <img src="apps/sill/assets/sill.svg" width="32" align="top" alt=""> Sill
+
+**A dock along the bottom of the screen.** Your pinned apps and the ones you have open, a dot
+under each for its windows, Fanlight's apps at one end and the notification area's icons at the
+other, in the taskbar's place. Or keep the taskbar, and have Sill float above it when you push
+the pointer to the edge. [More about Sill](apps/sill/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/sill/docs/images/dock-light.png">
+  <img alt="Sill along the bottom of a desktop in the taskbar's place: Fanlight's apps button, eight apps with dots under the open ones, and the notification area's icons at the right end" src="apps/sill/docs/images/dock-dark.png">
+</picture>
+
 ### <img src="apps/oriel/assets/oriel.svg" width="32" align="top" alt=""> Oriel
 
 **A dashboard for your second screen.** CPU, GPU, memory, network, disks and processes, plus
@@ -99,8 +111,6 @@ across the desk. Arrange it as you like, over as many pages as you want. [More a
   <source media="(prefers-color-scheme: light)" srcset="apps/oriel/docs/images/widgets-light.png">
   <img alt="Oriel full screen on its Desk page: the weather, the calendar, now playing, gauges for CPU, GPU and memory, the volume mixer and the open windows" src="apps/oriel/docs/images/widgets-dark.png">
 </picture>
-
-More are on the way: a dock.
 
 ## Install
 

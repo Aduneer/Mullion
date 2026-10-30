@@ -91,6 +91,10 @@ SectionEnd
   Section "${NAME}" Sec${NAME}
     SetOutPath "$INSTDIR"
     File "${BIN}\${EXE}.exe"
+    !if "${EXE}" == "sill"
+      ; Gives the taskbar back if Sill stops without doing it itself.
+      File "${BIN}\sill-guard.exe"
+    !endif
     ; Mullion starts it now; a sign-in entry of its own would start it twice.
     DeleteRegValue HKCU "${RUN}" "${NAME}"
     DeleteRegValue HKCU "${APPROVED}" "${NAME}"
@@ -120,6 +124,7 @@ SectionEnd
 !insertmacro App "Bay" "bay" "Every open window at once on Win+Ctrl+Up, as live pictures, to pick the one you want."
 !insertmacro App "Sash" "sash" "The window in front snapped to a half, a third or a quarter of the screen on Ctrl+Alt+arrows, or sent to the next screen."
 !insertmacro App "Mitre" "mitre" "Hot corners: push the pointer into a corner of a screen for Bay, Fanlight, the desktop, Task View, lock or the screens off."
+!insertmacro App "Sill" "sill" "A dock along the bottom of the screen in the taskbar's place: your pinned and open apps, Fanlight's apps and the notification area."
 
 Section "Start Mullion when I sign in" SecSignIn
   WriteRegStr HKCU "${RUN}" "Mullion" '"$INSTDIR\mullion.exe" --sign-in'
@@ -145,6 +150,10 @@ Section "-Tidy"
   ${IfNot} ${SectionIsSelected} ${SecMitre}
     Delete "$INSTDIR\mitre.exe"
   ${EndIf}
+  ${IfNot} ${SectionIsSelected} ${SecSill}
+    Delete "$INSTDIR\sill.exe"
+    Delete "$INSTDIR\sill-guard.exe"
+  ${EndIf}
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${UNINST}\Mullion" "EstimatedSize" "$0"
@@ -158,6 +167,7 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBay} $(DESC_Bay)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecSash} $(DESC_Sash)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMitre} $(DESC_Mitre)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecSill} $(DESC_Sill)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecSignIn} "Start Mullion, and the apps you picked, each time you sign in to Windows."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
@@ -187,6 +197,9 @@ Function .onInit
     ${EndIf}
     ${IfNot} ${FileExists} "$INSTDIR\mitre.exe"
       !insertmacro UnselectSection ${SecMitre}
+    ${EndIf}
+    ${IfNot} ${FileExists} "$INSTDIR\sill.exe"
+      !insertmacro UnselectSection ${SecSill}
     ${EndIf}
     ReadRegStr $0 HKCU "${RUN}" "Mullion"
     ${If} $0 == ""
@@ -239,6 +252,10 @@ FunctionEnd
 Section "un.Mullion and its apps" SecUnMullion
   SectionIn RO
   !insertmacro QuitMullion
+  ; Sill gives the taskbar back as it quits; this makes sure, should it have stopped some other way.
+  ${If} ${FileExists} "$INSTDIR\sill.exe"
+    ExecWait '"$INSTDIR\sill.exe" --restore-taskbar'
+  ${EndIf}
   !insertmacro DeleteWhenFree "$INSTDIR\mullion.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\oriel.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\lintel.exe"
@@ -246,6 +263,8 @@ Section "un.Mullion and its apps" SecUnMullion
   !insertmacro DeleteWhenFree "$INSTDIR\bay.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\sash.exe"
   !insertmacro DeleteWhenFree "$INSTDIR\mitre.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\sill.exe"
+  !insertmacro DeleteWhenFree "$INSTDIR\sill-guard.exe"
   ; uninstall.exe and the folder go once it has quit (un.onUninstSuccess).
   Delete "$SMPROGRAMS\Mullion.lnk"
   DeleteRegValue HKCU "${RUN}" "Mullion"
@@ -271,6 +290,7 @@ Section /o "un.Delete the application data" SecUnData
   !insertmacro UnData "Bay" "com.aduneer.bay"
   !insertmacro UnData "Sash" "com.aduneer.sash"
   !insertmacro UnData "Mitre" "com.aduneer.mitre"
+  !insertmacro UnData "Sill" "com.aduneer.sill"
 SectionEnd
 
 !insertmacro MUI_UNFUNCTION_DESCRIPTION_BEGIN

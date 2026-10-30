@@ -124,12 +124,12 @@ you make them, to `%APPDATA%\Mitre\settings.json`:
 
 ## Part of Mullion
 
-Mitre is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
-[Oriel](../oriel/README.md), the dashboard for your second screen,
+Mitre is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
+desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
 [Lintel](../lintel/README.md), the menu bar, [Fanlight](../fanlight/README.md), search and launch,
-[Bay](../bay/README.md), every window at once, and [Sash](../sash/README.md), windows snapped from
-the keyboard. They share their themes, and Mullion's installer installs any of them in one go.
-Each is still its own program, which works alone.
+[Bay](../bay/README.md), every window at once, [Sash](../sash/README.md), windows snapped from the
+keyboard, and [Sill](../sill/README.md), the dock. They share their themes, and Mullion's installer
+installs any of them in one go. Each is still its own program, which works alone.
 
 ## FAQ
 

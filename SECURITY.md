@@ -18,6 +18,7 @@ Each app lists exactly what it reads, keeps and can do in its own SECURITY.md:
 - [Bay](apps/bay/SECURITY.md)
 - [Sash](apps/sash/SECURITY.md)
 - [Mitre](apps/mitre/SECURITY.md)
+- [Sill](apps/sill/SECURITY.md), which hides Windows' taskbar and hosts the notification area
 
 The apps share code (`core/`), not data: each keeps its own files in its own folder under
 `%APPDATA%`, and none of them reads another's.
@@ -55,4 +56,5 @@ The apps share code (`core/`), not data: each keeps its own files in its own fol
 one Start menu entry, one entry in Installed apps and, if you leave it ticked, one sign-in entry.
 If an app you tick is also installed on its own, it asks before running that copy's uninstaller.
 Its uninstaller removes all of that, and the apps' settings only if you tick that box and the app
-isn't still installed on its own.
+isn't still installed on its own. Before it removes Sill, it runs `sill.exe --restore-taskbar`,
+which shows Windows' taskbar again if a Sill that hid it didn't get to.

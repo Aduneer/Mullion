@@ -1,7 +1,7 @@
-//! The desktop wallpaper behind the bar, for its glass look: the bar paints a blurred copy of the
-//! part of the wallpaper it covers (ui/bar.js), because Windows only blurs behind windows that have
-//! the focus, and the bar never does. Since the bar reserves its strip of the screen, nothing but
-//! the wallpaper is ever behind it.
+//! The desktop wallpaper behind Lintel's bar or Sill's dock, for their glass look: each paints a
+//! blurred copy of the part of the wallpaper it covers (their ui/), because Windows only blurs
+//! behind windows that have the focus, and neither ever does. Since each reserves its strip of the
+//! screen, nothing but the wallpaper is ever behind it.
 
 use base64::Engine;
 use serde::Serialize;
@@ -90,11 +90,12 @@ fn position_name(n: i32) -> &'static str {
 }
 
 /// The picture as a data: URL the page can draw, kept until the wallpaper changes.
+#[derive(Default)]
 pub struct Image(Mutex<Option<(String, Option<String>)>>);
 
 impl Image {
     pub fn new() -> Self {
-        Image(Mutex::new(None))
+        Self::default()
     }
 
     pub fn get(&self, key: &str, path: Option<&str>) -> Option<String> {
