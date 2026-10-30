@@ -29,4 +29,7 @@
 <rect x="848.4" y="380" width="65" height="40" rx="10" fill="#ffffff" stroke="rgba(28,27,25,0.12)"/>
 <rect x="862.4" y="393" width="14" height="14" rx="4" fill="#2f5d8c"/>
 <text x="884.4" y="406" font-size="16" fill="#1c1b19" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Bay</text>
+<rect x="925.1999999999999" y="380" width="74" height="40" rx="10" fill="#ffffff" stroke="rgba(28,27,25,0.12)"/>
+<rect x="939.1999999999999" y="393" width="14" height="14" rx="4" fill="#6b4c8a"/>
+<text x="961.1999999999999" y="406" font-size="16" fill="#1c1b19" font-family="Segoe UI Variable Text, Segoe UI, system-ui, -apple-system, sans-serif">Sash</text>
 </svg>

@@ -24,6 +24,7 @@ pub const APPS: &[App] = &[
     App { name: "Lintel", exe: "lintel", about: "A menu bar along the top of the screen", shows: false },
     App { name: "Fanlight", exe: "fanlight", about: "Search and launch on Alt+Space", shows: true },
     App { name: "Bay", exe: "bay", about: "Every open window at once, on Win+Ctrl+Up", shows: true },
+    App { name: "Sash", exe: "sash", about: "Windows snapped into place, on Ctrl+Alt+arrows", shows: true },
 ];
 
 /// Mullion started this app: Mullion has the tray icon and the sign-in entry.

@@ -254,7 +254,7 @@ occurrences) work in any time zone Windows knows, and times show in your PC's ow
 
 Oriel is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows
 desktop, with [Lintel](../lintel/README.md), the menu bar, [Fanlight](../fanlight/README.md),
-search and launch, and [Bay](../bay/README.md), every window at once. They share their themes, and Mullion's installer installs any of them in one
+search and launch, [Bay](../bay/README.md), every window at once, and [Sash](../sash/README.md), windows snapped from the keyboard. They share their themes, and Mullion's installer installs any of them in one
 go. Each is still its own program, which works alone.
 
 ## FAQ

@@ -1,0 +1,15 @@
+/* Sash's note: one line at the bottom of the screen saying why a window didn't move. Its window
+   is sized to it, and goes by itself. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--surface-hi); overflow: hidden; }
+body {
+  color: var(--ink);
+  font: 14px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+#note { display: inline-flex; align-items: center; gap: 12px; max-width: 520px; padding: 12px 18px 12px 14px; }
+#note img { width: 24px; height: 24px; flex: none; }
+#note p { text-wrap: pretty; }

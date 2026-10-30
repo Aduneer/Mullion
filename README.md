@@ -18,7 +18,8 @@
 
 Mullion is a set of small apps for Windows, each named after a part of a window (a mullion is the
 bar between two panes). A menu bar, a search field, a dashboard for your second screen, every
-window at once: the parts a desktop is missing, made to feel like they came with it.
+window at once, windows that snap into place: the parts a desktop is missing, made to feel like
+they came with it.
 
 - **Take what you want.** Each app is its own program. Install one or all of them, quit any of
   them, and the rest carry on.
@@ -64,6 +65,18 @@ drag it to another screen. [More about Bay](apps/bay/README.md)
   <img alt="Bay open over a desktop: windows in a grid over the blurred wallpaper, each with its icon and title below it, one of them selected" src="apps/bay/docs/images/overview-dark.png">
 </picture>
 
+### <img src="apps/sash/assets/sash.svg" width="32" align="top" alt=""> Sash
+
+**Windows snapped into place, on <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + arrows.** The window in front
+takes half the screen, then two-thirds or a third if you press again, or a quarter, meeting the
+next one exactly. Maximize it, centre it, or send it to your other screen, all from the keyboard.
+[More about Sash](apps/sash/README.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="apps/sash/docs/images/snapped-light.png">
+  <img alt="A desktop with three windows snapped by Sash: a code editor on the left half, a browser on the top-right quarter and a terminal below it, and Ctrl + Alt + ← shown as just pressed" src="apps/sash/docs/images/snapped-dark.png">
+</picture>
+
 ### <img src="apps/oriel/assets/oriel.svg" width="32" align="top" alt=""> Oriel
 
 **A dashboard for your second screen.** CPU, GPU, memory, network, disks and processes, plus
@@ -75,7 +88,7 @@ across the desk. Arrange it as you like, over as many pages as you want. [More a
   <img alt="Oriel full screen on its Desk page: the weather, the calendar, now playing, gauges for CPU, GPU and memory, the volume mixer and the open windows" src="apps/oriel/docs/images/widgets-dark.png">
 </picture>
 
-More are on the way: a dock, hot corners and window snapping.
+More are on the way: a dock and hot corners.
 
 ## Install
 

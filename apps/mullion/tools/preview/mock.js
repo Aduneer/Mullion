@@ -25,6 +25,7 @@
     ["Lintel", "A menu bar along the top of the screen", false],
     ["Fanlight", "Search and launch on Alt+Space", true],
     ["Bay", "Every open window at once, on Win+Ctrl+Up", true],
+    ["Sash", "Windows snapped into place, on Ctrl+Alt+arrows", true],
   ];
   const apps = icons => APPS.map(([name, about, shows]) => {
     const installed = !missing.has(name), on = !off.has(name);

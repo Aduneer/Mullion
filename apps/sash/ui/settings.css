@@ -1,0 +1,66 @@
+/* Sash's settings window. The controls look as they do in the other apps' settings. Colors are
+   tokens from themes.css, shared with every app. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+button, select { font: inherit; color: inherit; background: none; border: 0; cursor: default; text-align: left; }
+:focus { outline: none; }
+
+html, body { background: var(--page); }
+body {
+  color: var(--ink);
+  font: 14px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--baseline) transparent;
+}
+
+#page { --ease: cubic-bezier(0.3, 0.7, 0.2, 1); max-width: 640px; margin: 0 auto; padding: 22px 24px 20px; }
+header { display: flex; align-items: center; gap: 16px; padding-bottom: 6px; }
+.logo { width: 56px; height: 56px; flex: none; }
+.logo img { width: 100%; height: 100%; }
+h1 { font: 600 26px/1.1 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; letter-spacing: -0.5px; }
+header p { color: var(--muted); font-size: 13px; padding-top: 3px; }
+h3 { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; color: var(--muted); padding: 18px 0 8px; }
+
+.set { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.set:last-of-type { border-bottom: 0; }
+.set .label { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.set .label small { color: var(--muted); font-size: 12px; }
+.set .err { color: var(--crit); }
+
+select { height: 30px; padding: 0 10px; border-radius: 7px; background: var(--surface-hi); border: 1px solid var(--border); }
+.btn { height: 30px; padding: 0 14px; border-radius: 7px; background: var(--surface-hi); border: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.danger:hover { border-color: var(--crit); color: var(--crit); }
+select:focus-visible, .btn:focus-visible, .switch:focus-visible, .seg button:focus-visible, .swatch:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.switch { position: relative; width: 38px; height: 22px; flex: none; border-radius: 11px; background: var(--baseline); border: 1px solid transparent; transition: background 0.15s; }
+.switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform 0.15s var(--ease); }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(16px); }
+
+.seg { display: inline-flex; flex: none; padding: 2px; border-radius: 8px; background: var(--surface-hi); border: 1px solid var(--border); }
+.seg button { padding: 3px 12px; border-radius: 6px; border: 1px solid transparent; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; padding: 2px; background-clip: content-box; }
+.swatch[aria-pressed="true"] { border-color: var(--accent); }
+
+kbd { font: inherit; font-size: 12px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-hi); }
+.about { color: var(--muted); font-size: 12px; padding-top: 18px; line-height: 1.6; user-select: text; -webkit-user-select: text; }
+
+@media (prefers-reduced-motion: reduce) {
+  .switch, .switch::after { transition: none; }
+}
+
+/* A shortcut: shows its keys, and listens for new ones when clicked. */
+.keys { min-width: 150px; height: 30px; padding: 0 10px; border-radius: 7px; background: var(--surface-hi); border: 1px solid var(--border); text-align: center; white-space: nowrap; color: var(--ink); }
+.keys:hover, .keys:focus-visible { border-color: var(--accent); }
+.keys.none { color: var(--muted); }
+.keys.listening { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.keys kbd { margin: 0 1px; }
+.set .warn { color: var(--muted); }
+.hint { color: var(--muted); font-size: 12px; padding: 4px 0 2px; line-height: 1.5; }

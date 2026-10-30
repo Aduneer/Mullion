@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The settings window and the note Sash shows when it can't move a window: events and app commands only.",
+  "windows": ["settings", "note"],
+  "permissions": ["core:default"]
+}

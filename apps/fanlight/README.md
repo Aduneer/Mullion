@@ -187,7 +187,7 @@ settings do:
 
 Fanlight is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
 [Oriel](../oriel/README.md), the dashboard for your second screen,
-[Lintel](../lintel/README.md), the menu bar, and [Bay](../bay/README.md), every window at once.
+[Lintel](../lintel/README.md), the menu bar, [Bay](../bay/README.md), every window at once, and [Sash](../sash/README.md), windows snapped from the keyboard.
 They share their themes, and Mullion's
 installer installs any of them in one go. Each is still its own program, which works alone.
 

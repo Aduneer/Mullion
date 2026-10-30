@@ -3055,6 +3055,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sash"
+version = "0.4.1"
+dependencies = [
+ "base64 0.23.1",
+ "mullion-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-single-instance",
+]
+
+[[package]]
 name = "schemars"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"

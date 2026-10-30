@@ -147,8 +147,8 @@ To uninstall, go to **Settings → Apps → Installed apps → Bay**. Tick
 
 Bay is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rework the Windows desktop, with
 [Oriel](../oriel/README.md), the dashboard for your second screen,
-[Lintel](../lintel/README.md), the menu bar, and [Fanlight](../fanlight/README.md), search and
-launch. They share their themes, and Mullion's installer installs any of them in one go. Each is
+[Lintel](../lintel/README.md), the menu bar, [Fanlight](../fanlight/README.md), search and
+launch, and [Sash](../sash/README.md), windows snapped from the keyboard. They share their themes, and Mullion's installer installs any of them in one go. Each is
 still its own program, which works alone.
 
 ## FAQ

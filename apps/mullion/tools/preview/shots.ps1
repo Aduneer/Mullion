@@ -57,7 +57,7 @@ if ($Installer) {
     $out = (Resolve-Path (Join-Path $root "..\..\installer")).Path
     $url = { param($path) ([Uri]$path).AbsoluteUri }
     $logo = & $url (Join-Path $root "assets\mullion.svg")
-    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
+    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay", "sash") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
     $fonts = "'Segoe UI Variable Display','Segoe UI',sans-serif"
     # Drawn at four times the size and scaled down, so the edges stay smooth.
     $S = 4
@@ -66,7 +66,7 @@ if ($Installer) {
         # with the apps' colours along the top and their logos along the bottom.
         "sidebar" = @{ w = 164; h = 314; css =
             "body{background:#161513;color:#f0efec;font-family:$fonts;text-align:center}" +
-            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 25%,#b84d35 25% 50%,#dd9d2c 50% 75%,#2f5d8c 75%)}" +
+            "body:before{content:'';display:block;height:5px;background:linear-gradient(90deg,#2e6e60 20%,#b84d35 20% 40%,#dd9d2c 40% 60%,#2f5d8c 60% 80%,#6b4c8a 80%)}" +
             ".logo{display:block;width:64px;height:64px;margin:62px auto 16px}" +
             "h1{margin:0 0 9px;font-weight:600;font-size:32px;line-height:1;letter-spacing:-.6px}" +
             "p{margin:0 auto;width:124px;font-size:11.5px;line-height:1.4;color:#b8b5ad}" +

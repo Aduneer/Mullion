@@ -177,8 +177,16 @@ pub const MOD_CONTROL: u32 = 0x0002;
 pub const MOD_SHIFT: u32 = 0x0004;
 pub const MOD_WIN: u32 = 0x0008;
 pub const MOD_NOREPEAT: u32 = 0x4000;
+pub const VK_BACK: u16 = 0x08;
 pub const VK_TAB: u16 = 0x09;
+pub const VK_RETURN: u16 = 0x0D;
 pub const VK_SPACE: u16 = 0x20;
+pub const VK_PRIOR: u16 = 0x21;
+pub const VK_NEXT: u16 = 0x22;
+pub const VK_END: u16 = 0x23;
+pub const VK_HOME: u16 = 0x24;
+pub const VK_INSERT: u16 = 0x2D;
+pub const VK_DELETE: u16 = 0x2E;
 pub const VK_LEFT: u16 = 0x25;
 pub const VK_UP: u16 = 0x26;
 pub const VK_RIGHT: u16 = 0x27;
@@ -258,6 +266,12 @@ pub struct INPUT {
 }
 
 pub type WNDENUMPROC = unsafe extern "system" fn(hwnd: isize, lparam: isize) -> i32;
+pub type MONITORENUMPROC = unsafe extern "system" fn(monitor: isize, dc: isize, rect: *mut RECT, lparam: isize) -> i32;
+
+pub const SWP_NOSIZE: u32 = 0x0001;
+pub const SWP_NOMOVE: u32 = 0x0002;
+pub const SWP_NOZORDER: u32 = 0x0004;
+pub const SWP_NOACTIVATE: u32 = 0x0010;
 
 #[link(name = "user32", kind = "raw-dylib")]
 extern "system" {
@@ -279,6 +293,9 @@ extern "system" {
     pub fn MonitorFromWindow(hwnd: isize, flags: u32) -> isize;
     pub fn GetMonitorInfoW(monitor: isize, info: *mut MONITORINFO) -> i32;
     pub fn GetWindowRect(hwnd: isize, rect: *mut RECT) -> i32;
+    pub fn SetWindowPos(hwnd: isize, after: isize, x: i32, y: i32, cx: i32, cy: i32, flags: u32) -> i32;
+    pub fn IsZoomed(hwnd: isize) -> i32;
+    pub fn EnumDisplayMonitors(dc: isize, clip: *const RECT, proc_: MONITORENUMPROC, lparam: isize) -> i32;
     pub fn GetMessageW(msg: *mut MSG, hwnd: isize, min: u32, max: u32) -> i32;
     pub fn DispatchMessageW(msg: *const MSG) -> isize;
     pub fn LockWorkStation() -> i32;

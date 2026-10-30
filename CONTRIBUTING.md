@@ -19,6 +19,7 @@ apps/fanlight/        Fanlight: its Rust side (src-tauri/), pages (ui/), preview
 apps/lintel/          Lintel, laid out the same way
 apps/oriel/           Oriel, laid out the same way
 apps/bay/             Bay, laid out the same way
+apps/sash/            Sash, laid out the same way
 apps/mullion/         Mullion.exe: the suite's tray icon, sign-in entry and settings window (below)
 ui-common/            the page files every app shares word for word (themes.css)
 tools/                scripts every app's preview uses: icons.py, preview/demo.py and
@@ -42,7 +43,7 @@ src/settings.rs       each app's folder in %APPDATA%, the palettes, and reading 
 src/icons.rs          an icon or thumbnail from the shell, as an image a page can show
 src/wins.rs           the windows Alt+Tab would list, and bringing one to the front
 src/thumbs.rs         DWM's live thumbnails of those windows, and where each window really is
-src/hotkey.rs         a global shortcut on a thread of its own, changed without restarting
+src/hotkey.rs         global shortcuts on a thread of their own, changed without restarting
 src/power.rs          lock, sleep, sign out, restart and shut down
 src/look.rs           following the theme, Windows 11's rounded corners, the WebView2 flags
 src/suite.rs          the apps Mullion has, finding each one's exe, and the flags Mullion.exe

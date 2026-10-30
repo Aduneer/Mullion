@@ -50,8 +50,6 @@ pub const SPI_SETDESKWALLPAPER: usize = 0x0014;
 pub const WM_NCDESTROY: u32 = 0x0082;
 pub const MONITOR_DEFAULTTOPRIMARY: u32 = 1;
 pub const HWND_TOPMOST: isize = -1;
-pub const SWP_NOACTIVATE: u32 = 0x0010;
-pub const SWP_NOZORDER: u32 = 0x0004;
 
 pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
 pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
@@ -72,7 +70,6 @@ pub struct MONITORINFOEXW {
     pub szDevice: [u16; 32],
 }
 pub const MONITORINFOF_PRIMARY: u32 = 1;
-pub type MONITORENUMPROC = unsafe extern "system" fn(monitor: isize, dc: isize, rect: *mut RECT, lparam: isize) -> i32;
 
 pub type TIMERPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, id: usize, time: u32);
 pub type WINEVENTPROC = unsafe extern "system" fn(hook: isize, event: u32, hwnd: isize, object: i32, child: i32, thread: u32, time: u32);
@@ -82,8 +79,6 @@ pub type SUBCLASSPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, wparam:
 extern "system" {
     pub fn FindWindowW(class: *const u16, title: *const u16) -> isize;
     pub fn GetAncestor(hwnd: isize, flags: u32) -> isize;
-    pub fn SetWindowPos(hwnd: isize, after: isize, x: i32, y: i32, cx: i32, cy: i32, flags: u32) -> i32;
-    pub fn EnumDisplayMonitors(dc: isize, clip: *const RECT, proc_: MONITORENUMPROC, lparam: isize) -> i32;
     pub fn GetDpiForWindow(hwnd: isize) -> u32;
     pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
     pub fn KillTimer(hwnd: isize, id: usize) -> i32;
