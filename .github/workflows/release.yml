@@ -162,7 +162,8 @@ jobs:
           # app and start Mullion again.
           Start-Process "$dir/mullion.exe" -ArgumentList "--sign-in"
           Start-Sleep -Seconds 10
-          Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S", "/update" -Wait
+          # Waits for the installer alone: -Wait would also wait for the Mullion it starts, for ever.
+          (Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S", "/update" -PassThru).WaitForExit()
           Start-Sleep -Seconds 15
           foreach ($a in $apps) {
             if (-not (Test-Path "$dir/$a.exe")) { throw "The update lost $a.exe" }
