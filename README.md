@@ -24,7 +24,7 @@ they came with it.
 - **Take what you want.** Each app is its own program. Install one or all of them, quit any of
   them, and the rest carry on.
 - **One desktop.** They share six palettes, each in dark and light, solid or glass, and follow
-  Windows' own light or dark if you like.
+  Windows' own light or dark if you like. Give each app its own look, or one look to them all.
 - **Private.** No accounts and no telemetry. Nothing goes online but Oriel's weather and calendar,
   only once you add them, and Mullion's check for updates, once a day, which you can turn off.
 - **Small.** Rust and the WebView2 that Windows already has, so each app's installer is under
@@ -111,6 +111,10 @@ README says what to do.
 Installed together, the apps share one icon in the notification area, one entry in Installed apps
 and one sign-in entry, instead of one of each per app. Click the icon for Mullion Settings: turn
 each app on or off, and open each one's own settings.
+
+**Same look for every app** gives them all one theme, palette and glass, set in Mullion Settings
+and changed in every running app at once. Each app's own look stays in its settings, and comes
+back when you turn it off.
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="apps/mullion/docs/images/settings-light.png">

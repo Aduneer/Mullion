@@ -501,7 +501,9 @@ listen("open", () => {
   if (input.value) run(input.value);
 });
 listen("view", v => { if (v === "settings") showSettings(); });
-listen("settings", s => { settings = s; applyTheme(); drawCats(); });
+listen("settings", s => { settings = s; applyTheme(); drawCats(); if (view === "settings") drawSettings(); });
+// Mullion's look for every app went on or off; "settings" follows with what to show.
+listen("look", shared => { if (hello) hello.shared_look = shared; });
 window.addEventListener("focus", () => { if (view === "search") input.focus(); });
 
 // --- size ---------------------------------------------------------------------------------
@@ -550,9 +552,11 @@ function drawSettings(error = hello.hotkey_error) {
     ${setRow("Open Fanlight with", error ? `<span class="err">${esc(error)}</span>` : hello.mullion ? "Or from Mullion’s icon in the notification area" : "Or click its icon in the notification area",
       `<select data-set="hotkey">${hello.hotkeys.map(h => opt(h, label(h), s.hotkey)).join("")}</select>`)}
     <h3>LOOK</h3>
-    ${setRow("Theme", "", `<div class="seg">${["auto", "dark", "light"].map(t => `<button data-theme="${t}" aria-pressed="${s.theme === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div>`)}
-    ${setRow("Palette", PALETTES.find(p => p[0] === s.palette)?.[1] ?? "", `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)}
-    ${setRow("Glass", "See what’s behind the panel, blurred", sw("glass", s.glass))}
+    ${hello.shared_look
+      ? setRow("Theme, palette and glass", "Mullion Settings sets the look for every app", "")
+      : setRow("Theme", "", `<div class="seg">${["auto", "dark", "light"].map(t => `<button data-theme="${t}" aria-pressed="${s.theme === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div>`)
+        + setRow("Palette", PALETTES.find(p => p[0] === s.palette)?.[1] ?? "", `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)
+        + setRow("Glass", "See what’s behind the panel, blurred", sw("glass", s.glass))}
     <h3>SEARCH</h3>
     ${setRow("Files and folders", `${hello.files.toLocaleString()} in the index: Desktop, Documents, Downloads, Pictures, Music, Videos`, sw("files", s.files))}
     <div class="folders">${s.folders.map((f, i) => `<div class="folder"><span>${esc(f)}</span><button class="x" data-remove="${i}" title="Stop searching this folder">${GLYPHS.x}</button></div>`).join("")}</div>

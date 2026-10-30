@@ -30,13 +30,24 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};
 const svg = body => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
 const APP_GLYPH = svg(`<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M4 9h16"/>`);
 
-// Windows' own light or dark, in the default palette.
+let hello = null, apps = [], error = "";
+
+// Windows' own light or dark, in the default palette; or the look for every app, while it's on.
 const dark = matchMedia("(prefers-color-scheme: dark)");
-const applyTheme = () => { document.documentElement.dataset.mode = dark.matches ? "dark" : "light"; };
+const applyTheme = () => {
+  const l = hello?.look?.on ? hello.look : { theme: "auto", palette: "oriel" };
+  const root = document.documentElement;
+  root.dataset.palette = l.palette;
+  root.dataset.mode = l.theme === "auto" ? (dark.matches ? "dark" : "light") : l.theme;
+};
 dark.addEventListener("change", applyTheme);
 applyTheme();
 
-let hello = null, apps = [], error = "";
+const PALETTES = [
+  ["oriel", "Default", "#3987e5"], ["catppuccin", "Catppuccin", "#cba6f7"], ["nord", "Nord", "#88c0d0"],
+  ["gruvbox", "Gruvbox", "#8ec07c"], ["rose-pine", "Rosé Pine", "#c4a7e7"], ["solarized", "Solarized", "#2aa198"],
+];
+
 const icons = {};
 // The apps turned off in the welcome, until Start.
 const off = new Set();
@@ -132,6 +143,31 @@ function drawWelcome() {
   $("first").innerHTML = autostartSet() + updatesSet();
 }
 
+const seg = (key, options, current) => `<div class="seg">${options.map(([v, t]) => `<button data-${key}="${v}" aria-pressed="${current === v}">${t}</button>`).join("")}</div>`;
+const setRow = (title, sub, control) => `<div class="set"><div class="label"><span>${title}</span>${sub ? `<small>${sub}</small>` : ""}</div>${control}</div>`;
+
+// One look for every app Mullion runs, or each app its own.
+function drawLook() {
+  const l = hello.look;
+  $("look").innerHTML = setRow("Same look for every app", l.on ? "Each app’s own look comes back when this is off" : "Each app has its own, set in its settings",
+      sw(`data-look="on"`, l.on, "Same look for every app"))
+    + (l.on ? setRow("Theme", "", seg("theme", [["auto", "Auto"], ["dark", "Dark"], ["light", "Light"]], l.theme))
+      + setRow("Palette", esc(PALETTES.find(p => p[0] === l.palette)?.[1] ?? ""), `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${l.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)
+      + setRow("Glass", "See what’s behind Lintel’s bar and Fanlight’s panel, blurred", sw(`data-look="glass"`, l.glass, "Glass")) : "");
+}
+
+$("look").addEventListener("click", async e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  const change = t.dataset.look ? { [t.dataset.look]: t.getAttribute("aria-checked") !== "true" }
+    : t.dataset.theme ? { theme: t.dataset.theme }
+    : t.dataset.palette ? { palette: t.dataset.palette } : null;
+  if (!change) return;
+  hello.look = await invoke("set_look", { look: { ...hello.look, ...change } }).catch(() => hello.look);
+  applyTheme();
+  drawLook();
+});
+
 function drawGeneral() {
   general.innerHTML = `${autostartSet()}${updatesSet()}
     <div class="set"><div class="label"><span>Quit Mullion</span><small>And the apps it runs, until you start it again</small></div>
@@ -155,7 +191,7 @@ function draw() {
   $("settings").hidden = welcome;
   $("title").textContent = welcome ? "Welcome to Mullion" : "Mullion";
   if (welcome) drawWelcome();
-  else { drawUpdate(); drawApps(); drawGeneral(); }
+  else { drawUpdate(); drawApps(); drawLook(); drawGeneral(); }
 }
 
 $("picks").addEventListener("click", e => {
@@ -229,6 +265,7 @@ async function start() {
   for (const a of apps) if (a.icon) icons[a.name] = a.icon;
   for (const a of apps) if (!a.on) off.add(a.name);
   if (hello.icon) $("logo").innerHTML = `<img src="${hello.icon}" alt="">`;
+  applyTheme();
   draw();
   invoke("ready");
   setInterval(() => { if (!document.hidden && hello.welcomed) refresh(); }, 3000);

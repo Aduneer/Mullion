@@ -19,6 +19,7 @@ mod weather;
 use mullion_core::audio::{self, AudioWatch};
 use calendar::CalendarWatch;
 use collect::{Collector, Info, Snapshot};
+use mullion_core::look;
 use mullion_core::media::{self, MediaWatch};
 use mullion_core::suite::{self, Ask};
 use serde::Serialize;
@@ -63,6 +64,8 @@ struct Hello {
     autostart: bool,
     /// Mullion started Oriel, and has its tray icon and sign-in entry.
     mullion: bool,
+    /// Mullion's look for every app stands in for Oriel's mode and palette.
+    shared_look: bool,
     settings_path: String,
 }
 
@@ -90,6 +93,7 @@ fn main() {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
                 Ask::Show => show(app),
+                Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion && !args.iter().any(|a| a == SIGN_IN) => show(app),
                 Ask::Nothing => {}
             }
@@ -139,7 +143,7 @@ fn main() {
             } else {
                 build_tray(app.handle())?;
             }
-            apply_theme(app.handle(), &settings.theme);
+            apply_theme(app.handle(), &settings.shown().theme);
             // Started by itself (at sign-in, or by Mullion without asking to show it), it opens
             // only if the settings say so; started by hand, it always does.
             let by_itself = suite::from_mullion(&args) || args.iter().any(|a| a == SIGN_IN);
@@ -205,10 +209,11 @@ fn hello(app: AppHandle, hub: State<Arc<Hub>>, settings: State<SettingsState>) -
         info: hub.info.clone(),
         interval_ms: hub.interval_ms.load(Ordering::Relaxed),
         history: hub.history.lock().unwrap().iter().cloned().collect(),
-        settings: settings.0.lock().unwrap().clone(),
+        settings: settings.0.lock().unwrap().shown(),
         monitors: app.get_webview_window("main").map(|w| monitor_list(&w)).unwrap_or_default(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
+        shared_look: look::shared().is_some(),
         settings_path: settings::path().display().to_string(),
     }
 }
@@ -222,8 +227,9 @@ fn save_settings(
     state: State<SettingsState>,
     settings: Settings,
 ) -> Result<Settings, String> {
-    let settings = settings.clamp();
-    let previous = std::mem::replace(&mut *state.0.lock().unwrap(), settings.clone());
+    let previous = state.0.lock().unwrap().clone();
+    let settings = settings.clamp().keep_look(&previous);
+    *state.0.lock().unwrap() = settings.clone();
     settings.save().map_err(|e| e.to_string())?;
     hub.interval_ms.store(settings.interval_ms, Ordering::Relaxed);
     media.set_wanted(settings.shows("media"));
@@ -232,12 +238,20 @@ fn save_settings(
     app.state::<CalendarWatch>().set_config(calendar::config(&settings));
     openwin::set_wanted(settings.shows("windows"));
     if previous.theme != settings.theme {
-        apply_theme(&app, &settings.theme);
+        apply_theme(&app, &settings.shown().theme);
     }
     if previous.monitor != settings.monitor || previous.fullscreen != settings.fullscreen {
         place_window(&app, &settings);
     }
-    Ok(settings)
+    Ok(settings.shown())
+}
+
+/// Mullion's look for every app changed, or went on or off: show what Oriel looks like now.
+fn look_again(app: &AppHandle) {
+    let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
+    apply_theme(app, &shown.theme);
+    let _ = app.emit("look", look::shared().is_some());
+    let _ = app.emit("settings", &shown);
 }
 
 #[tauri::command]

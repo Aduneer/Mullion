@@ -29,6 +29,7 @@ async function boot() {
     monitors: hello.monitors,
     autostart: hello.autostart,
     mullion: hello.mullion,
+    sharedLook: hello.shared_look,
     settingsPath: hello.settings_path,
   });
   await O.plugins.load(); // once; a no-op when the setting is off
@@ -48,6 +49,7 @@ O.applySettings = () => {
   root.dataset.palette = s.palette || "oriel";
   O.readTokens();
   themeButton(s.theme);
+  $("#themeBtn").hidden = O.state.sharedLook;
   O.settingsPanel.sync();
 
   clearInterval(shiftTimer);
@@ -342,6 +344,12 @@ document.addEventListener("visibilitychange", () => {
 // Shown again from the tray: the page got nothing while hidden, so reload history.
 listen("resync", () => boot());
 listen("open-settings", () => O.settingsPanel.open());
+// Mullion's look for every app went on or off, or changed: show it.
+listen("look", ({ payload }) => { O.state.sharedLook = payload; });
+listen("settings", ({ payload }) => {
+  O.state.settings = payload;
+  O.applySettings();
+});
 listen("autostart", ({ payload }) => {
   O.state.autostart = payload;
   O.settingsPanel.sync();

@@ -355,9 +355,11 @@ const VIEWS = {
     return `
       <div class="head">Menu Bar Settings</div>
       <div class="form">
-        <div class="field"><span>Appearance</span>${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]])}</div>
+        ${info.shared_look
+          ? `<div class="field"><span>Appearance</span><span class="muted">Set in Mullion Settings, for every app</span></div>`
+          : `<div class="field"><span>Appearance</span>${seg("theme", [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]])}</div>
         <div class="field"><span>Material</span>${seg("glass", [[false, "Solid"], [true, "Glass"]])}</div>
-        <div class="field"><span>Palette</span><div class="swatches">${PALETTES.map(([v, label]) => `<button class="swatch" title="${label}" data-palette="${v}" data-mode="${mode}" aria-pressed="${s.palette === v}" data-act="${act(save({ palette: v }))}"><span></span></button>`).join("")}</div></div>
+        <div class="field"><span>Palette</span><div class="swatches">${PALETTES.map(([v, label]) => `<button class="swatch" title="${label}" data-palette="${v}" data-mode="${mode}" aria-pressed="${s.palette === v}" data-act="${act(save({ palette: v }))}"><span></span></button>`).join("")}</div></div>`}
         ${screenSeg}
         <div class="field"><span>Position</span>${seg("edge", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]])}</div>
         <div class="field"><span>Size</span>${seg("height", [[26, "Compact"], [30, "Standard"], [36, "Large"]])}</div>
@@ -636,6 +638,8 @@ listen("sample", s => {
 });
 listen("front", f => { front = f; });
 listen("apps", a => { running = a; });
+// Mullion's look for every app went on or off; "settings" follows with what to show.
+listen("look", shared => { if (info) info.shared_look = shared; });
 listen("settings", s => {
   settings = s;
   applyTheme(s);

@@ -40,6 +40,8 @@ struct Hello {
     autostart: bool,
     /// Mullion started Bay, and has its tray icon and sign-in entry.
     mullion: bool,
+    /// Mullion's look for every app stands in for Bay's theme and palette.
+    shared_look: bool,
     icon: String,
     version: String,
     settings_path: String,
@@ -68,6 +70,7 @@ fn main() {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
                 Ask::Show => overview::open(app),
+                Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => overview::open(app),
                 Ask::Nothing => {}
             }
@@ -219,7 +222,7 @@ fn show_settings(app: &AppHandle) {
 
 #[tauri::command]
 async fn page(app: AppHandle, window: WebviewWindow) -> PageHello {
-    let s = app.state::<SettingsState>().0.lock().unwrap().clone();
+    let s = app.state::<SettingsState>().0.lock().unwrap().shown();
     PageHello { theme: s.theme, palette: s.palette, backdrop_kind: s.backdrop, screen: overview::page_hello(&app, window.label()) }
 }
 
@@ -263,11 +266,12 @@ fn desktops(app: AppHandle) {
 #[tauri::command]
 fn hello(app: AppHandle, settings: State<SettingsState>, hotkey: State<HotkeyState>) -> Hello {
     Hello {
-        settings: settings.0.lock().unwrap().clone(),
+        settings: settings.0.lock().unwrap().shown(),
         hotkey_error: hotkey.1.lock().unwrap().clone(),
         hotkeys: settings::HOTKEYS,
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
+        shared_look: look::shared().is_some(),
         icon: icon(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
@@ -282,8 +286,8 @@ fn icon() -> String {
 
 #[tauri::command]
 fn save_settings(app: AppHandle, state: State<SettingsState>, hotkey: State<HotkeyState>, settings: Settings) -> Result<Settings, String> {
-    let mut settings = settings.clamp();
     let previous = state.0.lock().unwrap().clone();
+    let mut settings = settings.clamp().keep_look(&previous);
     if previous.hotkey != settings.hotkey {
         // Only keep the new shortcut if Windows took it.
         match hotkey.0.set(&settings.hotkey) {
@@ -301,8 +305,16 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, hotkey: State<Hotk
     }
     *state.0.lock().unwrap() = settings.clone();
     settings.save().map_err(|e| e.to_string())?;
-    let _ = app.emit("settings", &settings);
-    Ok(settings)
+    let shown = settings.shown();
+    let _ = app.emit("settings", &shown);
+    Ok(shown)
+}
+
+/// Mullion's look for every app changed, or went on or off: show what Bay looks like now.
+fn look_again(app: &AppHandle) {
+    let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
+    let _ = app.emit("look", look::shared().is_some());
+    let _ = app.emit("settings", &shown);
 }
 
 #[tauri::command]

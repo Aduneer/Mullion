@@ -51,8 +51,10 @@ function draw(error = hello.hotkey_error) {
       `<select data-set="hotkey">${hello.hotkeys.map(h => opt(h, label(h), s.hotkey)).join("")}</select>`)}
     ${setRow("In the overview", "<kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>Tab</kbd> to move, <kbd>Enter</kbd> to pick, <kbd>Esc</kbd> to go back. Drag a window onto another screen to move it there", "")}
     <h3>LOOK</h3>
-    ${setRow("Theme", "", seg("theme", [["auto", "Auto"], ["dark", "Dark"], ["light", "Light"]], s.theme))}
-    ${setRow("Palette", esc(PALETTES.find(p => p[0] === s.palette)?.[1] ?? ""), `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)}
+    ${hello.shared_look
+      ? setRow("Theme and palette", "Mullion Settings sets the look for every app", "")
+      : setRow("Theme", "", seg("theme", [["auto", "Auto"], ["dark", "Dark"], ["light", "Light"]], s.theme))
+        + setRow("Palette", esc(PALETTES.find(p => p[0] === s.palette)?.[1] ?? ""), `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)}
     ${setRow("Behind the windows", s.backdrop === "wallpaper" ? "Your wallpaper, blurred and dimmed" : "The palette’s own colour", seg("backdrop", [["wallpaper", "Wallpaper"], ["plain", "Plain"]], s.backdrop))}
     <h3>WINDOWS</h3>
     ${setRow("Minimized windows", "As cards with their icon, among the others", sw(`data-set="minimized"`, s.minimized, "Minimized windows"))}
@@ -91,6 +93,10 @@ setv.addEventListener("click", async e => {
 setv.addEventListener("change", e => {
   if (e.target.dataset.set) save({ [e.target.dataset.set]: e.target.value });
 });
+
+// Mullion's look for every app changed, or went on or off.
+T.event.listen("look", e => { if (hello) hello.shared_look = e.payload; });
+T.event.listen("settings", e => { if (!hello) return; settings = e.payload; applyTheme(); draw(); });
 
 invoke("hello").then(h => {
   hello = h;

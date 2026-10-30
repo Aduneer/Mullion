@@ -13,6 +13,7 @@ mod wallpaper;
 
 use apps::Front;
 use mullion_core::audio::{self, Audio, AudioWatch};
+use mullion_core::look;
 use mullion_core::media::{self, Media, MediaWatch};
 use mullion_core::power;
 use mullion_core::suite::{self, Ask};
@@ -103,6 +104,8 @@ struct Hello {
     autostart: bool,
     /// Mullion started Lintel, and has its sign-in entry.
     mullion: bool,
+    /// Mullion's look for every app stands in for Lintel's theme, palette and glass.
+    shared_look: bool,
     /// Windows' own clock and calendar settings, for the "auto" clock and the month view.
     clock24: bool,
     /// 0 = Monday … 6 = Sunday, as Windows numbers them.
@@ -120,8 +123,10 @@ fn main() {
             if suite::from_mullion(&args) {
                 leave_to_mullion(app);
             }
-            if suite::ask(&args) == Ask::Quit {
-                quit(app.clone());
+            match suite::ask(&args) {
+                Ask::Quit => quit(app.clone()),
+                Ask::Look => look_again(app),
+                _ => {}
             }
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
@@ -157,7 +162,7 @@ fn main() {
             // Also puts it back if a Lintel that hid it didn't get to quit cleanly.
             taskbar::apply(settings.hide_taskbar);
             create_menu(app.handle())?;
-            apply_look(app.handle(), &settings);
+            apply_look(app.handle(), &settings.shown());
             let (full, backdrop, displays) = (app.handle().clone(), app.handle().clone(), app.handle().clone());
             appbar::on_events(
                 // A game or a video went fullscreen: its bar has hidden itself; so does an open menu.
@@ -259,7 +264,7 @@ fn start_sampler(app: AppHandle, media: MediaWatch, audio: AudioWatch) {
 #[tauri::command]
 fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSample>) -> Hello {
     Hello {
-        settings: settings.0.lock().unwrap().clone(),
+        settings: settings.0.lock().unwrap().shown(),
         sample: latest.0.lock().unwrap().clone(),
         front: apps::latest(),
         apps: apps::running(),
@@ -267,6 +272,7 @@ fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSam
         oriel: oriel_exe().is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
+        shared_look: look::shared().is_some(),
         clock24: ffi::reg_user_string(INTERNATIONAL, "sShortTime").is_none_or(|f| f.contains('H')),
         first_day: ffi::reg_user_string(INTERNATIONAL, "iFirstDayOfWeek").and_then(|d| d.parse().ok()).filter(|d| *d < 7).unwrap_or(0),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -277,13 +283,14 @@ fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSam
 
 #[tauri::command]
 fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<MediaWatch>, audio: State<AudioWatch>, settings: Settings) -> Result<Settings, String> {
-    let settings = settings.clamp();
-    let previous = std::mem::replace(&mut *state.0.lock().unwrap(), settings.clone());
+    let previous = state.0.lock().unwrap().clone();
+    let settings = settings.clamp().keep_look(&previous);
+    *state.0.lock().unwrap() = settings.clone();
     settings.save().map_err(|e| e.to_string())?;
     media.set_wanted(settings.media);
     audio.set_wanted(settings.volume);
     if (&previous.theme, previous.glass) != (&settings.theme, settings.glass) {
-        apply_look(&app, &settings);
+        apply_look(&app, &settings.shown());
     }
     appbar::set_layout(appbar::edge(&settings.edge), settings.thickness());
     if previous.hide_taskbar != settings.hide_taskbar {
@@ -292,8 +299,17 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     if previous.screens != settings.screens {
         sync_bars_later(&app);
     }
-    let _ = app.emit("settings", &settings);
-    Ok(settings)
+    let shown = settings.shown();
+    let _ = app.emit("settings", &shown);
+    Ok(shown)
+}
+
+/// Mullion's look for every app changed, or went on or off: show what Lintel looks like now.
+fn look_again(app: &AppHandle) {
+    let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
+    apply_look(app, &shown);
+    let _ = app.emit("look", look::shared().is_some());
+    let _ = app.emit("settings", &shown);
 }
 
 /// Mullion started Lintel, or reached the one running: Mullion's sign-in entry stands in for
@@ -698,7 +714,7 @@ fn sync_bars(app: &AppHandle) {
             .unwrap();
         let Ok(bar) = create_bar(app, &label) else { continue };
         bars.windows.lock().unwrap().push((screen.clone(), label));
-        apply_look(app, &settings);
+        apply_look(app, &settings.shown());
         let (edge, thickness) = (appbar::edge(&settings.edge), settings.thickness());
         let _ = app.run_on_main_thread(move || {
             if let Ok(hwnd) = bar.hwnd() {

@@ -47,6 +47,8 @@ struct Hello {
     autostart: bool,
     /// Mullion started Sash, and has its tray icon and sign-in entry.
     mullion: bool,
+    /// Mullion's look for every app stands in for Sash's theme and palette.
+    shared_look: bool,
     icon: String,
     version: String,
     settings_path: String,
@@ -72,6 +74,7 @@ fn main() {
             match suite::ask(&args) {
                 Ask::Quit => app.exit(0),
                 Ask::Settings | Ask::Show => show_settings(app),
+                Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => show_settings(app),
                 Ask::Nothing => {}
             }
@@ -275,8 +278,8 @@ fn show_note(app: &AppHandle, text: &str) {
 
 #[tauri::command]
 fn note_hello(settings: State<SettingsState>, note: State<NoteState>) -> NoteHello {
-    let s = settings.0.lock().unwrap();
-    NoteHello { theme: s.theme.clone(), palette: s.palette.clone(), text: note.0.lock().unwrap().1.clone(), icon: icon() }
+    let s = settings.0.lock().unwrap().shown();
+    NoteHello { theme: s.theme, palette: s.palette, text: note.0.lock().unwrap().1.clone(), icon: icon() }
 }
 
 /// The note has drawn itself, `w` by `h` CSS pixels: put it at the bottom of the screen in front,
@@ -302,12 +305,13 @@ fn note_ready(window: WebviewWindow, w: f64, h: f64) {
 #[tauri::command]
 fn hello(app: AppHandle, settings: State<SettingsState>, hotkeys: State<HotkeyState>) -> Hello {
     Hello {
-        settings: settings.0.lock().unwrap().clone(),
+        settings: settings.0.lock().unwrap().shown(),
         actions: ACTIONS,
         errors: hotkeys.1.lock().unwrap().clone(),
         gaps: settings::GAPS,
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
+        shared_look: look::shared().is_some(),
         icon: icon(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
@@ -344,8 +348,9 @@ fn set_shortcut(app: AppHandle, state: State<SettingsState>, hotkeys: State<Hotk
         s.clone()
     };
     settings.save().map_err(|e| e.to_string())?;
-    let _ = app.emit("settings", &settings);
-    Ok(settings)
+    let shown = settings.shown();
+    let _ = app.emit("settings", &shown);
+    Ok(shown)
 }
 
 /// The settings page is listening for a new shortcut: let go of Sash's own meanwhile, so it can
@@ -362,12 +367,20 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, settings: Settings
     let settings = {
         let mut s = state.0.lock().unwrap();
         let shortcuts = s.shortcuts.clone();
-        *s = Settings { shortcuts, ..settings }.clamp();
+        *s = Settings { shortcuts, ..settings }.clamp().keep_look(&s);
         s.clone()
     };
     settings.save().map_err(|e| e.to_string())?;
-    let _ = app.emit("settings", &settings);
-    Ok(settings)
+    let shown = settings.shown();
+    let _ = app.emit("settings", &shown);
+    Ok(shown)
+}
+
+/// Mullion's look for every app changed, or went on or off: show what Sash looks like now.
+fn look_again(app: &AppHandle) {
+    let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
+    let _ = app.emit("look", look::shared().is_some());
+    let _ = app.emit("settings", &shown);
 }
 
 #[tauri::command]

@@ -91,8 +91,10 @@ function draw() {
     ${setRow("Space between windows", "And around the screen’s edges", seg("gap", hello.gaps.map(g => [g, GAP_NAMES[g] ?? `${g} px`]), s.gap))}
     ${setRow("Windows’ own Snap", "<kbd>Win</kbd> + arrows, and dragging a window to an edge, are Windows’ own and work beside Sash", `<button class="btn" data-do="snap">Open its settings</button>`)}
     <h3>LOOK</h3>
-    ${setRow("Theme", "", seg("theme", [["auto", "Auto"], ["dark", "Dark"], ["light", "Light"]], s.theme))}
-    ${setRow("Palette", esc(PALETTES.find(p => p[0] === s.palette)?.[1] ?? ""), `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)}
+    ${hello.shared_look
+      ? setRow("Theme and palette", "Mullion Settings sets the look for every app", "")
+      : setRow("Theme", "", seg("theme", [["auto", "Auto"], ["dark", "Dark"], ["light", "Light"]], s.theme))
+        + setRow("Palette", esc(PALETTES.find(p => p[0] === s.palette)?.[1] ?? ""), `<div class="swatches">${PALETTES.map(([id, name, c]) => `<button class="swatch" data-palette="${id}" title="${name}" aria-label="${name}" aria-pressed="${s.palette === id}" style="background-color:${c}"></button>`).join("")}</div>`)}
     <h3>GENERAL</h3>
     ${hello.mullion
       ? setRow("Start at sign-in", "Mullion starts Sash: see Mullion Settings", "")
@@ -173,6 +175,10 @@ setv.addEventListener("click", async e => {
   }
   if (t.dataset.do === "quit") invoke("quit");
 });
+
+// Mullion's look for every app changed, or went on or off.
+T.event.listen("look", e => { if (hello) hello.shared_look = e.payload; });
+T.event.listen("settings", e => { if (!hello) return; settings = e.payload; applyTheme(); draw(); });
 
 invoke("hello").then(h => {
   hello = h;

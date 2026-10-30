@@ -54,6 +54,24 @@ impl Settings {
         write_json(&path(), self, true)
     }
 
+    /// What the pages show: these settings, with Mullion's look for every app over Sash's own
+    /// while there is one (`mullion_core::look`).
+    pub fn shown(&self) -> Self {
+        let mut s = self.clone();
+        mullion_core::look::overlay(&mut s.theme, &mut s.palette, None);
+        s
+    }
+
+    /// While Mullion's look stands in for Sash's own, a save keeps `own`'s, so it comes back
+    /// when that's turned off.
+    pub fn keep_look(mut self, own: &Settings) -> Self {
+        if mullion_core::look::shared().is_some() {
+            self.theme = own.theme.clone();
+            self.palette = own.palette.clone();
+        }
+        self
+    }
+
     /// Anything a hand-edited file got wrong goes back to its default: an action it doesn't know
     /// is dropped, one it leaves out gets its own shortcut, and a shortcut Sash can't read, or one
     /// already given to an action above it, is none.

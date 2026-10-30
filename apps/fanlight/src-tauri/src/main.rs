@@ -64,6 +64,8 @@ struct Hello {
     autostart: bool,
     /// Mullion started Fanlight, and has its tray icon and sign-in entry.
     mullion: bool,
+    /// Mullion's look for every app stands in for Fanlight's theme, palette and glass.
+    shared_look: bool,
     files: usize,
     version: String,
     settings_path: String,
@@ -82,6 +84,7 @@ fn main() {
                 Ask::Quit => app.exit(0),
                 Ask::Settings => show_settings(app),
                 Ask::Show => show(app),
+                Ask::Look => look_again(app),
                 Ask::Nothing if !from_mullion => show(app),
                 Ask::Nothing => {}
             }
@@ -118,7 +121,7 @@ fn main() {
                 let _ = handle.run_on_main_thread(move || toggle(&app));
             });
             app.manage(HotkeyState(hk, Mutex::new(first.err())));
-            apply_look(app.handle(), &settings);
+            apply_look(app.handle(), &settings.shown());
             app.manage(SettingsState(Mutex::new(settings)));
             match suite::ask(&args) {
                 Ask::Show => show(app.handle()),
@@ -314,12 +317,13 @@ fn leave_to_mullion(app: &AppHandle) {
 #[tauri::command]
 fn hello(app: AppHandle, settings: State<SettingsState>, hotkey: State<HotkeyState>, files: State<Files>) -> Hello {
     Hello {
-        settings: settings.0.lock().unwrap().clone(),
+        settings: settings.0.lock().unwrap().shown(),
         hotkey_error: hotkey.1.lock().unwrap().clone(),
         hotkeys: settings::HOTKEYS,
         engines: search::ENGINE_NAMES.iter().map(|(id, name, _)| (*id, *name)).collect(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
+        shared_look: look::shared().is_some(),
         files: files.count(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
@@ -630,8 +634,8 @@ fn save_settings(
     clipboard: State<Clipboard>,
     settings: Settings,
 ) -> Result<Settings, String> {
-    let mut settings = settings.clamp();
     let previous = state.0.lock().unwrap().clone();
+    let mut settings = settings.clamp().keep_look(&previous);
     if previous.hotkey != settings.hotkey {
         // Only keep the new shortcut if Windows took it.
         match hotkey.0.set(&settings.hotkey) {
@@ -648,7 +652,7 @@ fn save_settings(
     *state.0.lock().unwrap() = settings.clone();
     settings.save().map_err(|e| e.to_string())?;
     if (&previous.theme, previous.glass) != (&settings.theme, settings.glass) {
-        apply_look(&app, &settings);
+        apply_look(&app, &settings.shown());
     }
     if (previous.clipboard, previous.clipboard_size, previous.keep_clipboard) != (settings.clipboard, settings.clipboard_size, settings.keep_clipboard) {
         clipboard.configure(settings.clipboard, settings.clipboard_size, settings.keep_clipboard);
@@ -658,8 +662,17 @@ fn save_settings(
     } else if !previous.files || previous.folders != settings.folders {
         files.refresh(&settings.folders, true);
     }
-    let _ = app.emit("settings", &settings);
-    Ok(settings)
+    let shown = settings.shown();
+    let _ = app.emit("settings", &shown);
+    Ok(shown)
+}
+
+/// Mullion's look for every app changed, or went on or off: show what Fanlight looks like now.
+fn look_again(app: &AppHandle) {
+    let shown = app.state::<SettingsState>().0.lock().unwrap().shown();
+    apply_look(app, &shown);
+    let _ = app.emit("look", look::shared().is_some());
+    let _ = app.emit("settings", &shown);
 }
 
 #[tauri::command]

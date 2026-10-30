@@ -5,7 +5,7 @@
 const Oriel = (window.Oriel = {
   widgets: new Map(), // id -> definition, in registration order
   charts: [],         // every chart on every page, fed one sample per tick
-  state: { info: null, settings: null, interval: 1, monitors: [], autostart: false, mullion: false, settingsPath: "" },
+  state: { info: null, settings: null, interval: 1, monitors: [], autostart: false, mullion: false, sharedLook: false, settingsPath: "" },
   tokens: {},         // CSS colors, read once per theme change rather than per frame
   fontPx: 16,
 });

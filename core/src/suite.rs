@@ -38,6 +38,8 @@ pub enum Ask {
     Show,
     Settings,
     Quit,
+    /// Mullion's look for every app changed (`look::Shared`): look again.
+    Look,
 }
 
 pub fn ask(args: &[String]) -> Ask {
@@ -46,6 +48,7 @@ pub fn ask(args: &[String]) -> Ask {
             "--show" => Some(Ask::Show),
             "--settings" => Some(Ask::Settings),
             "--quit" => Some(Ask::Quit),
+            "--look" => Some(Ask::Look),
             _ => None,
         })
         .unwrap_or(Ask::Nothing)
@@ -57,6 +60,7 @@ pub fn args_for(ask: Ask) -> &'static [&'static str] {
         Ask::Show => &[RUN_BY_MULLION, "--show"],
         Ask::Settings => &[RUN_BY_MULLION, "--settings"],
         Ask::Quit => &[RUN_BY_MULLION, "--quit"],
+        Ask::Look => &[RUN_BY_MULLION, "--look"],
     }
 }
 
@@ -137,7 +141,7 @@ mod tests {
         assert_eq!(ask(&args(&["app.exe"])), Ask::Nothing);
         assert_eq!(ask(&args(&["app.exe", "--mullion", "--settings"])), Ask::Settings);
         assert_eq!(ask(&args(&["app.exe", "--quit"])), Ask::Quit);
-        for a in [Ask::Nothing, Ask::Show, Ask::Settings, Ask::Quit] {
+        for a in [Ask::Nothing, Ask::Show, Ask::Settings, Ask::Quit, Ask::Look] {
             let sent = args(&[&["app.exe"], args_for(a)].concat());
             assert_eq!(ask(&sent), a);
             assert!(sent.iter().any(|s| s == RUN_BY_MULLION));

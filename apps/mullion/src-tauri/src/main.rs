@@ -14,6 +14,7 @@
 mod settings;
 mod updates;
 
+use mullion_core::look::Shared;
 use mullion_core::suite::{self, Ask, APPS};
 use base64::Engine;
 use mullion_core::{ffi, look, net};
@@ -57,6 +58,8 @@ struct Hello {
     welcomed: bool,
     check_updates: bool,
     updates: updates::Status,
+    /// The look for every app, on or off.
+    look: Shared,
     version: String,
     settings_path: String,
 }
@@ -71,7 +74,7 @@ fn main() {
             _ => open_settings(app),
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![SIGN_IN])))
-        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, set_check_updates, check_updates, release_notes, update, ready, quit])
+        .invoke_handler(tauri::generate_handler![hello, apps, set_app, welcome, open_app, get_app, set_autostart, set_check_updates, set_look, check_updates, release_notes, update, ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Mullion running, so there's nothing to quit.
@@ -306,6 +309,7 @@ fn hello(app: AppHandle, state: State<SettingsState>) -> Hello {
         welcomed: settings.welcomed,
         check_updates: settings.check_updates,
         updates: app.state::<UpdateState>().0.lock().unwrap().clone(),
+        look: Shared::load(),
         version: env!("CARGO_PKG_VERSION").into(),
         settings_path: settings::path().display().to_string(),
     }
@@ -381,6 +385,23 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
     let on = al.is_enabled().map_err(|e| e.to_string())?;
     refresh_tray(&app);
     Ok(on)
+}
+
+/// Save the look for every app, and ask the apps Mullion runs to look again. An app running on
+/// its own isn't asked: it keeps its own look.
+#[tauri::command]
+fn set_look(state: State<SettingsState>, look: Shared) -> Result<Shared, String> {
+    let look = look.clamp();
+    look.save().map_err(|e| e.to_string())?;
+    let settings = state.0.lock().unwrap().clone();
+    std::thread::spawn(move || {
+        for a in APPS.iter().filter(|a| settings.is_on(a.name)) {
+            if let Some(exe) = suite::find_app(a).filter(|e| !suite::running(e).is_empty()) {
+                let _ = suite::send(&exe, Ask::Look);
+            }
+        }
+    });
+    Ok(look)
 }
 
 /// Turn the daily check for updates on or off. Turning it on checks straight away, unless it's

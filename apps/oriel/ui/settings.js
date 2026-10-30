@@ -89,11 +89,12 @@ function render() {
     <div class="body">
       <section data-sk="look style">
         <h3>Appearance</h3>
-        <div class="field" data-s="theme dark light auto night day color scheme windows"><span>Mode</span>
+        <div class="field" data-s="theme dark light auto night day color scheme windows palette mullion" data-shared-look><span>Mode and theme<span class="hint">Mullion Settings sets the look for every app</span></span></div>
+        <div class="field" data-s="theme dark light auto night day color scheme windows" data-own-look><span>Mode</span>
           <span class="seg" role="group" aria-label="Mode" data-seg="theme">
             <button type="button" data-v="dark">Dark</button><button type="button" data-v="light">Light</button><button type="button" data-v="auto">Auto</button>
           </span></div>
-        <div class="stack" data-s="theme palette colors colours accent">
+        <div class="stack" data-s="theme palette colors colours accent" data-own-look>
           <span>Theme</span>
           <div class="palettes" role="group" aria-label="Theme">
             ${PALETTES.map(([id, name]) => `
@@ -192,6 +193,8 @@ function render() {
 
 function syncTheme() {
   const s = S();
+  drawer().querySelectorAll("[data-own-look]").forEach(el => { el.hidden = O.state.sharedLook; });
+  drawer().querySelector("[data-shared-look]").hidden = !O.state.sharedLook;
   drawer().querySelectorAll('[data-seg="theme"] button').forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === s.theme)));
   drawer().querySelectorAll(".pal").forEach(b => {
     b.setAttribute("aria-pressed", String(b.dataset.v === (s.palette || "oriel")));
