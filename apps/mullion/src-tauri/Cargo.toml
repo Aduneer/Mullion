@@ -17,4 +17,4 @@ tauri-plugin-single-instance = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # The update's installer is checked against its release's SHA256SUMS.txt. Tauri already uses it.
-sha2 = "0.10"
+sha2 = "0.11"
