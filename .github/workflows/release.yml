@@ -106,7 +106,20 @@ jobs:
             $app = Start-Process $exe -PassThru
             Start-Sleep -Seconds 15
             if ($app.HasExited) { throw "$name quit straight after starting (exit code $($app.ExitCode))" }
-            Stop-Process -Id $app.Id
+            # Apron hides the taskbar, noting how it was in taskbar-state, and starts its guard. Ended
+            # as Task Manager would, without putting the taskbar back, the guard has to.
+            $hid = "$env:APPDATA/Apron/taskbar-state"
+            if ($name -eq "Apron") {
+              if (-not (Test-Path (Join-Path (Split-Path $exe) "apron-guard.exe"))) { throw "No apron-guard.exe beside $exe" }
+              if (-not (Test-Path $hid)) { throw "Apron didn't hide the taskbar" }
+              if (-not (Get-Process apron-guard -ErrorAction SilentlyContinue)) { throw "Apron didn't start apron-guard.exe" }
+            }
+            Stop-Process -Id $app.Id -Force
+            if ($name -eq "Apron") {
+              for ($i = 0; $i -lt 15 -and (Test-Path $hid); $i++) { Start-Sleep -Seconds 1 }
+              if (Test-Path $hid) { throw "apron-guard.exe didn't put the taskbar back after Apron was ended" }
+              Write-Host "Apron ended without putting the taskbar back; its guard did."
+            }
             Start-Process $uninstaller -ArgumentList "/S" -Wait
             for ($i = 0; $i -lt 30 -and (Test-Path $exe); $i++) { Start-Sleep -Seconds 1 }
             if (Test-Path $exe) { throw "The uninstaller left $exe behind" }

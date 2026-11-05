@@ -299,6 +299,7 @@ extern "system" {
     pub fn IsIconic(hwnd: isize) -> i32;
     pub fn GetWindow(hwnd: isize, cmd: u32) -> isize;
     pub fn GetWindowLongW(hwnd: isize, index: i32) -> i32;
+    pub fn SetWindowLongW(hwnd: isize, index: i32, value: i32) -> i32;
     pub fn GetWindowTextW(hwnd: isize, buf: *mut u16, max: i32) -> i32;
     pub fn GetClassNameW(hwnd: isize, buf: *mut u16, max: i32) -> i32;
     pub fn GetWindowThreadProcessId(hwnd: isize, pid: *mut u32) -> u32;
@@ -328,6 +329,22 @@ extern "system" {
     pub fn SetTimer(hwnd: isize, id: usize, ms: u32, proc_: TIMERPROC) -> usize;
     pub fn KillTimer(hwnd: isize, id: usize) -> i32;
     pub fn SetWinEventHook(min: u32, max: u32, module: isize, proc_: WINEVENTPROC, pid: u32, thread: u32, flags: u32) -> isize;
+}
+
+pub const WM_STYLECHANGING: u32 = 0x007C;
+
+#[repr(C)]
+pub struct STYLESTRUCT {
+    pub styleOld: u32,
+    pub styleNew: u32,
+}
+
+pub type SUBCLASSPROC = unsafe extern "system" fn(hwnd: isize, msg: u32, wparam: usize, lparam: isize, id: usize, data: usize) -> isize;
+
+#[link(name = "comctl32", kind = "raw-dylib")]
+extern "system" {
+    pub fn SetWindowSubclass(hwnd: isize, proc_: SUBCLASSPROC, id: usize, data: usize) -> i32;
+    pub fn DefSubclassProc(hwnd: isize, msg: u32, wparam: usize, lparam: isize) -> isize;
 }
 
 #[link(name = "dwmapi", kind = "raw-dylib")]

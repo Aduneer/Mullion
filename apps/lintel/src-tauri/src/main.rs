@@ -751,6 +751,7 @@ fn create_bar(app: &AppHandle, label: &str) -> tauri::Result<WebviewWindow> {
         .background_color(Color(0x0d, 0x0d, 0x0d, 255))
         .additional_browser_args(BROWSER_ARGS)
         .build()
+        .inspect(mullion_core::wins::keep_out_of_alt_tab)
 }
 
 fn create_menu(app: &AppHandle) -> tauri::Result<WebviewWindow> {
@@ -768,6 +769,7 @@ fn create_menu(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .background_color(Color(0, 0, 0, 0))
         .additional_browser_args(BROWSER_ARGS)
         .build()
+        .inspect(mullion_core::wins::keep_out_of_alt_tab)
 }
 
 /// The windows follow the theme: their native frame, and the bar's blank frame before its page

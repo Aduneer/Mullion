@@ -434,6 +434,7 @@ fn create_dock(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .background_color(Color(0, 0, 0, 0))
         .additional_browser_args(look::BROWSER_ARGS)
         .build()
+        .inspect(mullion_core::wins::keep_out_of_alt_tab)
 }
 
 /// The settings window: made when it opens and dropped when it closes.

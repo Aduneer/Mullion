@@ -4,7 +4,8 @@
   "mainBinaryName": "apron",
   "identifier": "com.aduneer.apron",
   "build": {
-    "frontendDist": "../ui"
+    "frontendDist": "../ui",
+    "beforeBundleCommand": "cargo build --release -p apron --bin apron-guard"
   },
   "app": {
     "withGlobalTauri": true,

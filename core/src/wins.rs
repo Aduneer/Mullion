@@ -149,6 +149,30 @@ pub fn close(hwnd: isize, pid: u32) -> Result<(), String> {
     Ok(())
 }
 
+/// Keep one of our own windows (a bar, a dock, a pop-up) out of Alt+Tab for good. Tauri marks every
+/// window it makes as an app window, which Alt+Tab lists, and writes that back each time it shows,
+/// hides or restyles one; `skip_taskbar` only takes the taskbar button away. So this sits in front
+/// of the window and turns each change of its extended style into a tool window's. Call it before
+/// the window is first shown.
+pub fn keep_out_of_alt_tab(window: &tauri::WebviewWindow) {
+    let Ok(hwnd) = window.hwnd() else { return };
+    let hwnd = hwnd.0 as isize;
+    // Only the window's own thread may sit in front of it.
+    let _ = window.run_on_main_thread(move || unsafe {
+        SetWindowSubclass(hwnd, tool_window_only, 0, 0);
+        let ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+        SetWindowLongW(hwnd, GWL_EXSTYLE, (ex & !WS_EX_APPWINDOW | WS_EX_TOOLWINDOW) as i32);
+    });
+}
+
+unsafe extern "system" fn tool_window_only(hwnd: isize, msg: u32, wparam: usize, lparam: isize, _id: usize, _data: usize) -> isize {
+    if msg == WM_STYLECHANGING && wparam as i32 == GWL_EXSTYLE {
+        let style = &mut *(lparam as *mut STYLESTRUCT);
+        style.styleNew = style.styleNew & !WS_EX_APPWINDOW | WS_EX_TOOLWINDOW;
+    }
+    DefSubclassProc(hwnd, msg, wparam, lparam)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

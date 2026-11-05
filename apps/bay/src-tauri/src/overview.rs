@@ -225,6 +225,7 @@ fn make_window(app: &AppHandle, label: &str) -> tauri::Result<tauri::WebviewWind
         .background_color(Color(13, 13, 13, 255))
         .additional_browser_args(look::BROWSER_ARGS)
         .build()
+        .inspect(mullion_core::wins::keep_out_of_alt_tab)
 }
 
 /// Which screen a window is on (the one with most of it).

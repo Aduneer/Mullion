@@ -260,7 +260,8 @@ fn show_note(app: &AppHandle, text: &str) {
             .focused(false)
             .background_color(Color(13, 13, 13, 255))
             .additional_browser_args(look::BROWSER_ARGS)
-            .build();
+            .build()
+            .inspect(mullion_core::wins::keep_out_of_alt_tab);
     }
     let app = app.clone();
     std::thread::spawn(move || {
