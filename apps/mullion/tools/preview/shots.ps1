@@ -57,7 +57,7 @@ if ($Installer) {
     $out = (Resolve-Path (Join-Path $root "..\..\installer")).Path
     $url = { param($path) ([Uri]$path).AbsoluteUri }
     $logo = & $url (Join-Path $root "assets\mullion.svg")
-    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay", "sash", "mitre", "sill") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
+    $tiles = foreach ($a in "oriel", "lintel", "fanlight", "bay", "sash", "mitre", "apron") { "<img src=`"$(& $url (Join-Path $apps "$a\assets\$a.svg"))`">" }
     $fonts = "'Segoe UI Variable Display','Segoe UI',sans-serif"
     # Drawn at four times the size and scaled down, so the edges stay smooth.
     $S = 4

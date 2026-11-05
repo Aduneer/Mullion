@@ -1,5 +1,5 @@
 //! The app in front, for Lintel's app name and app menu; the running apps, for Lintel's row of
-//! app icons and Sill's dock; and acting on their windows.
+//! app icons and Apron's dock; and acting on their windows.
 //!
 //! Windows says when the foreground window changes and when windows come and go (WinEvent hooks),
 //! so nothing is polled: the hooks run on a thread of its own that just waits for messages. The

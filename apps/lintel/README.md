@@ -164,10 +164,10 @@ Lintel is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which rew
 desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
 [Fanlight](../fanlight/README.md), search and launch, [Bay](../bay/README.md), every window at
 once, [Sash](../sash/README.md), windows snapped from the keyboard, [Mitre](../mitre/README.md),
-hot corners, and [Sill](../sill/README.md), the dock. They share their themes, and Mullion's
+hot corners, and [Apron](../apron/README.md), the dock. They share their themes, and Mullion's
 installer installs any of them in one go. Each is still its own program, which works alone. If
-Oriel is installed, the logo menu has a shortcut to it. When Mullion runs Sill too, your open apps
-are in Sill's dock, so Lintel's bar leaves them out until you tick **Open apps** under **Show in
+Oriel is installed, the logo menu has a shortcut to it. When Mullion runs Apron too, your open apps
+are in Apron's dock, so Lintel's bar leaves them out until you tick **Open apps** under **Show in
 the bar**.
 
 ## FAQ

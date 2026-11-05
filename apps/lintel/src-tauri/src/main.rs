@@ -303,7 +303,7 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     Ok(shown)
 }
 
-/// Mullion's look for every app changed, or went on or off, or Mullion started or stopped Sill
+/// Mullion's look for every app changed, or went on or off, or Mullion started or stopped Apron
 /// (which the open apps follow): show what Lintel looks like now.
 fn look_again(app: &AppHandle) {
     let shown = app.state::<SettingsState>().0.lock().unwrap().shown();

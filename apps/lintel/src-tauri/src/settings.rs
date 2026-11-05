@@ -28,7 +28,7 @@ pub struct Settings {
     /// The date beside the time.
     pub date: bool,
     /// The running apps' icons, in the middle of the bar, as a taskbar shows them. Unset until
-    /// it's switched: then on, unless Mullion runs Sill, whose dock shows them (`apps_default`).
+    /// it's switched: then on, unless Mullion runs Apron, whose dock shows them (`apps_default`).
     /// What's shown to the page and its menus is always set (`shown`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apps: Option<bool>,
@@ -76,10 +76,10 @@ impl Default for Settings {
     }
 }
 
-/// The open apps are on, unless Mullion runs Sill too: its dock has them, and two rows of the
+/// The open apps are on, unless Mullion runs Apron too: its dock has them, and two rows of the
 /// same icons would be one too many.
 pub fn apps_default() -> bool {
-    !mullion_core::suite::runs("Sill")
+    !mullion_core::suite::runs("Apron")
 }
 
 pub fn path() -> PathBuf {
@@ -113,7 +113,7 @@ impl Settings {
     }
 
     /// A save from the page sends every setting as it was shown; the open apps stay unset unless
-    /// they were switched, so they keep following Sill.
+    /// they were switched, so they keep following Apron.
     pub fn keep_defaults(mut self, own: &Settings) -> Self {
         if own.apps.is_none() && self.apps == Some(apps_default()) {
             self.apps = None;
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn open_apps_follow_sill_until_switched() {
+    fn open_apps_follow_apron_until_switched() {
         // Run on its own (as tests are), the default is on.
         let s = Settings::default();
         assert_eq!((s.apps, s.shown().apps), (None, Some(true)));

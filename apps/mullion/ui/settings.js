@@ -63,7 +63,7 @@ const FIRST = {
   Bay: "Press Win+Ctrl+↑ to see every window",
   Sash: "Press Ctrl+Alt+← to snap a window to the left half",
   Mitre: "Open its settings to give each corner of your screens something to do",
-  Sill: "Takes the taskbar’s place at once; Quit Sill gives it back",
+  Apron: "Takes the taskbar’s place at once; Quit Apron gives it back",
 };
 
 const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} aria-checked="${on}" aria-label="${esc(label)}"></button>`;

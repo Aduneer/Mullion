@@ -89,16 +89,16 @@ it opened. [More about Mitre](apps/mitre/README.md)
   <img alt="Mitre Settings: two screens side by side, the main one picked, with a menu at each of its corners: Every window (Bay) top left, Desktop bottom left, Apps (Fanlight) bottom right" src="apps/mitre/docs/images/settings-dark.png" width="560">
 </picture>
 
-### <img src="apps/sill/assets/sill.svg" width="32" align="top" alt=""> Sill
+### <img src="apps/apron/assets/apron.svg" width="32" align="top" alt=""> Apron
 
 **A dock along the bottom of the screen.** Your pinned apps and the ones you have open, a dot
 under each for its windows, Fanlight's apps at one end and the notification area's icons at the
-other, in the taskbar's place. Or keep the taskbar, and have Sill float above it when you push
-the pointer to the edge. [More about Sill](apps/sill/README.md)
+other, in the taskbar's place. Or keep the taskbar, and have Apron float above it when you push
+the pointer to the edge. [More about Apron](apps/apron/README.md)
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="apps/sill/docs/images/dock-light.png">
-  <img alt="Sill along the bottom of a desktop in the taskbar's place: Fanlight's apps button, eight apps with dots under the open ones, and the notification area's icons at the right end" src="apps/sill/docs/images/dock-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="apps/apron/docs/images/dock-light.png">
+  <img alt="Apron along the bottom of a desktop in the taskbar's place: Fanlight's apps button, eight apps with dots under the open ones, and the notification area's icons at the right end" src="apps/apron/docs/images/dock-dark.png">
 </picture>
 
 ### <img src="apps/oriel/assets/oriel.svg" width="32" align="top" alt=""> Oriel

@@ -1,4 +1,4 @@
-//! The desktop wallpaper behind Lintel's bar or Sill's dock, for their glass look: each paints a
+//! The desktop wallpaper behind Lintel's bar or Apron's dock, for their glass look: each paints a
 //! blurred copy of the part of the wallpaper it covers (their ui/), because Windows only blurs
 //! behind windows that have the focus, and neither ever does. Since each reserves its strip of the
 //! screen, nothing but the wallpaper is ever behind it.

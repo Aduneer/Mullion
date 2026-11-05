@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Apron</title>
+  <!-- Slate, the stone a window's apron is cut from. -->
+  <rect width="1024" height="1024" rx="224" fill="#4a5560"/>
+  <!-- a window's opening on its two jambs, and the apron along its foot, reaching past them;
+       on the apron, three apps, the middle one open -->
+  <g fill="#f0efec">
+    <rect x="268" y="232" width="64" height="420"/>
+    <rect x="692" y="232" width="64" height="420"/>
+    <rect x="300" y="232" width="424" height="420" fill-opacity="0.16"/>
+    <rect x="184" y="652" width="656" height="116" rx="24"/>
+  </g>
+  <g fill="#4a5560">
+    <rect x="300" y="676" width="84" height="56" rx="16"/>
+    <rect x="470" y="676" width="84" height="56" rx="16"/>
+    <rect x="640" y="676" width="84" height="56" rx="16"/>
+    <circle cx="512" cy="748" r="9"/>
+  </g>
+</svg>

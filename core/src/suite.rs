@@ -27,7 +27,7 @@ pub const APPS: &[App] = &[
     App { name: "Bay", exe: "bay", about: "Every open window at once, on Win+Ctrl+Up", shows: true },
     App { name: "Sash", exe: "sash", about: "Windows snapped into place, on Ctrl+Alt+arrows", shows: true },
     App { name: "Mitre", exe: "mitre", about: "Hot corners: push the pointer into a corner", shows: true },
-    App { name: "Sill", exe: "sill", about: "A dock along the bottom of the screen", shows: true },
+    App { name: "Apron", exe: "apron", about: "A dock along the bottom of the screen", shows: true },
 ];
 
 /// Mullion started this app: Mullion has the tray icon and the sign-in entry.
@@ -93,7 +93,7 @@ pub fn is_run_by_mullion() -> bool {
 }
 
 /// Whether Mullion runs the app called `name` alongside this one: Mullion runs this app, has that
-/// one on, and finds it installed. Lintel leaves the open apps to Sill's dock then, unless asked.
+/// one on, and finds it installed. Lintel leaves the open apps to Apron's dock then, unless asked.
 pub fn runs(name: &str) -> bool {
     #[derive(serde::Deserialize, Default)]
     #[serde(default)]
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn nothing_runs_alongside_an_app_on_its_own() {
         // These tests never come from Mullion.
-        assert!(!runs("Sill"));
+        assert!(!runs("Apron"));
         assert!(!runs("Nothing"));
     }
 

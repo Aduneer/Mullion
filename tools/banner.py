@@ -12,7 +12,7 @@ APPS = {
     "bay": ("Bay", "Every window at once, for Windows", "#2f5d8c"),
     "sash": ("Sash", "Window snapping for Windows", "#6b4c8a"),
     "mitre": ("Mitre", "Hot corners for Windows", "#8b5e34"),
-    "sill": ("Sill", "A dock for Windows", "#4a5560"),
+    "apron": ("Apron", "A dock for Windows", "#4a5560"),
 }
 
 folder = sys.argv[1]
@@ -33,7 +33,7 @@ def banner(mode):
     extra = ""
     if app == "mullion":
         x = 522
-        for other in ("oriel", "lintel", "fanlight", "bay", "sash", "mitre", "sill"):
+        for other in ("oriel", "lintel", "fanlight", "bay", "sash", "mitre", "apron"):
             n, _, c = APPS[other]
             w = 36 + len(n) * 9.6
             extra += f'''

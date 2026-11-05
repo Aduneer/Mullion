@@ -154,7 +154,7 @@ fn icon_of(name: &str) -> Option<String> {
         "Bay" => include_bytes!("../../../bay/src-tauri/icons/128x128.png"),
         "Sash" => include_bytes!("../../../sash/src-tauri/icons/128x128.png"),
         "Mitre" => include_bytes!("../../../mitre/src-tauri/icons/128x128.png"),
-        "Sill" => include_bytes!("../../../sill/src-tauri/icons/128x128.png"),
+        "Apron" => include_bytes!("../../../apron/src-tauri/icons/128x128.png"),
         _ => return None,
     };
     Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png)))
@@ -344,9 +344,9 @@ fn set_app(app: AppHandle, state: State<SettingsState>, name: String, on: bool) 
             suite::send(&exe, Ask::Quit).map_err(|e| e.to_string())?;
         }
     }
-    // Lintel leaves its open apps to Sill's dock while Mullion runs Sill (unless they were
+    // Lintel leaves its open apps to Apron's dock while Mullion runs Apron (unless they were
     // switched): have a running Lintel show them, or not, now.
-    if a.name == "Sill" {
+    if a.name == "Apron" {
         if let Some(lintel) = app_named("Lintel").ok().and_then(suite::find_app).filter(|e| !suite::running(e).is_empty()) {
             let _ = suite::send(&lintel, Ask::Look);
         }

@@ -1,6 +1,6 @@
 //! What Mullion's apps share, so each one isn't carrying its own copy: the hand-written Win32
 //! bindings, the settings files, shell icons, the Alt+Tab window list and DWM's live thumbnails of
-//! those windows, the running apps (Lintel's and Sill's), global shortcuts, the power commands,
+//! those windows, the running apps (Lintel's and Apron's), global shortcuts, the power commands,
 //! the bits of look every window has, the wallpaper behind a glass bar, and how the apps and
 //! Mullion.exe find and talk to each other.
 //! Windows only, as the apps are.

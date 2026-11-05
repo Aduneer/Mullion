@@ -189,7 +189,7 @@ Fanlight is one of [Mullion](https://github.com/Aduneer/Mullion)'s apps, which r
 desktop, with [Oriel](../oriel/README.md), the dashboard for your second screen,
 [Lintel](../lintel/README.md), the menu bar, [Bay](../bay/README.md), every window at once,
 [Sash](../sash/README.md), windows snapped from the keyboard, and [Mitre](../mitre/README.md), hot
-corners, one of which can open Fanlight's apps, and [Sill](../sill/README.md), the dock, whose first
+corners, one of which can open Fanlight's apps, and [Apron](../apron/README.md), the dock, whose first
 button does too. They share their themes, and Mullion's installer installs any of them in one go.
 Each is still its own program, which works alone.
 

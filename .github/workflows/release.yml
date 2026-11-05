@@ -79,7 +79,7 @@ jobs:
             $setup = Get-ChildItem "target/release/bundle/nsis/$name*-setup.exe"
             if (@($setup).Count -ne 1) { throw "Expected one installer for $name, found $(@($setup).Count)" }
             Copy-Item $setup.FullName "dist/$name-$v-setup.exe"
-            # Sill's guard (sill-guard.exe), which gives the taskbar back if Sill stops, goes with it.
+            # Apron's guard (apron-guard.exe), which gives the taskbar back if Apron stops, goes with it.
             $files = @("target/release/$($app.Name).exe") + @(Get-ChildItem "target/release/$($app.Name)-guard.exe" -ErrorAction SilentlyContinue | ForEach-Object FullName)
             Compress-Archive $files "dist/$name-$v-portable.zip"
           }

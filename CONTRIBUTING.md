@@ -21,7 +21,7 @@ apps/oriel/           Oriel, laid out the same way
 apps/bay/             Bay, laid out the same way
 apps/sash/            Sash, laid out the same way
 apps/mitre/           Mitre, laid out the same way
-apps/sill/            Sill, laid out the same way
+apps/apron/            Apron, laid out the same way
 apps/mullion/         Mullion.exe: the suite's tray icon, sign-in entry and settings window (below)
 ui-common/            the page files every app shares word for word (themes.css)
 tools/                scripts every app's preview uses: icons.py, preview/demo.py and
@@ -45,7 +45,7 @@ src/settings.rs       each app's folder in %APPDATA%, the palettes, and reading 
 src/icons.rs          an icon or thumbnail from the shell, as an image a page can show
 src/wins.rs           the windows Alt+Tab would list, and bringing one to the front
 src/apps.rs           the open apps and their windows, kept up to date from WinEvents, and
-                      opening, minimizing and quitting them (Lintel's bar, Sill's dock)
+                      opening, minimizing and quitting them (Lintel's bar, Apron's dock)
 src/wallpaper.rs      the wallpaper behind a bar or dock, for their glass
 src/thumbs.rs         DWM's live thumbnails of those windows, and where each window really is
 src/hotkey.rs         global shortcuts on a thread of their own, changed without restarting
@@ -84,7 +84,7 @@ sign-in entry to Mullion, and shows "see Mullion Settings" where its own sign-in
 Mullion asks things of a running app by starting its exe again with `--show`, `--settings`,
 `--look` or `--quit`: the single-instance plugin hands those to the app that's running, as it
 hands over any second start. Mitre does the same with `--toggle` (open, or close if it's open) for
-the apps its corners open, and Fanlight takes `--apps` with it, to open on its Apps grid; Sill's
+the apps its corners open, and Fanlight takes `--apps` with it, to open on its Apps grid; Apron's
 first button opens Fanlight's Apps grid the same way. Started any other way, an app runs on its own, exactly as before. `suite.rs` has
 all of it, and each app's `main.rs` acts on it in its single-instance callback and in `setup`.
 

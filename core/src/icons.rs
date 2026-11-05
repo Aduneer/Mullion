@@ -39,7 +39,7 @@ pub fn thumbnail(path: &str, px: i32) -> Option<String> {
     data_url(path, SIIGBF_THUMBNAILONLY, px)
 }
 
-/// Pixels drawn some other way (Sill draws other programs' tray icons), as a data: URL: `w` by
+/// Pixels drawn some other way (Apron draws other programs' tray icons), as a data: URL: `w` by
 /// `h`, top-down BGRA, premultiplied or not.
 pub fn pixels_url(w: u32, h: u32, mut bgra: Vec<u8>) -> String {
     unpremultiply(&mut bgra);
