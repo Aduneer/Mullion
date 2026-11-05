@@ -1,8 +1,9 @@
 //! What Mullion's apps share, so each one isn't carrying its own copy: the hand-written Win32
 //! bindings, the settings files, shell icons, the Alt+Tab window list and DWM's live thumbnails of
 //! those windows, the running apps (Lintel's and Apron's), global shortcuts, the power commands,
-//! the bits of look every window has, the wallpaper behind a glass bar, and how the apps and
-//! Mullion.exe find and talk to each other.
+//! the bits of look every window has, the wallpaper behind a glass bar, the notification area's
+//! icons as Apron passes them to Lintel, and how the apps and Mullion.exe find and talk to each
+//! other.
 //! Windows only, as the apps are.
 //!
 //! The volume mixer (`audio`), what's playing (`media`), HTTPS (`net`) and performance counters
@@ -25,5 +26,6 @@ pub mod power;
 pub mod settings;
 pub mod suite;
 pub mod thumbs;
+pub mod tray;
 pub mod wallpaper;
 pub mod wins;

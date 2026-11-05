@@ -304,6 +304,7 @@ extern "system" {
     pub fn GetWindowThreadProcessId(hwnd: isize, pid: *mut u32) -> u32;
     pub fn GetForegroundWindow() -> isize;
     pub fn SetForegroundWindow(hwnd: isize) -> i32;
+    pub fn AllowSetForegroundWindow(pid: u32) -> i32;
     pub fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
     pub fn PostMessageW(hwnd: isize, msg: u32, wparam: usize, lparam: isize) -> i32;
     pub fn MonitorFromPoint(pt: POINT, flags: u32) -> isize;

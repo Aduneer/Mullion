@@ -37,6 +37,9 @@ pub struct Settings {
     /// Float and auto-hide: keep Windows' taskbar, and float the dock above it while the pointer
     /// is at the edge. Off, the dock takes the taskbar's place and the taskbar is hidden.
     pub float: bool,
+    /// Keep the notification area's icons in the dock while Lintel shows them on its bar too.
+    /// Off, they're only on Lintel's bar then, so nothing shows twice.
+    pub tray_too: bool,
     /// The apps kept in the dock, in order.
     pub pins: Vec<Pin>,
 }
@@ -51,6 +54,7 @@ impl Default for Settings {
             edge: "bottom".into(),
             size: "medium".into(),
             float: false,
+            tray_too: false,
             pins: Vec::new(),
         }
     }

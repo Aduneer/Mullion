@@ -1,6 +1,7 @@
 "use strict";
 // Apron's settings: which edge the dock sits on and how big it is, whether it takes the taskbar's
-// place or floats above it, its look, and its sign-in entry. Each change is saved as it's made and
+// place or floats above it, whether it keeps the notification area's icons while Lintel shows
+// them, its look, and its sign-in entry. Each change is saved as it's made and
 // works at once.
 {
 const T = window.__TAURI__;
@@ -55,6 +56,10 @@ function draw() {
     <p class="hint" style="padding-top:8px">Click an app to bring it forward, again to minimize it, or pick a window when it has several; middle-click for a new window; right-click for its windows, Pin and Quit. Drag pinned apps to put them in order.</p>
     ${hello.fanlight ? "" : setRow("Fanlight isn’t installed", "The dock’s first button shows your apps once it is",
       `<button class="btn" data-do="get" title="Opens GitHub in your browser">Get it${OUT}</button>`)}
+    <h3>NOTIFICATION AREA</h3>
+    ${setRow("Keep the icons in the dock too", hello.lintel_tray
+      ? (s.tray_too ? "Lintel shows them on its bar, and so does the dock" : "Lintel shows them on its bar, so the dock leaves them out")
+      : "While Lintel shows them on its bar. It isn’t now, so they’re in the dock", sw(`data-set="tray_too"`, s.tray_too, "Keep the icons in the dock too"))}
     <h3>PINNED APPS</h3>
     <div class="pins" id="pins"></div>
     ${setRow("Add an app", "From the Start menu; or drop a shortcut, program or folder on the dock", `<button class="btn" data-do="add">${picking ? "Done" : "Add…"}</button>`)}
@@ -174,6 +179,8 @@ setv.addEventListener("change", e => {
 T.event.listen("look", e => { if (hello) hello.shared_look = e.payload; });
 // The dock's menu changed something (Float and auto-hide), or the look changed.
 T.event.listen("settings", e => { if (!hello) return; settings = e.payload; applyTheme(); draw(); });
+// Lintel started or stopped showing the notification area's icons.
+T.event.listen("lintel_tray", e => { if (!hello) return; hello.lintel_tray = e.payload; draw(); });
 // Apps pinned or unpinned, here or on the dock.
 T.event.listen("items", e => { pinned = e.payload.filter(i => i.pinned); drawPins(); drawFound(); });
 

@@ -123,7 +123,7 @@ const Lintel = (() => {
     project: () => svg(`<rect x="2.5" y="5" width="11" height="8" rx="1.5"/><rect x="10.5" y="10" width="11" height="8" rx="1.5"/>`),
     leaf: () => svg(`<path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14z"/><path d="M5 19c3-4 6-7 9-9"/>`),
     bell: () => svg(`<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>`),
-    chevron: dir => svg(dir === "left" ? `<path d="M14.5 6l-6 6 6 6"/>` : `<path d="M9.5 6l6 6-6 6"/>`),
+    chevron: dir => svg({ left: `<path d="M14.5 6l-6 6 6 6"/>`, down: `<path d="M6 9.5l6 6 6-6"/>`, up: `<path d="M6 14.5l6-6 6 6"/>` }[dir] ?? `<path d="M9.5 6l6 6-6 6"/>`),
   };
 
   // --- glass -------------------------------------------------------------------------

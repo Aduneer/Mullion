@@ -103,6 +103,8 @@ body {
 }
 .tray:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
 .tray img { width: var(--tray); height: var(--tray); pointer-events: none; }
+/* A one-colour icon (white or black, for Windows' own taskbar) takes the dock's ink instead. */
+.tray.glyph i { width: var(--tray); height: var(--tray); pointer-events: none; background: var(--ink); -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
 .tray.more .ic { width: var(--tray); height: var(--tray); }
 
 /* Dragging a pinned app to a new place. */

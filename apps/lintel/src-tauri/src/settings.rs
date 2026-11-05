@@ -45,6 +45,9 @@ pub struct Settings {
     /// The Control Centre: Wi-Fi, Bluetooth, brightness, sound and shortcuts in one menu.
     pub control: bool,
     pub battery: bool,
+    /// The notification area's icons (Steam, OneDrive and the like), passed on by Apron, which
+    /// hosts them. Without Apron running there are none to show: Windows' taskbar has them.
+    pub tray: bool,
     /// Set Windows' taskbar to auto-hide while Lintel runs (see `taskbar`).
     pub hide_taskbar: bool,
 }
@@ -71,6 +74,7 @@ impl Default for Settings {
             bluetooth: true,
             control: true,
             battery: true,
+            tray: true,
             hide_taskbar: false,
         }
     }

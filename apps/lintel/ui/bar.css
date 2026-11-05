@@ -105,6 +105,19 @@ body {
 .dock-app.front .dots i { background: var(--accent); width: 8px; border-radius: 2px; }
 #date { color: var(--ink-2); }
 
+/* The notification area's icons (from Apron), at the left of the status items, as a Mac shows its
+   extras; the ones Windows keeps hidden are under the chevron. */
+.tray { display: flex; align-items: center; gap: 1px; height: 100%; }
+.tray-icon { padding: 0 5px; }
+.tray-icon img, .tray-icon i { display: block; width: calc(var(--h, 30px) * 0.54); height: calc(var(--h, 30px) * 0.54); pointer-events: none; }
+/* A one-colour icon (white or black, for Windows' own taskbar) takes the bar's ink. */
+.tray-icon i { background: currentColor; -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
+[data-glass="on"] .tray-icon i, [data-glass="on"] .tray-icon img { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--page) 45%, transparent)); }
+.tray-more { padding: 0 4px; }
+.tray-more .ic { width: 13px; height: 13px; stroke-width: 2; }
+.vertical .tray { flex-direction: column; width: 100%; height: auto; gap: 2px; }
+.vertical .tray-icon { padding: 5px 0; }
+
 /* Along the bottom: the hairline goes on the inside edge. */
 [data-edge="bottom"] #bar { border-bottom: 0; border-top: 1px solid var(--border); }
 

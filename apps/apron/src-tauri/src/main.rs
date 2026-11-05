@@ -7,7 +7,8 @@
 //! or it floats above the taskbar and hides until the pointer reaches the edge (`dock`).
 //!
 //! It hosts the notification area itself (`host`), so the icons are there with the taskbar
-//! hidden, and Explorer's tray keeps all of them too.
+//! hidden, and Explorer's tray keeps all of them too. It passes them on to Lintel, which shows them
+//! on its bar (`mullion_core::tray`); while it does, the dock leaves them to Lintel.
 
 mod dock;
 mod ffi;
@@ -21,6 +22,7 @@ mod trayicons;
 use mullion_core::apps;
 use mullion_core::look;
 use mullion_core::suite::{self, Ask};
+use mullion_core::tray::{self as wire, Icon};
 use mullion_core::wallpaper;
 use pins::Item;
 use serde::Serialize;
@@ -36,7 +38,6 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::window::Color;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
-use trayicons::Shown;
 
 /// Where to get Fanlight, when it isn't installed.
 const RELEASES: &str = "https://github.com/Aduneer/Mullion/releases/latest";
@@ -45,7 +46,13 @@ struct SettingsState(Mutex<Settings>);
 /// Pinned apps' icons, for when they aren't running, by key.
 struct PinIcons(Mutex<HashMap<String, Option<String>>>);
 /// The tray's icons as last drawn, and a way to have them drawn again.
-struct Tray(Mutex<Vec<Shown>>, Mutex<Sender<()>>);
+struct Tray(Mutex<Vec<Icon>>, Mutex<Sender<()>>);
+/// Lintel's bars, which are given the icons too: the pipe to them, and which connections show the
+/// icons, so the dock leaves them out.
+struct Lintel {
+    pipe: wire::Server,
+    showing: Mutex<Vec<u64>>,
+}
 struct AutostartItem(CheckMenuItem<Wry>);
 
 /// What the dock and the settings window are shown.
@@ -53,7 +60,9 @@ struct AutostartItem(CheckMenuItem<Wry>);
 struct Hello {
     settings: Settings,
     items: Vec<Item>,
-    tray: Vec<Shown>,
+    tray: Vec<Icon>,
+    /// Lintel shows the tray's icons on its bar.
+    lintel_tray: bool,
     /// Fanlight is installed, so its button works.
     fanlight: bool,
     autostart: bool,
@@ -117,7 +126,7 @@ fn main() {
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
-            hello, activate, new_window, app_menu, dock_menu, reorder, open_grid, tray_click, tray_more, shelf, wallpaper, wallpaper_image,
+            hello, activate, new_window, app_menu, dock_menu, reorder, open_grid, tray_click, tray_hover, tray_more, shelf, wallpaper, wallpaper_image,
             save_settings, set_autostart, settings_ready, get_apps, pin_paths, unpin, start_menu_apps, picker_show, picker_pick,
             picker_close, picker_hide, quit
         ])
@@ -149,6 +158,9 @@ fn main() {
             app.manage(wallpaper::Image::new());
             let (redraw, wanted) = channel::<()>();
             app.manage(Tray(Mutex::new(Vec::new()), Mutex::new(redraw.clone())));
+            let heard = app.handle().clone();
+            let pipe = wire::serve(wire::pipe_name(), "lintel.exe", move |bar, h| lintel_said(&heard, bar, h));
+            app.manage(Lintel { pipe, showing: Mutex::new(Vec::new()) });
             menu::theme(&settings.shown().theme);
 
             // The dock claims its strip first, while the shell still answers it directly; then
@@ -303,10 +315,63 @@ fn draw_tray(app: AppHandle, wanted: std::sync::mpsc::Receiver<()>) {
             if *last != list {
                 *last = list.clone();
                 drop(last);
-                let _ = app.emit_to("dock", "tray", list);
+                app.state::<Lintel>().pipe.send(&wire::FromHost::Icons(list));
+                emit_dock_tray(&app);
             }
         }
     });
+}
+
+/// The icons the dock shows: none while Lintel shows them, unless both are asked for.
+fn dock_tray(app: &AppHandle) -> Vec<Icon> {
+    let both = app.state::<SettingsState>().0.lock().unwrap().tray_too;
+    if lintel_shows(app) && !both {
+        return Vec::new();
+    }
+    app.state::<Tray>().0.lock().unwrap().clone()
+}
+
+fn lintel_shows(app: &AppHandle) -> bool {
+    !app.state::<Lintel>().showing.lock().unwrap().is_empty()
+}
+
+fn emit_dock_tray(app: &AppHandle) {
+    let _ = app.emit_to("dock", "tray", dock_tray(app));
+}
+
+/// What one of Lintel's connections said, on that connection's thread: never the host's.
+fn lintel_said(app: &AppHandle, bar: u64, heard: wire::Heard) {
+    let rect = |r: [i32; 4]| ffi::RECT { left: r[0], top: r[1], right: r[2], bottom: r[3] };
+    match heard {
+        wire::Heard::Ask(wire::ToHost::Showing(on)) => {
+            let was = lintel_shows(app);
+            {
+                let lintel = app.state::<Lintel>();
+                let mut showing = lintel.showing.lock().unwrap();
+                showing.retain(|b| *b != bar);
+                if on {
+                    showing.push(bar);
+                }
+            }
+            if was != lintel_shows(app) {
+                emit_dock_tray(app);
+                let _ = app.emit_to("settings", "lintel_tray", !was);
+            }
+        }
+        // Lintel had the click, so it let the program come to the front itself.
+        wire::Heard::Ask(wire::ToHost::Click { id, kind, rect: r }) => {
+            host::place(&id, rect(r));
+            let _ = host::click(&id, &kind);
+        }
+        wire::Heard::Ask(wire::ToHost::Hover { id, rect: r }) => {
+            host::place(&id, rect(r));
+            let _ = host::hover(&id, true);
+        }
+        wire::Heard::Ask(wire::ToHost::Leave { id }) => {
+            let _ = host::hover(&id, false);
+        }
+        wire::Heard::Gone => lintel_said(app, bar, wire::Heard::Ask(wire::ToHost::Showing(false))),
+    }
 }
 
 // --- tray and settings window --------------------------------------------------------------
@@ -422,11 +487,11 @@ fn hello(app: AppHandle, settings: State<SettingsState>, tray: State<Tray>) -> H
     // Each lock taken and let go on its own line: a guard in the struct below would be held to
     // its end, and `items` takes the settings' lock too.
     let shown = settings.0.lock().unwrap().shown();
-    let icons = tray.0.lock().unwrap().clone();
     Hello {
         settings: shown,
         items: items(&app),
-        tray: icons,
+        tray: dock_tray(&app),
+        lintel_tray: lintel_shows(&app),
         fanlight: fanlight().is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
@@ -828,11 +893,36 @@ fn open_grid() -> Result<(), String> {
     std::process::Command::new(exe).args(ask).arg(suite::APPS_GRID).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// An icon's button on the page (CSS pixels), for programs that ask where their icon is.
+#[derive(serde::Deserialize, Clone, Copy)]
+struct Place {
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+}
+
+fn place_icon(window: &WebviewWindow, id: &str, at: Option<Place>) {
+    if let Some(p) = at {
+        let (a, b) = (on_screen(window, p.left, p.top), on_screen(window, p.left + p.width, p.top + p.height));
+        host::place(id, ffi::RECT { left: a.x, top: a.y, right: b.x, bottom: b.y });
+    }
+}
+
 /// A click on one of the tray's icons: "left", "right" or "double". `x` and `y` are where a menu
-/// opens from, on the page, should its program be out of reach.
+/// opens from, on the page, should its program be out of reach; `place` is the icon's button.
 #[tauri::command]
-fn tray_click(app: AppHandle, window: WebviewWindow, id: String, kind: String, x: f64, y: f64) -> Result<(), String> {
+#[allow(clippy::too_many_arguments)]
+fn tray_click(app: AppHandle, window: WebviewWindow, id: String, kind: String, x: f64, y: f64, place: Option<Place>) -> Result<(), String> {
+    place_icon(&window, &id, place);
     click_icon(&app, &window, &id, &kind, x, y)
+}
+
+/// The pointer came onto one of the tray's icons (`on`), or left it.
+#[tauri::command]
+fn tray_hover(window: WebviewWindow, id: String, on: bool, place: Option<Place>) -> Result<(), String> {
+    place_icon(&window, &id, place);
+    host::hover(&id, on)
 }
 
 fn click_icon(app: &AppHandle, window: &WebviewWindow, id: &str, kind: &str, x: f64, y: f64) -> Result<(), String> {
@@ -844,12 +934,16 @@ fn click_icon(app: &AppHandle, window: &WebviewWindow, id: &str, kind: &str, x: 
 }
 
 /// The "more" button: the icons Windows keeps in its flyout, as a menu; picking one clicks it.
+/// `place` is the button, which stands in for the icon picked.
 #[tauri::command]
-fn tray_more(app: AppHandle, window: WebviewWindow, tray: State<Tray>, x: f64, y: f64) -> Result<(), String> {
-    let hidden: Vec<Shown> = tray.0.lock().unwrap().iter().filter(|i| !i.promoted).cloned().collect();
-    let entries: Vec<menu::Entry> = hidden.iter().map(|i| menu::item(if i.icon.tip.is_empty() { i.icon.exe.clone() } else { i.icon.tip.clone() })).collect();
+fn tray_more(app: AppHandle, window: WebviewWindow, tray: State<Tray>, x: f64, y: f64, place: Option<Place>) -> Result<(), String> {
+    let hidden: Vec<Icon> = tray.0.lock().unwrap().iter().filter(|i| !i.promoted).cloned().collect();
+    let entries: Vec<menu::Entry> = hidden.iter().map(|i| menu::item(if i.tip.is_empty() { i.exe.clone() } else { i.tip.clone() })).collect();
     match popup(&app, &window, &entries, x, y) {
-        Some(i) => click_icon(&app, &window, &hidden[i].icon.id, "left", x, y),
+        Some(i) => {
+            place_icon(&window, &hidden[i].id, place);
+            click_icon(&app, &window, &hidden[i].id, "left", x, y)
+        }
         None => {
             apps::restore_focus();
             Ok(())
@@ -909,6 +1003,9 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, settings: Settings
     let shown = settings.shown();
     menu::theme(&shown.theme);
     let _ = app.emit("settings", &shown);
+    if previous.tray_too != settings.tray_too {
+        emit_dock_tray(&app);
+    }
     Ok(shown)
 }
 

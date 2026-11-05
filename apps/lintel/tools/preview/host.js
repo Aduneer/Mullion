@@ -5,6 +5,7 @@
 //   theme=auto|dark|light  palette=nord  height=30  edge=top|bottom|left|right  open=clock (a menu open at start)
 //   media=off  battery=off  wifi=off (wired)  offline=1  desktop=1 (the desktop in front)  hot=1 (high CPU and memory)
 //   screens=2 (a second screen)  glass=on  apps=off (no open apps)  mullion=1 (started by Mullion)
+//   apron=off (Apron isn't running, so no notification area icons)
 //   demo=1 (a stand-in pointer opens a menu and slides along the bar, for the README's animation)
 "use strict";
 (() => {
@@ -28,7 +29,7 @@
   const GB = 1024 ** 3;
   let settings = {
     theme: q.get("theme") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", height: Number(q.get("height")) || 30, edge: q.get("edge") || "top",
-    clock: "auto", seconds: false, date: true, bluetooth: true, control: true, apps: q.get("apps") !== "off", apps_per_screen: true, screens: "main", media: true, stats: true, volume: true, network: true, battery: true, hide_taskbar: false,
+    clock: "auto", seconds: false, date: true, bluetooth: true, control: true, apps: q.get("apps") !== "off", apps_per_screen: true, screens: "main", media: true, stats: true, volume: true, network: true, battery: true, tray: true, hide_taskbar: false,
   };
   let autostart = false;
   const hasBattery = q.get("battery") !== "off";
@@ -51,6 +52,22 @@
     { key: "spotify", name: "Spotify", exe: "Spotify", pid: 990, icon: appIcon("#4fd18a", "#1f9d57", `<path d="M26 40V22l16-4v18"/><circle cx="23" cy="40" r="3"/><circle cx="39" cy="36" r="3"/>`), windows: [win(5003, 990)] },
     { key: "code", name: "Visual Studio Code", exe: "Code", pid: 1404, icon: appIcon("#7a8cff", "#4a5ae0", `<path d="M26 22l-10 10 10 10M38 22l10 10-10 10"/>`), windows: [win(5004, 1404), win(5005, 1404)] },
   ];
+  // The notification area's icons, as Apron passes them on: made-up marks, white or black as
+  // programs draw them for Windows' own taskbar (glyphs, which take the bar's ink), and coloured
+  // ones, which keep their colours. The last three are among Windows' hidden icons.
+  const trayHost = q.get("apron") !== "off";
+  const ink = "#f2f2f2";
+  const S = `fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
+  const mark = body => "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`);
+  const tray = !trayHost ? [] : [
+    ["cloud", "Files are up to date", "sync.exe", `<path d="M18 46h28a10 10 0 0 0 0-20 14 14 0 0 0-27-2 11 11 0 0 0-1 22z" ${S}/>`, true],
+    ["game", "Game library: updating 2 games", "games.exe", `<rect x="6" y="6" width="52" height="52" rx="14" fill="#3a6fd8"/><path d="M20 38l8-14 6 9 4-5 6 10z" fill="#fff"/>`, true, false],
+    ["chat", "Chat: 2 unread", "chat.exe", `<rect x="6" y="6" width="52" height="52" rx="14" fill="#7b5cf0"/><path d="M18 20h28v18H30l-8 6v-6h-4z" fill="#fff"/>`, true, false],
+    ["keys", "Passwords: locked", "keys.exe", `<circle cx="22" cy="32" r="10" ${S}/><path d="M32 32h22M46 32v8M52 32v6" ${S}/>`, true],
+    ["shield", "Security: no actions needed", "guard.exe", `<path d="M32 8l20 7v14c0 13-9 22-20 27-11-5-20-14-20-27V15z" ${S}/><path d="M23 32l7 7 12-13" ${S}/>`, false],
+    ["gpu", "Graphics settings", "gpu.exe", `<rect x="6" y="14" width="52" height="36" rx="6" fill="#46a35a"/><circle cx="24" cy="32" r="9" fill="#fff"/>`, false, false],
+    ["update", "Updates are ready", "update.exe", `<path d="M32 12v28M20 28l12 12 12-12M14 52h36" ${S}/>`, false],
+  ].map(([id, tip, exe, body, promoted, glyph = true]) => ({ id, tip, exe, pid: 7000, icon: mark(body), promoted, glyph, tooltip: true }));
   let media = q.get("media") === "off" ? null : {
     app: "Spotify.exe", title: "Midnight City", artist: "M83", album: "Hurry Up, We're Dreaming", playing: true,
     position: 74, duration: 243, at: Date.now() / 1000, can_prev: true, can_next: true, can_toggle: true, art: 1,
@@ -132,7 +149,7 @@
 
   const commands = {
     hello: () => ({
-      settings, sample: latest, front, apps: running, has_battery: hasBattery, oriel: true, autostart, mullion: q.has("mullion"), clock24: true, first_day: 0,
+      settings, sample: latest, front, apps: running, tray, tray_host: trayHost, has_battery: hasBattery, oriel: true, autostart, mullion: q.has("mullion"), clock24: true, first_day: 0,
       version: "0.1.0", host: "DESKTOP-7Q2K4M", settings_path: "C:\\Users\\you\\AppData\\Roaming\\Lintel\\settings.json",
     }),
     open_menu({ id, item, toggle }) {
@@ -181,6 +198,11 @@
     taskbar_can_hide: () => true,
     bar_info: () => ({ monitor: 1, bars: 1 }),
     window_action: a => log(`window: ${a.action} ${a.hwnd}`),
+    // The game library runs as administrator here, so its menu says it's out of reach.
+    tray_click: ({ id, kind }) => (log(`${kind} click: ${id}`), id === "game" ? "Game library" : null),
+    tray_hover: () => {},
+    tray_program: ({ id }) => tray.find(t => t.id === id)?.tip.split(":")[0] ?? "It",
+    tray_open: ({ id }) => log(`open ${id}'s program`),
     quit_app: a => log(`quit app ${a.pid}`),
     power: a => log(`power: ${a.action}`),
     run_action: a => log(`open: ${a.name}`),

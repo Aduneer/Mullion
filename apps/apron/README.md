@@ -40,6 +40,9 @@ one that's open, and the notification area's icons, on a shelf in the middle of 
   program or folder on the dock. Remove them there too.
 - **The notification area too.** The icons apps put by the clock sit at Apron's right end, and
   answer clicks as they do on the taskbar. The ones Windows keeps out of sight are under **^**.
+  With [Lintel](../lintel/README.md) running, they move to the right of its menu bar instead, as
+  on a Mac, so they don't show twice (a setting keeps them in both, and turning off Lintel's
+  **Notification area icons** keeps them in the dock alone).
 - **Your apps grid.** The first button opens [Fanlight](../fanlight/README.md)'s Apps grid, every
   app you have at once.
 - **Taskbar or not.** Apron takes the taskbar's place, and gives it back when it quits. Or keep the
@@ -135,6 +138,8 @@ Changes apply and save as you make them, to `%APPDATA%\Apron\settings.json`:
 - **Edge**: bottom, left or right, of that screen
 - **Size**: small, medium or large icons
 - **Float and auto-hide**: keep the taskbar, and float above it at the edge
+- **Keep the icons in the dock too**: while Lintel shows the notification area's icons on its
+  bar, the dock leaves them out unless this is on
 - **Theme**: Auto, dark or light, a **palette**, and **Glass**: the wallpaper, blurred, behind the
   dock
 - **Start at sign-in**

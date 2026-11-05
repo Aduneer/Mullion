@@ -91,6 +91,13 @@ body {
 .mi[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
 .sep { height: 1px; margin: 5px 10px; background: var(--border); }
 
+/* The hidden notification area icons: each program's picture and its tooltip. One in a single
+   colour takes the menu's ink, and the highlight's under the pointer. */
+.tray-row { max-width: 360px; }
+.tray-row .pic { width: 16px; height: 16px; flex: none; display: grid; place-items: center; }
+.tray-row img, .tray-row i { width: 16px; height: 16px; display: block; }
+.tray-row i { background: currentColor; -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
+
 .head { padding: 6px 10px 4px; font-weight: 650; }
 .head .sub, .muted { color: var(--muted); font-weight: 400; }
 .note { padding: 2px 10px 6px; color: var(--ink-2); white-space: normal; }

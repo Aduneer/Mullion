@@ -36,11 +36,12 @@ missing, made to feel like they came with it.
 
 **A menu bar along the top of the screen.** The app you're in, your open apps, what's playing, a
 Control Centre and the clock, in one slim bar, the way macOS and Linux desktops have it. Click an
-item and its menu grows out of the bar. [More about Lintel](apps/lintel/README.md)
+item and its menu grows out of the bar. With Apron, the notification area's icons sit on its
+right too. [More about Lintel](apps/lintel/README.md)
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="apps/lintel/docs/images/bar-light.png">
-  <img alt="Lintel along the top of a desktop: the app in front, the open apps, the track playing, CPU and memory, volume, Bluetooth, Wi-Fi, battery, the Control Centre and the clock, with Now playing open below the bar" src="apps/lintel/docs/images/bar-dark.png">
+  <img alt="Lintel along the top of a desktop: the app in front, the open apps, the notification area's icons, the track playing, CPU and memory, volume, Bluetooth, Wi-Fi, battery, the Control Centre and the clock, with Now playing open below the bar" src="apps/lintel/docs/images/bar-dark.png">
 </picture>
 
 ### <img src="apps/fanlight/assets/fanlight.svg" width="32" align="top" alt=""> Fanlight

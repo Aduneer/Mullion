@@ -11,6 +11,8 @@ let running = [], shown = [];
 let place = { monitor: 0, bars: 1 };
 /** The menu on screen, if any: its bar item gets the pressed look, and hovering another item switches to it. */
 let openMenu = null;
+/** The notification area's icons, from Apron, and whether Apron is running to give them. */
+let tray = [], trayHost = false;
 
 items.system.innerHTML = icons.logo();
 
@@ -35,7 +37,11 @@ $("#bar").addEventListener("pointerdown", e => {
   if (openMenu && !e.target.closest(".item")) invoke("close_menu", { restore: true });
 });
 
-const menuItems = () => [...Object.entries(items), ...[...dock.children].map(b => [`dock:${b.dataset.key}`, b])];
+const menuItems = () => [
+  ...Object.entries(items),
+  ...[...dock.children].map(b => [`dock:${b.dataset.key}`, b]),
+  ...[...trayEl.children].map(b => [`tray:${b.dataset.id}`, b]),
+];
 
 // The open menu's item becomes a tab in the menu's own color, running into the menu below it (or
 // beside it), so the two read as one piece. Moving to another item slides the tab along with it.
@@ -157,6 +163,84 @@ function renderApps() {
   for (const b of old.values()) b.remove();
 }
 
+// --- the notification area ----------------------------------------------------------
+// Other programs' icons (Steam, OneDrive…), which Apron hosts and passes on. A click goes back to
+// Apron, which hands it to the program as Explorer would, so its own window or menu opens. The
+// ones Windows keeps hidden are in a menu under the chevron.
+
+const trayEl = $("#tray");
+const trayIconOf = el => tray.find(t => t.id === el.dataset.id);
+/** A picture in one colour, white or black for Windows' own taskbar, takes the bar's ink. */
+const trayPicture = t => t.glyph ? `<i style="--src:url('${t.icon}')"></i>` : `<img alt="" src="${t.icon}">`;
+const box = el => { const { left, top, width, height } = el.getBoundingClientRect(); return { left, top, width, height }; };
+
+function renderTray() {
+  const on = settings.tray && trayHost;
+  const shown = on ? tray.filter(t => t.promoted && t.icon) : [];
+  const hidden = on ? tray.filter(t => !t.promoted) : [];
+  trayEl.hidden = !shown.length;
+  items.tray.hidden = !hidden.length;
+  // It points the way its menu opens: off the bar, into the screen.
+  const towards = { top: "down", bottom: "up", left: "right", right: "left" }[settings.edge];
+  if (items.tray.dataset.dir !== towards) {
+    items.tray.innerHTML = icons.chevron(towards);
+    items.tray.dataset.dir = towards;
+  }
+  items.tray.title = `${hidden.length} hidden icon${hidden.length === 1 ? "" : "s"}`;
+  const old = new Map([...trayEl.children].map(b => [b.dataset.id, b]));
+  shown.forEach((t, i) => {
+    let b = old.get(t.id);
+    old.delete(t.id);
+    if (!b) {
+      b = document.createElement("button");
+      b.className = "item tray-icon";
+      b.dataset.id = t.id;
+    }
+    const sig = `${t.glyph}|${t.icon.slice(-40)}`;
+    if (b.dataset.sig !== sig) {
+      b.innerHTML = trayPicture(t);
+      b.dataset.sig = sig;
+    }
+    b.classList.toggle("glyph", t.glyph);
+    // The standard tooltip; a program that draws its own is told the pointer's there instead.
+    if (t.tooltip && t.tip) b.title = t.tip;
+    else b.removeAttribute("title");
+    b.classList.toggle("open", openMenu === `tray:${t.id}`);
+    if (trayEl.children[i] !== b) trayEl.insertBefore(b, trayEl.children[i] ?? null);
+  });
+  for (const b of old.values()) b.remove();
+}
+
+async function trayClick(el, kind) {
+  const t = trayIconOf(el);
+  if (!t) return;
+  if (openMenu) invoke("close_menu", { restore: false });
+  // Its program runs as administrator, out of reach: a menu says so, and offers to open it.
+  const out = await invoke("tray_click", { id: t.id, kind, item: box(el) }).catch(err => (console.warn(err), null));
+  if (out) open(`tray:${t.id}`, true, el);
+}
+
+trayEl.addEventListener("click", e => {
+  const el = e.target.closest(".tray-icon");
+  if (el && e.detail === 1) trayClick(el, "left");
+});
+trayEl.addEventListener("dblclick", e => {
+  const el = e.target.closest(".tray-icon");
+  if (el) trayClick(el, "double");
+});
+trayEl.addEventListener("contextmenu", e => {
+  const el = e.target.closest(".tray-icon");
+  if (el) trayClick(el, "right");
+});
+trayEl.addEventListener("pointerover", e => {
+  const el = e.target.closest(".tray-icon");
+  if (el && !el.contains(e.relatedTarget)) invoke("tray_hover", { id: el.dataset.id, on: true, item: box(el) });
+});
+trayEl.addEventListener("pointerout", e => {
+  const el = e.target.closest(".tray-icon");
+  if (el && !el.contains(e.relatedTarget) && !el.title) invoke("tray_hover", { id: el.dataset.id, on: false });
+});
+
 // --- rendering ---------------------------------------------------------------------
 
 function renderFront() {
@@ -267,6 +351,7 @@ function renderAll() {
   items.stats.hidden = !settings.stats;
   renderFront();
   renderApps();
+  renderTray();
   renderClock();
   renderStats();
   renderMedia();
@@ -315,6 +400,16 @@ listen("apps", a => {
   renderApps();
   retab();
 });
+listen("tray", t => {
+  tray = t;
+  if (settings) renderTray();
+  retab();
+});
+listen("tray-host", on => {
+  trayHost = on;
+  if (settings) renderTray();
+  retab();
+});
 listen("settings", s => {
   settings = s;
   applyTheme(s);
@@ -337,6 +432,8 @@ function tick() {
 invoke("hello").then(h => {
   ({ settings, sample, front } = h);
   running = h.apps ?? [];
+  tray = h.tray ?? [];
+  trayHost = !!h.tray_host;
   info = h;
   applyTheme(settings);
   renderAll();

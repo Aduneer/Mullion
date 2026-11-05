@@ -6,6 +6,7 @@
 //   mode=dark|light (otherwise Windows' own)  palette=nord  edge=bottom|left|right
 //   size=small|medium|large  float=1  glass=1  mullion=1 (started by Mullion)
 //   look=1 (Mullion's look for every app)  fanlight=0 (not installed)  tray=0 (no icons)
+//   lintel=1 (Lintel shows the notification area's icons)
 //   screens=1..4 (how many screens; settings)  screen=\\.\DISPLAY9 (the one chosen; settings)
 (() => {
   const host = window.parent !== window ? window.parent.ApronHost : null;
@@ -46,7 +47,10 @@
     ["sound", "Speakers: 64%", "explorer.exe", `<path d="M12 26h9l12-10v32L21 38h-9z" ${I}/><path d="M42 24a11 11 0 0 1 0 16M48 18a19 19 0 0 1 0 28" ${I}/>`],
     ["printer", "Printer", "print.exe", `<rect x="12" y="24" width="40" height="18" rx="3" ${I}/>`, false],
     ["update", "Updates are ready", "update.exe", `<path d="M32 12v28M20 28l12 12 12-12M14 52h36" ${I}/>`, false],
-  ].map(([id, tip, exe, body, promoted = true]) => ({ id, tip, exe, icon: svg(body), promoted }));
+  ].map(([id, tip, exe, body, promoted = true]) => ({ id, tip, exe, pid: 5000, icon: svg(body), promoted, glyph: id !== "chat", tooltip: true }));
+  // lintel=1: Lintel shows the icons on its bar, so the dock leaves them out (unless asked for both).
+  const lintel = q.get("lintel") === "1";
+  const dockTray = () => q.get("tray") === "0" || (lintel && !settings.tray_too) ? [] : tray;
 
   // The Start menu's apps, for Add.
   const START = [["code", "Code"], ["files", "Files"], ["mail", "Mail"], ["music", "Music"], ["notes", "Notes"], ["photos", "Photos"], ["terminal", "Terminal"], ["browser", "Browser"]]
@@ -56,7 +60,7 @@
   let settings = {
     theme: q.get("mode") || "auto", palette: q.get("palette") || "oriel", glass: q.get("glass") === "1",
     edge: q.get("edge") || "bottom", size: q.get("size") || "medium", float: q.get("float") === "1",
-    screen: q.get("screen") || "",
+    screen: q.get("screen") || "", tray_too: false,
   };
   let autostart = true;
   const listeners = {};
@@ -65,7 +69,7 @@
   const find = key => items.find(a => a.key === key);
   const commands = {
     hello: () => ({
-      settings, items, tray: q.get("tray") === "0" ? [] : tray, fanlight: q.get("fanlight") !== "0", autostart,
+      settings, items, tray: dockTray(), lintel_tray: lintel, fanlight: q.get("fanlight") !== "0", autostart,
       mullion: q.get("mullion") === "1", shared_look: q.get("look") === "1", icon: "/src-tauri/icons/128x128.png",
       version: "0.5.0", settings_path: String.raw`C:\Users\you\AppData\Roaming\Apron\settings.json`,
       screens: [
@@ -96,6 +100,7 @@
     reorder: ({ keys }) => log(`order: ${keys.join(", ")}`),
     open_grid: () => log("Fanlight's apps"),
     tray_click: ({ id, kind }) => log(`${kind} click: ${id}`),
+    tray_hover: () => {},
     tray_more: () => log(`more: ${tray.filter(t => !t.promoted).map(t => t.tip).join(", ")}`),
     shelf: ({ width, height }) => host?.shelf(width, height),
     wallpaper: () => host?.wallpaper() ?? null,

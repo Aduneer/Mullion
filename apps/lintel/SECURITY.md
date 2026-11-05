@@ -9,8 +9,9 @@ and Windows versions you tried.
 
 ## What Lintel does and doesn't do
 
-- It never connects to the internet. There's no update check, account or telemetry, and the
-  content security policy keeps the pages from loading anything that isn't part of the app.
+- It never connects to the internet, and nothing it reads leaves the PC. There's no update
+  check, account or telemetry, and the content security policy keeps the pages from loading
+  anything that isn't part of the app.
 - What it reads stays on your PC: the running apps, their windows and icons, what's playing and
   its cover, volumes, CPU, memory and network counters, the battery, the name of the network
   you're on, whether Wi-Fi and Bluetooth are on and your paired Bluetooth devices' names, your
@@ -29,6 +30,15 @@ and Windows versions you tried.
   the way clicking their × would; the app can still ask to save your work. Lintel never ends a
   process, and checks a window still belongs to the process you saw before it acts, since
   Windows reuses window handles.
+- **The notification area's icons come from Apron**, over a named pipe on this PC
+  (`\\.\pipe\Mullion.Apron.tray.<session>`, `core/src/tray.rs`), never over the network: the pipe
+  refuses remote clients, and only your own user account may open it. Lintel only listens to it
+  when the process at the other end is `apron.exe`. What it receives, and keeps in memory only:
+  each icon's picture, its tooltip, its program's file name and process id, and whether Windows
+  keeps it hidden. What it sends back: whether the bar shows the icons, and which icon you
+  clicked or pointed at, how, and where on the screen. Apron passes the click to that icon's
+  program as the taskbar would; Lintel lets that program bring its window to the front for the
+  click (`AllowSetForegroundWindow`). Without Apron, there's no pipe and nothing to show.
 - It can play, pause or skip the current track, like a keyboard's media keys, and change the
   volume of your output and of the apps playing through it.
 - It can turn Wi-Fi and Bluetooth on and off, through the radio API Windows' own quick settings

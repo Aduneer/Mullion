@@ -259,23 +259,36 @@ function renderTray() {
   const hidden = tray.filter(t => !t.promoted);
   $("tray-sep").hidden = !shown.length && !hidden.length;
   trayEl.innerHTML = (hidden.length ? `<button class="tray more" title="${hidden.length} more">${MORE}</button>` : "")
-    + shown.map(t => `<button class="tray" data-id="${esc(t.id)}" title="${esc(t.tip)}"><img alt="" src="${t.icon}"></button>`).join("");
+    + shown.map(t => `<button class="tray${t.glyph ? " glyph" : ""}" data-id="${esc(t.id)}"${t.tooltip && t.tip ? ` title="${esc(t.tip)}"` : ""}>${picture(t)}</button>`).join("");
 }
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+// A picture in one colour, white or black for Windows' own taskbar, is drawn in the dock's ink.
+const picture = t => t.glyph ? `<i style="--src:url('${t.icon}')"></i>` : `<img alt="" src="${t.icon}">`;
+/** The button's box, so a program asking where its icon is gets told. */
+const place = b => { const { left, top, width, height } = b.getBoundingClientRect(); return { left, top, width, height }; };
 
 trayEl.addEventListener("click", e => {
   const b = e.target.closest(".tray");
   if (!b) return;
-  if (b.classList.contains("more")) return invoke("tray_more", anchor(b)).catch(err => console.warn(err));
-  if (e.detail === 1) invoke("tray_click", { id: b.dataset.id, kind: "left", ...anchor(b) }).catch(err => console.warn(err));
+  if (b.classList.contains("more")) return invoke("tray_more", { ...anchor(b), place: place(b) }).catch(err => console.warn(err));
+  if (e.detail === 1) invoke("tray_click", { id: b.dataset.id, kind: "left", ...anchor(b), place: place(b) }).catch(err => console.warn(err));
 });
 trayEl.addEventListener("dblclick", e => {
   const b = e.target.closest(".tray[data-id]");
-  if (b) invoke("tray_click", { id: b.dataset.id, kind: "double", ...anchor(b) }).catch(err => console.warn(err));
+  if (b) invoke("tray_click", { id: b.dataset.id, kind: "double", ...anchor(b), place: place(b) }).catch(err => console.warn(err));
 });
 trayEl.addEventListener("contextmenu", e => {
   const b = e.target.closest(".tray[data-id]");
-  if (b) invoke("tray_click", { id: b.dataset.id, kind: "right", ...anchor(b) }).catch(err => console.warn(err));
+  if (b) invoke("tray_click", { id: b.dataset.id, kind: "right", ...anchor(b), place: place(b) }).catch(err => console.warn(err));
+});
+// The pointer on an icon: its program hears it, and one that draws its own tooltip shows it.
+trayEl.addEventListener("pointerover", e => {
+  const b = e.target.closest(".tray[data-id]");
+  if (b && !b.contains(e.relatedTarget)) invoke("tray_hover", { id: b.dataset.id, on: true, place: place(b) }).catch(() => {});
+});
+trayEl.addEventListener("pointerout", e => {
+  const b = e.target.closest(".tray[data-id]");
+  if (b && !b.contains(e.relatedTarget) && !b.title) invoke("tray_hover", { id: b.dataset.id, on: false }).catch(() => {});
 });
 
 // --- from Apron -----------------------------------------------------------------------

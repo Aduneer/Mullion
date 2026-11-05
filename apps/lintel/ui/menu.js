@@ -17,6 +17,8 @@ let readied = null;
 let settings, info, sample, front;
 /** The running apps, for their menus from the icons in the bar. */
 let running = [];
+/** The notification area's icons, from Apron, for the menu of hidden ones. */
+let tray = [];
 /** The menu on screen (its bar item's id), and the view inside it (the same, or "settings", "confirm-…"). */
 let current = null, view = null;
 /** Handlers for the [data-act] elements of the current render, by index. */
@@ -340,6 +342,25 @@ const VIEWS = {
       + item("Date & Time Settings…", run("ms-settings:dateandtime"));
   },
 
+  // The icons Windows keeps hidden, under the chevron: a click or right-click on one is a click
+  // on the icon. "tray:<id>" is an icon whose program runs as administrator, out of reach.
+  async tray(v) {
+    const id = v.slice(5);
+    if (id) {
+      const name = await invoke("tray_program", { id }).catch(() => "It");
+      return [
+        item(`${name} runs as administrator, out of Lintel’s reach`, null, { disabled: true }),
+        sep,
+        item(`Open ${name}`, () => { done(false); invoke("tray_open", { id }).catch(e => console.warn(e)); }),
+      ].join("");
+    }
+    const hidden = tray.filter(t => !t.promoted);
+    if (!hidden.length) return `<div class="note muted">No hidden icons</div>`;
+    return hidden.map(t => `<button class="mi tray-row${t.glyph ? " glyph" : ""}" role="menuitem" data-tray="${esc(t.id)}" data-act="${act(() => trayClick(t.id, "left"))}">`
+      + `<span class="pic">${t.icon ? (t.glyph ? `<i style="--src:url('${t.icon}')"></i>` : `<img alt="" src="${t.icon}">`) : ""}</span>`
+      + `<span class="label">${esc(t.tip || t.exe)}</span></button>`).join("");
+  },
+
   async settings() {
     const s = settings;
     const [screens, canHide] = await Promise.all([invoke("screens").catch(() => []), invoke("taskbar_can_hide").catch(() => true)]);
@@ -371,7 +392,10 @@ const VIEWS = {
           ${check("volume", "Volume")}${check("network", "Network")}
           ${check("bluetooth", "Bluetooth")}${check("control", "Control Centre")}
           ${info.has_battery ? check("battery", "Battery") : ""}
+          ${check("tray", "Notification area icons")}
         </div>
+        ${!info.tray_host ? (s.tray ? `<div class="hint muted" style="margin-left:0">Apron hosts these icons, and it isn’t running: Windows’ taskbar has them</div>` : "")
+          : `<div class="hint muted" style="margin-left:0">${s.tray ? "Turn off to leave the icons in Apron’s dock only" : "Apron’s dock has the icons"}</div>`}
         <label class="toggle" title="Windows' taskbar auto-hides while Lintel runs, and comes back when Lintel quits"><input type="checkbox" data-act="${act(save({ hide_taskbar: !s.hide_taskbar }))}"${s.hide_taskbar ? " checked" : ""}${canHide || s.hide_taskbar ? "" : " disabled"}>Hide the Windows taskbar</label>
         ${canHide ? "" : `<div class="hint muted">Windows only hides a taskbar at the bottom of the screen</div>`}
         ${info.mullion
@@ -401,6 +425,18 @@ async function appMenu(f) {
     item(`Quit ${f.name}`, () => { done(false); invoke("quit_app", { pid: f.pid }).catch(e => console.warn(e)); }, { disabled: !wins.length }),
   ].join("");
 }
+
+/** A click on a hidden icon, from its menu. Its program runs as administrator: say so instead. */
+function trayClick(id, kind) {
+  invoke("tray_click", { id, kind, item: null }).then(out => {
+    if (out) { view = `tray:${id}`; render(); } else done(false);
+  }).catch(e => { console.warn(e); done(false); });
+  return "keep";
+}
+root.addEventListener("contextmenu", e => {
+  const el = e.target.closest("[data-tray]");
+  if (el) trayClick(el.dataset.tray, "right");
+});
 
 /** Turn a radio on or off, showing it at once; the next samples confirm it. */
 function radio(kind, on) {
@@ -638,6 +674,14 @@ listen("sample", s => {
 });
 listen("front", f => { front = f; });
 listen("apps", a => { running = a; });
+listen("tray", t => {
+  tray = t;
+  if (view === "tray") render();
+});
+listen("tray-host", on => {
+  if (info) info.tray_host = on;
+  if (view === "settings") render();
+});
 // Mullion's look for every app went on or off; "settings" follows with what to show.
 listen("look", shared => { if (info) info.shared_look = shared; });
 listen("settings", s => {
@@ -649,6 +693,7 @@ listen("settings", s => {
 invoke("hello").then(h => {
   ({ settings, sample, front } = h);
   running = h.apps ?? [];
+  tray = h.tray ?? [];
   info = h;
   applyTheme(settings);
 });

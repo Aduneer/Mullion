@@ -11,11 +11,14 @@
 //! own, Lintel's) wait for Explorer's answer, which they need, for at most a few seconds and not
 //! at all when Explorer is hung.
 //!
-//! The table (`list`, `click`) is plain data, so another app can be given it later: Lintel's
-//! right-hand side will ask Apron for it.
+//! The table (`list`, `click`, `hover`) is plain data: the dock shows it, and Apron passes it on
+//! to Lintel's bar (`mullion_core::tray`), whose clicks come back here.
+//!
+//! Programs also ask the tray where their icon is (`Shell_NotifyIconGetRect`), to put a menu or a
+//! popup beside it. Explorer can't say while its taskbar is hidden, so where an icon was last
+//! clicked or pointed at, on the dock or on Lintel's bar, is the answer (`place`).
 
 use crate::ffi::*;
-use serde::Serialize;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering};
 use std::sync::mpsc::{channel, Sender};
@@ -55,6 +58,20 @@ struct TrayMessage {
     nid: Nid,
 }
 
+/// What `Shell_NotifyIconGetRect` puts in its WM_COPYDATA (`dwData` 3): which icon, and whether
+/// it wants the top left corner (`message` 1) or the bottom right (2), as x | y << 16.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct PlaceAsk {
+    magic: u32,
+    message: u32,
+    cb: u32,
+    padding: u32,
+    hwnd: u32,
+    uid: u32,
+    guid: [u8; 16],
+}
+
 const MAGIC: u32 = 0x3475_3423;
 const NIM_ADD: u32 = 0;
 const NIM_MODIFY: u32 = 1;
@@ -66,11 +83,17 @@ const NIF_ICON: u32 = 0x02;
 const NIF_TIP: u32 = 0x04;
 const NIF_STATE: u32 = 0x08;
 const NIF_GUID: u32 = 0x20;
+/// With version 4, the standard tooltip only if this is set; otherwise the program draws its own.
+const NIF_SHOWTIP: u32 = 0x80;
 const NIS_HIDDEN: u32 = 0x01;
 const NIN_SELECT: u32 = WM_USER;
-/// WM_COPYDATA's kind for a notify icon's message. (0 is an app bar's, 3 a request for an icon's
-/// place: both go to Explorer as they are.)
+const NIN_POPUPOPEN: u32 = WM_USER + 6;
+const NIN_POPUPCLOSE: u32 = WM_USER + 7;
+/// WM_COPYDATA's kind for a notify icon's message. (0 is an app bar's, and goes to Explorer as it
+/// is.)
 const COPY_ICON: usize = 1;
+/// …and for a program asking where its icon is.
+const COPY_PLACE: usize = 3;
 
 /// One icon in the table.
 #[derive(Clone, Copy)]
@@ -91,16 +114,23 @@ impl Entry {
         }
     }
     fn same(&self, n: &Nid) -> bool {
-        if n.flags & NIF_GUID != 0 && n.guid != [0; 16] && self.nid.flags & NIF_GUID != 0 {
-            self.nid.guid == n.guid
+        self.is(n.hwnd, n.uid, if n.flags & NIF_GUID != 0 { n.guid } else { [0; 16] })
+    }
+    fn is(&self, hwnd: u32, uid: u32, guid: [u8; 16]) -> bool {
+        if guid != [0; 16] && self.nid.flags & NIF_GUID != 0 {
+            self.nid.guid == guid
         } else {
-            self.nid.hwnd == n.hwnd && self.nid.uid == n.uid
+            self.nid.hwnd == hwnd && self.nid.uid == uid
         }
+    }
+    /// The program draws its own tooltip, when told the pointer is over its icon.
+    fn own_tooltip(&self) -> bool {
+        self.nid.version >= 4 && self.nid.flags & NIF_SHOWTIP == 0
     }
 }
 
-/// An icon as the dock (and, later, Lintel) shows it.
-#[derive(Serialize, Clone, Debug, PartialEq)]
+/// An icon as the host knows it; `trayicons` draws its picture.
+#[derive(Clone, Debug, PartialEq)]
 pub struct TrayIcon {
     /// Stays the same while the icon is there: its GUID, or its window and number.
     pub id: String,
@@ -108,10 +138,10 @@ pub struct TrayIcon {
     pub tip: String,
     /// The program's file name, lowercased, as Windows' own settings list it.
     pub exe: String,
-    #[serde(skip)]
+    pub pid: u32,
     pub hicon: isize,
-    /// Its picture, as a data: URL, filled in by whoever draws it.
-    pub icon: Option<String>,
+    /// Show `tip` on hover, rather than leave it to the program (`hover`).
+    pub tooltip: bool,
 }
 
 /// What the host tells Apron about, on the host's thread: answer at once, never wait.
@@ -134,6 +164,8 @@ static OWN_BROADCAST: AtomicBool = AtomicBool::new(false);
 /// While the icons re-add themselves after our broadcast: those adds aren't passed on, as Explorer
 /// has them already (and some programs re-add without a tooltip, which would wipe Explorer's).
 static QUIET_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+/// Where icons were last clicked or pointed at, on the screen, by id; the newest last.
+static PLACES: Mutex<Vec<(String, RECT)>> = Mutex::new(Vec::new());
 static EVENTS: OnceLock<Box<dyn Fn(Event) + Send + Sync>> = OnceLock::new();
 static FORWARD: OnceLock<Mutex<Sender<Forward>>> = OnceLock::new();
 
@@ -357,8 +389,40 @@ unsafe fn copy_data(from: usize, c: &COPYDATASTRUCT) -> isize {
             return answer as isize;
         }
     }
-    // App bars (Apron's and Lintel's) and icons' places: Explorer's answer is the answer.
+    if c.dwData == COPY_PLACE && data.len() >= std::mem::size_of::<PlaceAsk>() {
+        let a = std::ptr::read_unaligned(data.as_ptr() as *const PlaceAsk);
+        if let Some(answer) = (a.magic == MAGIC).then(|| place_of(&a)).flatten() {
+            return answer;
+        }
+    }
+    // App bars (Apron's and Lintel's), and places we don't know: Explorer's answer is the answer.
     send_to_explorer(c.dwData, from, data, 3000)
+}
+
+/// Where an icon is, as `Shell_NotifyIconGetRect` wants it, if it's been clicked or pointed at.
+fn place_of(a: &PlaceAsk) -> Option<isize> {
+    let id = TABLE.lock().unwrap().iter().find(|e| e.is(a.hwnd, a.uid, a.guid))?.id();
+    let r = PLACES.lock().unwrap().iter().rev().find(|(i, _)| *i == id)?.1;
+    match a.message {
+        1 => Some(point_param(r.left, r.top) as isize),
+        2 => Some(point_param(r.right, r.bottom) as isize),
+        _ => None,
+    }
+}
+
+/// x in the low 16 bits and y in the high, as messages carry a point.
+fn point_param(x: i32, y: i32) -> u32 {
+    ((y as u32 & 0xffff) << 16) | (x as u32 & 0xffff)
+}
+
+/// Where an icon is on the screen just now: the dock's or Lintel's button for it.
+pub fn place(id: &str, rect: RECT) {
+    let mut p = PLACES.lock().unwrap();
+    p.retain(|(i, _)| i != id);
+    p.push((id.to_string(), rect));
+    if p.len() > 64 {
+        p.remove(0);
+    }
 }
 
 fn send_to_explorer(kind: usize, from: usize, data: &[u8], ms: u32) -> isize {
@@ -446,7 +510,10 @@ fn merge(e: &mut Nid, n: &Nid) {
     }
     if f & NIF_TIP != 0 {
         e.tip = n.tip;
+        // A new tooltip says again which kind it is.
+        e.flags &= !NIF_SHOWTIP;
     }
+    e.flags |= f & NIF_SHOWTIP;
     if f & NIF_STATE != 0 {
         e.state = (e.state & !n.state_mask) | (n.state & n.state_mask);
     }
@@ -479,19 +546,26 @@ pub fn list() -> Vec<TrayIcon> {
             id: e.id(),
             tip: from_wide(&e.nid.tip),
             exe: image_path(e.pid).and_then(|p| p.rsplit('\\').next().map(str::to_lowercase)).unwrap_or_default(),
+            pid: e.pid,
             hicon: e.nid.hicon as i32 as isize,
-            icon: None,
+            tooltip: !e.own_tooltip(),
         })
         .collect()
 }
 
-/// A click on an icon, as Explorer would pass it on: "left", "right" or "double".
-pub fn click(id: &str, kind: &str) -> Result<(), String> {
+/// The icon, if it's still there and so is its program.
+fn alive(id: &str) -> Result<Entry, String> {
     let e = TABLE.lock().unwrap().iter().find(|e| e.id() == id).copied().ok_or("that icon has gone")?;
-    let owner = e.owner();
-    if unsafe { IsWindow(owner) } == 0 {
+    if unsafe { IsWindow(e.owner()) } == 0 {
         return Err("its program has gone".into());
     }
+    Ok(e)
+}
+
+/// A click on an icon, as Explorer would pass it on: "left", "right" or "double".
+pub fn click(id: &str, kind: &str) -> Result<(), String> {
+    let e = alive(id)?;
+    let owner = e.owner();
     let new = e.nid.version >= 3;
     let events: &[u32] = match kind {
         "left" if new => &[WM_LBUTTONDOWN, WM_LBUTTONUP, NIN_SELECT],
@@ -507,10 +581,34 @@ pub fn click(id: &str, kind: &str) -> Result<(), String> {
         AllowSetForegroundWindow(pid_of(owner));
         GetCursorPos(&mut at);
     }
+    tell_program(&e, events, at).map_err(|err| format!("Windows wouldn't pass the click on: {err}"))
+}
+
+/// The pointer came onto an icon (`on`) or left it. Every program hears it move (some freshen
+/// their tooltip then), and one that draws its own tooltip is told to show or hide it.
+pub fn hover(id: &str, on: bool) -> Result<(), String> {
+    let e = alive(id)?;
+    let events: &[u32] = match (on, e.own_tooltip()) {
+        (true, true) => &[WM_MOUSEMOVE, NIN_POPUPOPEN],
+        (true, false) => &[WM_MOUSEMOVE],
+        (false, true) => &[NIN_POPUPCLOSE],
+        (false, false) => &[],
+    };
+    // A popup goes by the icon, as Explorer has it: its middle.
+    let at = PLACES.lock().unwrap().iter().rev().find(|(i, _)| i == id).map(|(_, r)| POINT { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 });
+    let at = at.unwrap_or_else(|| {
+        let mut p = POINT::default();
+        unsafe { GetCursorPos(&mut p) };
+        p
+    });
+    tell_program(&e, events, at).map_err(|err| err.to_string())
+}
+
+fn tell_program(e: &Entry, events: &[u32], at: POINT) -> Result<(), std::io::Error> {
     for &event in events {
         let (wparam, lparam) = callback_params(e.nid.version, e.nid.uid, event, at);
-        if unsafe { SendNotifyMessageW(owner, e.nid.callback, wparam, lparam) } == 0 {
-            return Err(format!("Windows wouldn't pass the click on: {}", std::io::Error::last_os_error()));
+        if unsafe { SendNotifyMessageW(e.owner(), e.nid.callback, wparam, lparam) } == 0 {
+            return Err(std::io::Error::last_os_error());
         }
     }
     Ok(())
@@ -525,8 +623,7 @@ pub fn pid(id: &str) -> Option<u32> {
 /// ones the number alone.
 fn callback_params(version: u32, uid: u32, event: u32, at: POINT) -> (usize, isize) {
     if version >= 4 {
-        let point = ((at.y as u32 & 0xffff) << 16) | (at.x as u32 & 0xffff);
-        (point as usize, (event | (uid << 16)) as isize)
+        (point_param(at.x, at.y) as usize, (event | (uid << 16)) as isize)
     } else {
         (uid as usize, event as isize)
     }
@@ -586,6 +683,38 @@ mod tests {
         // A screen left of the main one: negative x stays in its 16 bits.
         let (w, _) = callback_params(4, 0, 0, POINT { x: -1, y: 0 });
         assert_eq!(w, 0xffff);
+    }
+
+    #[test]
+    fn the_standard_tooltip_is_as_last_asked() {
+        let mut e = Entry { nid: nid(1, 7, 0, ""), pid: 0 };
+        e.nid.version = 4;
+        merge(&mut e.nid, &nid(1, 7, NIF_TIP, "Mine"));
+        assert!(e.own_tooltip());
+        merge(&mut e.nid, &nid(1, 7, NIF_TIP | NIF_SHOWTIP, "Standard"));
+        assert!(!e.own_tooltip());
+        // A change of picture alone leaves it so.
+        merge(&mut e.nid, &nid(1, 7, NIF_ICON, ""));
+        assert!(!e.own_tooltip());
+        e.nid.version = 3;
+        merge(&mut e.nid, &nid(1, 7, NIF_TIP, "Old"));
+        assert!(!e.own_tooltip());
+    }
+
+    #[test]
+    fn programs_are_told_where_their_icon_was_clicked() {
+        let n = nid(0x7fff_ffe0, 2, NIF_TIP, "Placed");
+        note(NIM_ADD, &n);
+        let id = TABLE.lock().unwrap().iter().find(|e| e.same(&n)).unwrap().id();
+        let ask = |message| PlaceAsk { magic: MAGIC, message, cb: 40, padding: 0, hwnd: n.hwnd, uid: 2, guid: [0; 16] };
+        assert_eq!(std::mem::size_of::<PlaceAsk>(), 40);
+        assert_eq!(place_of(&ask(1)), None);
+        place(&id, RECT { left: -20, top: 0, right: 4, bottom: 30 });
+        assert_eq!(place_of(&ask(1)), Some(0xffec));
+        assert_eq!(place_of(&ask(2)), Some((30 << 16) | 4));
+        assert_eq!(place_of(&ask(9)), None);
+        note(NIM_DELETE, &n);
+        assert_eq!(place_of(&ask(1)), None);
     }
 
     #[test]

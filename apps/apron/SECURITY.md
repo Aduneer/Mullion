@@ -33,7 +33,17 @@ full.
   passed on and not shown. A click on an icon is sent only to that icon's own window, as the
   taskbar sends it; Apron lets that program bring a window to the front for the click
   (`AllowSetForegroundWindow`). It reads which icons Windows keeps out of sight from
-  `HKEY_CURRENT_USER\Control Panel\NotifyIconSettings`, and changes nothing there.
+  `HKEY_CURRENT_USER\Control Panel\NotifyIconSettings`, and changes nothing there. When the
+  pointer is on an icon, that program is told, as the taskbar tells it, so it can show its
+  tooltip. When a program asks where its icon is (to put its menu beside it), Apron answers with
+  where you last clicked or pointed at it.
+- **Lintel.** Apron passes the icons on to Lintel's bar, over a named pipe on this PC
+  (`\\.\pipe\Mullion.Apron.tray.<session>`, `core/src/tray.rs`), never over the network: the pipe
+  refuses remote clients, only your own user account may open it, and Apron hangs up on any
+  process that isn't `lintel.exe`. It sends each icon's picture, tooltip, program file name and
+  process id, and whether Windows keeps it hidden. It takes back only whether Lintel shows them,
+  and clicks and the pointer on an icon, which it passes on exactly as for the dock's own; the
+  page can't make it do anything else.
 - **Your apps.** To show the running apps, Apron reads the windows Alt+Tab would list (their
   titles, whether minimized or in front) and the path of the program each belongs to, kept in
   memory only. It hears windows come and go through WinEvent hooks (no keyboard or mouse hook).

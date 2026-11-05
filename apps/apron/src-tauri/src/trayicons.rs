@@ -1,46 +1,75 @@
-//! The tray's icons as the dock shows them: each program's picture drawn into an image the page
-//! can show, and which ones Windows' own settings keep on the taskbar ("promoted") rather than in
-//! the flyout of hidden icons, so the dock shows the same few and keeps the rest under "more".
-//! All of it off the host's thread, which only says something changed.
+//! The tray's icons as the dock and Lintel show them: each program's picture drawn into an image
+//! a page can show, and which ones Windows' own settings keep on the taskbar ("promoted") rather
+//! than in the flyout of hidden icons, so the dock shows the same few and keeps the rest under
+//! "more". All of it off the host's thread, which only says something changed.
 
 use crate::ffi::*;
-use crate::host::{self, TrayIcon};
+use crate::host;
+use mullion_core::tray::Icon;
 use std::collections::HashMap;
 
 /// Drawn at twice the size the dock shows them at 100%, so they're sharp up to 200%.
 const PX: i32 = 32;
 
-/// An icon in the dock: the host's, with its picture, and whether it's shown or under "more".
-#[derive(serde::Serialize, Clone, Debug, PartialEq)]
-pub struct Shown {
-    #[serde(flatten)]
-    pub icon: TrayIcon,
-    pub promoted: bool,
-}
+/// A picture as drawn: its data: URL, and whether it's a glyph in one colour.
+type Picture = Option<(String, bool)>;
 
 /// The pictures already drawn, by icon handle: programs make a new handle for a new picture.
 #[derive(Default)]
-pub struct Pictures(HashMap<isize, Option<String>>);
+pub struct Pictures(HashMap<isize, Picture>);
 
 impl Pictures {
     /// The host's icons now, drawn.
-    pub fn list(&mut self) -> Vec<Shown> {
+    pub fn list(&mut self) -> Vec<Icon> {
         let promoted = promoted();
         let icons = host::list();
         self.0.retain(|h, _| icons.iter().any(|i| i.hicon == *h));
         icons
             .into_iter()
-            .map(|mut icon| {
-                icon.icon = self.0.entry(icon.hicon).or_insert_with(|| draw(icon.hicon)).clone();
-                let promoted = promoted.get(&icon.exe).copied().unwrap_or(true);
-                Shown { icon, promoted }
+            .map(|i| {
+                let picture = self.0.entry(i.hicon).or_insert_with(|| draw(i.hicon)).clone();
+                Icon {
+                    promoted: promoted.get(&i.exe).copied().unwrap_or(true),
+                    glyph: picture.as_ref().is_some_and(|p| p.1),
+                    icon: picture.map(|p| p.0),
+                    id: i.id,
+                    tip: i.tip,
+                    exe: i.exe,
+                    pid: i.pid,
+                    tooltip: i.tooltip,
+                }
             })
             .collect()
     }
 }
 
-/// An HICON (any process's: they're shared) as a data: URL.
-fn draw(hicon: isize) -> Option<String> {
+/// Whether a picture (BGRA) is a glyph in one colour: every pixel that shows is gray and about
+/// as light as the rest, as Windows' own and most programs' tray icons are (white for a dark
+/// taskbar, black for a light one). Coloured pictures, and gray ones with shading, aren't.
+fn is_glyph(bgra: &[u8]) -> bool {
+    let shown: Vec<(f32, f32)> = bgra
+        .chunks(4)
+        .filter(|p| p[3] >= 96)
+        .map(|p| {
+            // Colours are premultiplied: undo that first.
+            let a = p[3] as f32 / 255.0;
+            let [b, g, r] = [p[0], p[1], p[2]].map(|c| (c as f32 / 255.0 / a).min(1.0));
+            let (hi, lo) = (r.max(g).max(b), r.min(g).min(b));
+            (hi - lo, 0.3 * r + 0.59 * g + 0.11 * b)
+        })
+        .collect();
+    if shown.len() < 8 {
+        return false;
+    }
+    let n = shown.len() as f32;
+    let tint = shown.iter().map(|s| s.0).sum::<f32>() / n;
+    let light = shown.iter().map(|s| s.1).sum::<f32>() / n;
+    let spread = (shown.iter().map(|s| (s.1 - light).powi(2)).sum::<f32>() / n).sqrt();
+    tint < 0.08 && spread < 0.12
+}
+
+/// An HICON (any process's: they're shared) as a data: URL, and whether it's a glyph.
+fn draw(hicon: isize) -> Picture {
     let bgra = pixels(hicon, DI_NORMAL)?;
     // An icon without an alpha channel draws all transparent: its mask says what's there.
     let bgra = if bgra.chunks(4).all(|p| p[3] == 0) {
@@ -49,7 +78,8 @@ fn draw(hicon: isize) -> Option<String> {
     } else {
         bgra
     };
-    bgra.chunks(4).any(|p| p[3] > 0).then(|| mullion_core::icons::pixels_url(PX as u32, PX as u32, bgra))
+    let glyph = is_glyph(&bgra);
+    bgra.chunks(4).any(|p| p[3] > 0).then(|| (mullion_core::icons::pixels_url(PX as u32, PX as u32, bgra), glyph))
 }
 
 fn pixels(hicon: isize, how: u32) -> Option<Vec<u8>> {
@@ -147,5 +177,20 @@ mod tests {
     #[test]
     fn a_handle_that_isnt_an_icon_draws_nothing() {
         assert_eq!(draw(0), None);
+    }
+
+    #[test]
+    fn one_colour_pictures_are_glyphs() {
+        let px = |b: u8, g: u8, r: u8, a: u8| [b, g, r, a];
+        let picture = |pixels: &[[u8; 4]]| pixels.iter().cycle().take(64).flatten().copied().collect::<Vec<u8>>();
+        // White, and white with soft (premultiplied) edges.
+        assert!(is_glyph(&picture(&[px(255, 255, 255, 255), px(128, 128, 128, 128), px(0, 0, 0, 0)])));
+        // Black.
+        assert!(is_glyph(&picture(&[px(0, 0, 0, 255), px(10, 10, 10, 255)])));
+        // Steam's blue, and a gray with dark and light parts.
+        assert!(!is_glyph(&picture(&[px(200, 120, 20, 255)])));
+        assert!(!is_glyph(&picture(&[px(255, 255, 255, 255), px(20, 20, 20, 255)])));
+        // Nothing much there.
+        assert!(!is_glyph(&[0; 64]));
     }
 }

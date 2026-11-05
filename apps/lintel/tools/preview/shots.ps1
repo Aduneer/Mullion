@@ -66,6 +66,7 @@ try {
     Shot "$base&theme=dark&open=media" (Join-Path $images "bar-dark.png") 1440 620
     Shot "$base&theme=light&open=media" (Join-Path $images "bar-light.png") 1440 620
     Shot "$base&theme=dark&open=app" (Join-Path $images "app-menu.png") 1440 420
+    Shot "$base&theme=light&open=tray&palette=rose-pine" (Join-Path $images "tray.png") 1440 360
     Shot "$base&theme=dark&open=stats&palette=catppuccin" (Join-Path $images "stats.png") 1440 520
     Shot "$base&theme=dark&edge=left&open=clock&palette=nord" (Join-Path $images "side.png") 900 620
     Shot "$base&theme=dark&open=control" (Join-Path $images "control.png") 1440 560

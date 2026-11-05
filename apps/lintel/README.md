@@ -46,7 +46,7 @@ always there, and every item opens a small menu that does something.
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/bar-light.png">
-  <img alt="Lintel along the top of the screen: the logo and Google Chrome as the app in front, the open apps in the middle, then the track that's playing, CPU and memory, volume, Bluetooth, Wi-Fi, battery, the Control Centre and the clock, with the Now playing menu growing out of the bar under the track" src="docs/images/bar-dark.png">
+  <img alt="Lintel along the top of the screen: the logo and Google Chrome as the app in front, the open apps in the middle, then the notification area's icons, the track that's playing, CPU and memory, volume, Bluetooth, Wi-Fi, battery, the Control Centre and the clock, with the Now playing menu growing out of the bar under the track" src="docs/images/bar-dark.png">
 </picture>
 
 From left to right:
@@ -59,6 +59,11 @@ From left to right:
 - **Your open apps**, in the middle, as the taskbar shows them, with a dot for each window. Click
   one to bring it forward (or minimize it if it's already in front, or pick a window if it has
   several), right-click for its menu, middle-click for a new window.
+- **The notification area's icons**, with [Apron](../apron/README.md) running: Steam, Discord,
+  OneDrive and the rest, as a Mac's menu bar shows its extras. Click, double-click or right-click
+  one and its app answers as it does on the taskbar, with its own window or menu. The ones Windows
+  keeps out of sight are in a menu under the chevron. Icons drawn in one colour, white or black
+  for the taskbar, take the bar's own colour, so they show in any theme.
 - **Now playing**: the track from Spotify, your browser or anything else that shows in Windows'
   media controls. The menu has the cover, play/pause, skip and how far in you are. Middle-click
   the item to play or pause.
@@ -74,6 +79,8 @@ From left to right:
   notifications and Windows' quick settings.
 - **The clock**, 12- or 24-hour as Windows has it or as you pick, with the date and seconds if
   you want them. Its menu is a calendar that starts the week on your day.
+
+<img alt="The notification area's icons at the left of the status items, in the light theme, with the chevron's menu open: the three icons Windows keeps out of sight, each with its picture and tooltip" src="docs/images/tray.png">
 
 <img alt="The menu of the app in front: Google Chrome's three windows, the minimized one marked, then Minimize, Close Window and Quit Google Chrome" src="docs/images/app-menu.png">
 
@@ -153,7 +160,10 @@ Logo menu → **Menu Bar Settings**. Changes apply and save as you make them, to
 - **Size**: Compact, Standard or Large
 - **Clock**: Windows' format, 12-hour or 24-hour, with or without the date and seconds
 - **Show in the bar**: open apps (with bars on every screen, optionally just each screen's own),
-  now playing, CPU and memory, volume, network, Bluetooth, the Control Centre and battery
+  now playing, CPU and memory, volume, network, Bluetooth, the Control Centre, battery, and
+  **Notification area icons** (on by default; they need Apron, and the setting says when it isn't
+  running. Turn it off to keep them in Apron's dock only, or turn on Apron's **Keep the icons in
+  the dock too** to have them in both)
 - **Hide the Windows taskbar**: sets it to auto-hide while Lintel runs, and puts it back when
   Lintel quits
 - **Start Lintel when I sign in**
@@ -168,9 +178,17 @@ hot corners, and [Apron](../apron/README.md), the dock. They share their themes,
 installer installs any of them in one go. Each is still its own program, which works alone. If
 Oriel is installed, the logo menu has a shortcut to it. When Mullion runs Apron too, your open apps
 are in Apron's dock, so Lintel's bar leaves them out until you tick **Open apps** under **Show in
-the bar**.
+the bar**. The other way round, the notification area's icons move from Apron's dock to Lintel's
+bar.
 
 ## FAQ
+
+**Where are my tray icons?**
+Only one program at a time can hold the notification area. With Apron running, that's Apron, which
+takes the taskbar's place and passes the icons on to Lintel. Without it, Windows' taskbar has them
+as always, and Lintel's bar shows none. An icon whose app runs as administrator can't be clicked
+from Lintel (Windows keeps apps apart that way); clicking it says so and offers to open the app
+again.
 
 **My taskbar is at the top too. Where does Lintel go?**
 Windows stacks app bars on the same edge, so Lintel sits just below the taskbar. Move one of

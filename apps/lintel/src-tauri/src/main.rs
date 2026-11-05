@@ -8,6 +8,7 @@ mod radios;
 mod settings;
 mod stats;
 mod taskbar;
+mod tray;
 
 use mullion_core::apps::{self, Front};
 use mullion_core::audio::{self, Audio, AudioWatch};
@@ -97,6 +98,9 @@ struct Hello {
     sample: Option<Sample>,
     front: Option<Front>,
     apps: Vec<apps::App>,
+    /// The notification area's icons, from Apron, and whether Apron is there to give them.
+    tray: Vec<mullion_core::tray::Icon>,
+    tray_host: bool,
     has_battery: bool,
     /// Oriel is installed, so the stats menu can offer to open it.
     oriel: bool,
@@ -134,7 +138,8 @@ fn main() {
             wallpaper_image,
             bar_info, screens, set_radio, bluetooth_devices, taskbar_can_hide, displays, set_brightness,
             hello, save_settings, set_autostart, open_menu, menu_ready, close_menu, media_control, media_art, set_volume,
-            app_windows, window_action, launch_app, quit_app, power, run_action, quit
+            app_windows, window_action, launch_app, quit_app, power, run_action, quit,
+            tray::tray_click, tray::tray_hover, tray::tray_program, tray::tray_open
         ])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
@@ -157,6 +162,7 @@ fn main() {
             app.manage(OpenMenu(Mutex::new(MenuState::default())));
             app.manage(wallpaper::Image::new());
             app.manage(Bars::default());
+            tray::start(app.handle());
 
             // Also puts it back if a Lintel that hid it didn't get to quit cleanly.
             taskbar::apply(settings.hide_taskbar);
@@ -261,12 +267,14 @@ fn start_sampler(app: AppHandle, media: MediaWatch, audio: AudioWatch) {
 // --- commands --------------------------------------------------------------------
 
 #[tauri::command]
-fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSample>) -> Hello {
+fn hello(app: AppHandle, settings: State<SettingsState>, latest: State<LatestSample>, tray: State<tray::Tray>) -> Hello {
     Hello {
         settings: settings.0.lock().unwrap().shown(),
         sample: latest.0.lock().unwrap().clone(),
         front: apps::latest(),
         apps: apps::running(),
+        tray: tray.icons(),
+        tray_host: tray.host(),
         has_battery: stats::battery().is_some(),
         oriel: oriel_exe().is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
@@ -297,6 +305,9 @@ fn save_settings(app: AppHandle, state: State<SettingsState>, media: State<Media
     }
     if previous.screens != settings.screens {
         sync_bars_later(&app);
+    }
+    if previous.tray != settings.tray {
+        app.state::<tray::Tray>().showing(settings.tray);
     }
     let shown = settings.shown();
     let _ = app.emit("settings", &shown);

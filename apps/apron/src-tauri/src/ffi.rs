@@ -66,6 +66,7 @@ pub const WM_NCDESTROY: u32 = 0x0082;
 pub const WM_NULL: u32 = 0x0000;
 pub const WM_USER: u32 = 0x0400;
 pub const WM_CONTEXTMENU: u32 = 0x007B;
+pub const WM_MOUSEMOVE: u32 = 0x0200;
 pub const WM_LBUTTONDOWN: u32 = 0x0201;
 pub const WM_LBUTTONUP: u32 = 0x0202;
 pub const WM_LBUTTONDBLCLK: u32 = 0x0203;
@@ -102,7 +103,6 @@ extern "system" {
     pub fn FindWindowW(class: *const u16, title: *const u16) -> isize;
     pub fn SendMessageTimeoutW(hwnd: isize, msg: u32, wparam: usize, lparam: isize, flags: u32, ms: u32, result: *mut usize) -> isize;
     pub fn SendNotifyMessageW(hwnd: isize, msg: u32, wparam: usize, lparam: isize) -> i32;
-    pub fn AllowSetForegroundWindow(pid: u32) -> i32;
     pub fn GetCursorPos(pt: *mut POINT) -> i32;
     pub fn ShowWindowAsync(hwnd: isize, cmd: i32) -> i32;
     pub fn GetDpiForWindow(hwnd: isize) -> u32;
