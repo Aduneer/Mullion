@@ -70,6 +70,7 @@ const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} 
 
 function state(a) {
   if (!a.installed) return "Not installed";
+  if (a.blocked) return "Blocked by Windows";
   if (a.running) return a.on ? "Running" : "Running on its own";
   return a.on ? "Not running" : "Off";
 }
@@ -130,9 +131,10 @@ function drawUpdate() {
 
 function drawApps() {
   appsEl.innerHTML = apps.map(a => card(a,
-    `<span class="state${a.running ? " up" : ""}">${state(a)}</span>`,
+    `<span class="state${a.running ? " up" : a.blocked ? " blocked" : ""}">${state(a)}</span>`,
     !a.installed ? getIt(a)
-      : `${a.shows && a.on ? `<button class="btn" data-settings="${esc(a.name)}">Settings</button>` : ""}
+      : `${a.blocked ? web(`data-page="install:${esc(a.name)}"`, "What to do") : ""}
+         ${a.shows && a.on && !a.blocked ? `<button class="btn" data-settings="${esc(a.name)}">Settings</button>` : ""}
          ${!a.running && a.on ? `<button class="btn" data-start="${esc(a.name)}">Start</button>` : ""}
          ${sw(`data-app="${esc(a.name)}"`, a.on, `Run ${a.name}`)}`)).join("") + errLine();
 }

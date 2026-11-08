@@ -128,7 +128,8 @@ Mullion Settings, has the version of Mullion and of each app.
 
 Want just one app? The same release has each app's own installer and a portable zip. None of it
 is code-signed yet, so SmartScreen may warn you and Smart App Control may block it; each app's
-README says what to do.
+README says what to do. If Windows blocks one of the apps, Mullion Settings says so on its row,
+with **What to do**.
 
 ## One icon for all of them
 

@@ -46,6 +46,9 @@ struct AppInfo {
     running: bool,
     /// As its exe's version info has it, when it's installed.
     version: Option<String>,
+    /// Windows wouldn't start it (Smart App Control) the last time Mullion tried, and it isn't
+    /// running.
+    blocked: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     icon: Option<String>,
 }
@@ -129,14 +132,16 @@ fn list(settings: &Settings, with_icons: bool) -> Vec<AppInfo> {
     APPS.iter()
         .map(|a| {
             let exe = suite::find_app(a);
+            let running = exe.as_ref().is_some_and(|e| !suite::running(e).is_empty());
             AppInfo {
                 name: a.name,
                 about: a.about,
                 shows: a.shows,
                 installed: exe.is_some(),
                 on: settings.is_on(a.name),
-                running: exe.as_ref().is_some_and(|e| !suite::running(e).is_empty()),
+                running,
                 version: exe.as_ref().and_then(|e| ffi::file_version(&e.to_string_lossy())),
+                blocked: !running && BLOCKED.lock().unwrap().contains(&a.name),
                 icon: exe.filter(|_| with_icons).and_then(|_| icon_of(a.name)),
             }
         })
@@ -160,11 +165,32 @@ fn icon_of(name: &str) -> Option<String> {
     Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png)))
 }
 
+/// The apps Windows wouldn't start the last time Mullion tried, for their rows to say so.
+static BLOCKED: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+
+/// Start an app, or ask the running one something. When Windows won't run it (Smart App Control
+/// stops unsigned programs it doesn't know yet), Mullion notes it and says so plainly, rather than
+/// "An Application Control policy has blocked this file".
+fn send(a: &suite::App, exe: &std::path::Path, ask: Ask) -> Result<(), String> {
+    let sent = suite::send(exe, ask);
+    let mut blocked = BLOCKED.lock().unwrap();
+    blocked.retain(|n| *n != a.name);
+    match sent {
+        Ok(()) => Ok(()),
+        // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, and ERROR_ACCESS_DISABLED_BY_POLICY.
+        Err(e) if matches!(e.raw_os_error(), Some(4551 | 1260)) => {
+            blocked.push(a.name);
+            Err(format!("Windows’ Smart App Control blocked {}, as it isn’t signed yet", a.name))
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 /// Start every app that's on, or tell the ones already running that they're Mullion's now.
 fn start_apps(settings: &Settings) {
     for a in APPS.iter().filter(|a| settings.is_on(a.name)) {
         if let Some(exe) = suite::find_app(a) {
-            let _ = suite::send(&exe, Ask::Nothing);
+            let _ = send(a, &exe, Ask::Nothing);
         }
     }
 }
@@ -288,7 +314,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             id => {
                 if let Some(Ok(a)) = id.strip_prefix("open:").map(app_named) {
                     if let Some(exe) = suite::find_app(a) {
-                        let _ = suite::send(&exe, Ask::Show);
+                        let _ = send(a, &exe, Ask::Show);
                     }
                 }
             }
@@ -339,7 +365,7 @@ fn set_app(app: AppHandle, state: State<SettingsState>, name: String, on: bool) 
     };
     if let Some(exe) = suite::find_app(a) {
         if on {
-            suite::send(&exe, Ask::Nothing).map_err(|e| e.to_string())?;
+            send(a, &exe, Ask::Nothing)?;
         } else if !suite::running(&exe).is_empty() {
             suite::send(&exe, Ask::Quit).map_err(|e| e.to_string())?;
         }
@@ -381,7 +407,7 @@ fn welcome(app: AppHandle, window: WebviewWindow, state: State<SettingsState>, o
 fn open_app(name: String, settings: bool) -> Result<(), String> {
     let a = app_named(&name)?;
     let exe = suite::find_app(a).ok_or_else(|| format!("{name} isn't installed"))?;
-    suite::send(&exe, if settings { Ask::Settings } else { Ask::Show }).map_err(|e| e.to_string())
+    send(a, &exe, if settings { Ask::Settings } else { Ask::Show })
 }
 
 /// The release page, for an app that isn't installed.
@@ -451,6 +477,11 @@ fn open_page(page: &str) -> Result<(), String> {
     let url = match page {
         "notes" => format!("{}tag/v{}", updates::PAGES, env!("CARGO_PKG_VERSION")),
         "source" => "https://github.com/Aduneer/Mullion".into(),
+        // What to do when Windows blocks an app: its README's Install section says.
+        p if p.starts_with("install:") => {
+            let a = app_named(&p["install:".len()..])?;
+            format!("https://github.com/Aduneer/Mullion/blob/main/apps/{}/README.md#install", a.exe)
+        }
         _ => return Err(format!("no page called {page}")),
     };
     ffi::shell_open(&url, None, "open")

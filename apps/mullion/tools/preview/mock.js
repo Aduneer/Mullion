@@ -5,6 +5,7 @@
 //   mode=dark|light (otherwise Windows' own)  off=Lintel (turned off)  missing=Oriel (not installed)
 //   welcome=1 (the first time, before Start)  update=1 (a newer Mullion is out)
 //   look=nord (the same look for every app, in that palette)  old=Bay (an older version than Mullion's)
+//   blocked=Bay (Windows wouldn't start it)
 (() => {
   const q = new URLSearchParams(location.search);
   if (q.get("mode")) {
@@ -15,7 +16,7 @@
       : real(query);
   }
   const list = n => (q.get(n) || "").split(",").filter(Boolean);
-  const off = new Set(list("off")), missing = new Set(list("missing")), old = new Set(list("old"));
+  const off = new Set(list("off")), missing = new Set(list("missing")), old = new Set(list("old")), blocked = new Set(list("blocked"));
   let autostart = true, welcomed = q.get("welcome") !== "1", checkUpdates = true;
   let look = { on: !!q.get("look"), theme: "auto", palette: q.get("look") || "oriel", glass: false };
   const updates = q.get("update") === "1"
@@ -33,7 +34,7 @@
   ];
   const apps = icons => APPS.map(([name, about, shows]) => {
     const installed = !missing.has(name), on = !off.has(name);
-    const a = { name, about, shows, installed, on, running: installed && on, version: installed ? (old.has(name) ? "0.3.0" : "0.4.1") : null };
+    const a = { name, about, shows, installed, on, running: installed && on && !blocked.has(name), blocked: installed && on && blocked.has(name), version: installed ? (old.has(name) ? "0.3.0" : "0.4.1") : null };
     if (icons && installed) a.icon = `/icons/${name.toLowerCase()}.png`;
     return a;
   });
