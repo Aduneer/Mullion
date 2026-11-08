@@ -49,7 +49,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "apron"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -256,7 +256,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "bay"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "fanlight"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "mullion-core",
  "serde",
@@ -2119,7 +2119,7 @@ dependencies = [
 
 [[package]]
 name = "lintel"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -2224,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "mitre"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "mullion"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -2646,7 +2646,7 @@ dependencies = [
 
 [[package]]
 name = "oriel"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",
@@ -3138,7 +3138,7 @@ dependencies = [
 
 [[package]]
 name = "sash"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "mullion-core",

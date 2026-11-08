@@ -1,6 +1,6 @@
 [package]
 name = "apron"
-version = "0.5.0"
+version = "0.6.0"
 description = "A dock along the bottom of the screen: pinned and open apps, and the notification area"
 license = "MIT"
 edition = "2021"
