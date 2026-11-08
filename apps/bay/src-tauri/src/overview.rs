@@ -434,7 +434,7 @@ pub fn close(app: &AppHandle, picked: Option<(isize, u32)>) {
     o.phase = Phase::Closing;
     if let Some((hwnd, pid)) = picked {
         let _ = wins::focus(hwnd, pid);
-        if let Some(win) = o.windows.iter().find(|w| w.hwnd == hwnd).copied() {
+        if let Some(win) = o.windows.iter().find(|w| w.hwnd == hwnd && !w.gone).copied() {
             let sc = o.screens[win.screen].clone();
             if let Some(i) = win.flight {
                 thumbs::unregister(o.flights[i].id);
@@ -525,7 +525,7 @@ fn land(hwnd: isize, pid: u32) {
 
 /// A window was picked on a page: only one the overview shows, still that program's.
 pub fn pick(app: &AppHandle, hwnd: isize, pid: u32) -> Result<(), String> {
-    let known = app.state::<State>().0.lock().unwrap().windows.iter().any(|w| w.hwnd == hwnd && w.pid == pid);
+    let known = app.state::<State>().0.lock().unwrap().windows.iter().any(|w| w.hwnd == hwnd && w.pid == pid && !w.gone);
     if !known {
         return Err("not a window in the overview".into());
     }
@@ -593,7 +593,7 @@ pub fn drag(app: &AppHandle, hwnd: isize, pid: u32, fx: f64, fy: f64) -> Result<
     if o.phase != Phase::Open || o.drag.is_some() {
         return Err("not now".into());
     }
-    let win = *o.windows.iter().find(|w| w.hwnd == hwnd && w.pid == pid).ok_or("not a window in the overview")?;
+    let win = *o.windows.iter().find(|w| w.hwnd == hwnd && w.pid == pid && !w.gone).ok_or("not a window in the overview")?;
     // A minimized window has no thumbnail to carry, and stays where it'll come back.
     let fi = win.flight.ok_or("a minimized window stays on its screen")?;
     wins::check(hwnd, pid)?;
@@ -696,7 +696,7 @@ fn place_on(r: RECT, from: [i32; 4], to: [i32; 4]) -> RECT {
 fn dropped(app: &AppHandle, hwnd: isize, on: usize, at: Rect, moved: bool) {
     let state = app.state::<State>();
     let mut o = state.0.lock().unwrap();
-    let Some(wi) = o.windows.iter().position(|w| w.hwnd == hwnd) else { return };
+    let Some(wi) = o.windows.iter().position(|w| w.hwnd == hwnd && !w.gone) else { return };
     let (origin, fi) = (o.windows[wi].screen, o.windows[wi].flight.unwrap_or(0));
     let mut flights = Vec::new();
     let mut from_at = at;
@@ -872,31 +872,96 @@ pub fn close_window(app: &AppHandle, hwnd: isize, pid: u32) -> Result<(), String
             if still {
                 let _ = pick(&handle, hwnd, pid);
             } else {
-                closed_window(&handle, hwnd);
+                sync_windows(&handle);
             }
         });
     });
     Ok(())
 }
 
-/// A window closed from the overview has gone: its screen's grid closes up.
-fn closed_window(app: &AppHandle, hwnd: isize) {
+/// Windows came or went while the overview is open (`watch`), or one closed from it: a new one
+/// joins its screen's grid, flying in from where it is, and one that's gone (closed, hidden away,
+/// or minimized while Bay leaves those out) leaves it. Its grid closes up or makes room, and a
+/// window renamed shows its new title.
+pub fn sync_windows(app: &AppHandle) {
+    let minimized = app.state::<SettingsState>().0.lock().unwrap().minimized;
     let state = app.state::<State>();
     let mut o = state.0.lock().unwrap();
-    if o.phase != Phase::Open {
+    if o.phase != Phase::Open || o.drag.is_some() {
         return;
     }
-    let Some(wi) = o.windows.iter().position(|w| w.hwnd == hwnd && !w.gone) else { return };
-    o.windows[wi].gone = true;
-    if let Some(f) = o.windows[wi].flight {
-        thumbs::unregister(o.flights[f].id);
+    let own = std::process::id();
+    let now: Vec<wins::Raw> = wins::enumerate().into_iter().filter(|w| wins::listed(w, own) && (minimized || !w.minimized)).collect();
+    let words: Vec<String> = o.query.to_lowercase().split_whitespace().map(String::from).collect();
+    let mut changed = vec![false; o.screens.len()];
+
+    // Gone.
+    for wi in 0..o.windows.len() {
+        let w = o.windows[wi];
+        if w.gone || now.iter().any(|r| r.hwnd == w.hwnd) {
+            continue;
+        }
+        o.windows[wi].gone = true;
+        if let Some(f) = w.flight {
+            thumbs::unregister(o.flights[f].id);
+        }
+        o.shown[w.screen].slots.retain(|sl| sl.hwnd != w.hwnd);
+        changed[w.screen] = true;
     }
-    let s = o.windows[wi].screen;
-    o.shown[s].slots.retain(|sl| sl.hwnd != hwnd);
-    relayout(&mut o, s);
-    let _ = app.emit_to(o.screens[s].label.as_str(), "moved", Moved { shown: &o.shown[s] });
+
+    // New: each starts where it is, and flies to its place with the others.
+    let known = state.1.lock().unwrap().clone();
+    let mut missing = Vec::new();
+    for raw in &now {
+        if o.windows.iter().any(|w| w.hwnd == raw.hwnd && !w.gone) {
+            continue;
+        }
+        let Some((seen, crop)) = thumbs::bounds(raw.hwnd) else { continue };
+        let Some(s) = screen_of(&o.screens, raw.hwnd) else { continue };
+        let sc = o.screens[s].clone();
+        let from = sc.local(seen);
+        let flight = if raw.minimized {
+            None
+        } else {
+            let Some(id) = thumbs::register(sc.hwnd, raw.hwnd) else { continue };
+            o.flights.push(Flight { id, crop, from, to: from });
+            Some(o.flights.len() - 1)
+        };
+        let icon_key = image_path(raw.pid).unwrap_or_default();
+        let hidden = !matches(&words, &raw.title, &icon_key);
+        o.windows.push(Win { hwnd: raw.hwnd, pid: raw.pid, screen: s, flight, from, to: from, now: from, hidden, gone: false });
+        let icon = known.get(&icon_key).cloned().flatten();
+        if !known.contains_key(&icon_key) && !missing.contains(&icon_key) {
+            missing.push(icon_key.clone());
+        }
+        let f = sc.scale;
+        let slot = Slot { hwnd: raw.hwnd, pid: raw.pid, title: raw.title.clone(), icon_key, icon, minimized: raw.minimized, hidden, z: 0, x: from.x / f, y: from.y / f, w: from.w / f, h: from.h / f };
+        o.shown[s].slots.push(slot);
+        changed[s] = true;
+    }
+
+    // Titles, and the stack as it is now, front first.
+    for (s, shown) in o.shown.iter_mut().enumerate() {
+        for slot in shown.slots.iter_mut() {
+            let Some(z) = now.iter().position(|r| r.hwnd == slot.hwnd) else { continue };
+            slot.z = z;
+            if now[z].title != slot.title {
+                slot.title = now[z].title.clone();
+                changed[s] = true;
+            }
+        }
+        shown.slots.sort_by_key(|sl| sl.z);
+    }
+
+    for s in (0..changed.len()).filter(|&s| changed[s]) {
+        relayout(&mut o, s);
+        let _ = app.emit_to(o.screens[s].label.as_str(), "moved", Moved { shown: &o.shown[s] });
+    }
     drop(o);
-    regrid(app);
+    find_icons(app, missing);
+    if changed.contains(&true) {
+        regrid(app);
+    }
 }
 
 /// Set while a thread moves the thumbnails to their new places.

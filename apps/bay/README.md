@@ -65,6 +65,10 @@ first one forward; <kbd>Backspace</kbd> or <kbd>Esc</kbd> brings the others back
 <kbd>W</kbd>, and the others move up to fill its place. If it asks whether to save first, Bay
 brings it forward so you can answer.
 
+**Windows that come and go** while Bay is open join or leave the grid as it happens: a new one
+flies in from where it opened, one that closes or hides away leaves a gap the others fill, and a
+window's title stays up to date.
+
 <img alt="Bay halfway open: the windows on their way from where they were on the screen to their places in the grid, with the desktop fading out behind them" src="docs/images/flight.png">
 
 **Minimized windows** show as cards with their icon, in the grid with the others, because Windows
@@ -191,7 +195,6 @@ Code signing needs a paid certificate and an identity check. It's planned.
 ## Roadmap
 
 - The overview from a mouse button (a hot corner is [Mitre](../mitre/README.md)'s)
-- Windows that open, or close on their own, while Bay is open, added and taken away as it happens
 - Signed releases, then winget
 
 Something you'd like to see? Say so in [Discussions](https://github.com/Aduneer/Mullion/discussions).

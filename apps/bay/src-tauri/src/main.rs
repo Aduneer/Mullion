@@ -11,6 +11,7 @@ mod grid;
 mod overview;
 mod settings;
 mod wallpaper;
+mod watch;
 
 use mullion_core::hotkey::{self, Hotkey};
 use mullion_core::look;
@@ -101,6 +102,7 @@ fn main() {
             app.manage(SettingsState(Mutex::new(settings.clone())));
             overview::sync_screens(app.handle());
             overview::warm_icons(app.handle());
+            watch::start(app.handle());
 
             // Mullion's tray icon stands in for Bay's when Mullion started it.
             if suite::from_mullion(&args) {
