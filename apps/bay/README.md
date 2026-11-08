@@ -57,6 +57,14 @@ and a ring shows which; click it or press <kbd>Enter</kbd>, and it comes forward
 in its middle. <kbd>Esc</kbd>, the shortcut again, or a click beside the windows puts everything
 back as it was.
 
+**Type to find a window.** What you type shows at the top, and only the windows whose title or
+app has it stay, on every screen, the grid closing up around them. <kbd>Enter</kbd> brings the
+first one forward; <kbd>Backspace</kbd> or <kbd>Esc</kbd> brings the others back.
+
+**Close a window** with the × at the end of its title, a middle click or <kbd>Ctrl</kbd> +
+<kbd>W</kbd>, and the others move up to fill its place. If it asks whether to save first, Bay
+brings it forward so you can answer.
+
 <img alt="Bay halfway open: the windows on their way from where they were on the screen to their places in the grid, with the desktop fading out behind them" src="docs/images/flight.png">
 
 **Minimized windows** show as cards with their icon, in the grid with the others, because Windows
@@ -93,8 +101,10 @@ with interfaces it doesn't document, which change from one version of Windows to
 | <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | The nearest window that way; past the edge, the next screen |
 | <kbd>Tab</kbd>, <kbd>Shift</kbd> + <kbd>Tab</kbd> | The next window, in reading order, then the next screen |
 | <kbd>Enter</kbd>, a click | Bring that window forward |
+| Typing | Show only the windows whose title or app has it |
+| <kbd>Ctrl</kbd> + <kbd>W</kbd>, <kbd>Delete</kbd>, a middle click | Close that window |
 | A drag onto another screen | Move the window there |
-| <kbd>Esc</kbd>, a click beside the windows | Put everything back |
+| <kbd>Esc</kbd>, a click beside the windows | Put everything back (with something typed, <kbd>Esc</kbd> clears it first) |
 
 ## Install
 
@@ -181,7 +191,7 @@ Code signing needs a paid certificate and an identity check. It's planned.
 ## Roadmap
 
 - The overview from a mouse button (a hot corner is [Mitre](../mitre/README.md)'s)
-- Windows that open or close while Bay is open, added and taken away as it happens
+- Windows that open, or close on their own, while Bay is open, added and taken away as it happens
 - Signed releases, then winget
 
 Something you'd like to see? Say so in [Discussions](https://github.com/Aduneer/Mullion/discussions).

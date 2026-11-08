@@ -88,7 +88,7 @@ fn main() {
             }
             .unwrap_or_default()
         })
-        .invoke_handler(tauri::generate_handler![page, pick, dismiss, next_screen, drag, let_go, desktops, hello, save_settings, set_autostart, settings_ready, quit])
+        .invoke_handler(tauri::generate_handler![page, pick, dismiss, next_screen, drag, let_go, filter, close_window, desktops, hello, save_settings, set_autostart, settings_ready, quit])
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();
             // A --quit that gets this far found no Bay running, so there's nothing to quit.
@@ -250,6 +250,18 @@ fn next_screen(app: AppHandle, window: WebviewWindow, dir: i32) {
 #[tauri::command]
 fn drag(app: AppHandle, hwnd: u64, pid: u32, fx: f64, fy: f64) -> Result<(), String> {
     overview::drag(&app, mullion_core::wins::handle(hwnd)?, pid, fx, fy)
+}
+
+/// Something typed in the overview: show only the windows it finds.
+#[tauri::command]
+fn filter(app: AppHandle, query: String) {
+    overview::filter(&app, &query);
+}
+
+/// The × under a window, a middle click or Ctrl+W: ask that window to close.
+#[tauri::command]
+fn close_window(app: AppHandle, hwnd: u64, pid: u32) -> Result<(), String> {
+    overview::close_window(&app, mullion_core::wins::handle(hwnd)?, pid)
 }
 
 #[tauri::command]

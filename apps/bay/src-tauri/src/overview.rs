@@ -22,7 +22,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::window::Color;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
 
@@ -64,6 +64,8 @@ pub struct Slot {
     pub icon: Option<String>,
     /// Drawn by the page as a card: a minimized window has no picture to show.
     pub minimized: bool,
+    /// Left out by what's typed: the page doesn't draw it, and its thumbnail is see-through.
+    pub hidden: bool,
     /// Its place in the stack of windows, 0 at the front.
     pub z: usize,
     pub x: f64,
@@ -114,6 +116,12 @@ struct Win {
     /// Where the window is, and its place in the grid, in its overview's client area.
     from: Rect,
     to: Rect,
+    /// Where its thumbnail is while the grid closes up or opens out (`regrid`).
+    now: Rect,
+    /// Left out by what's typed.
+    hidden: bool,
+    /// Closed from the overview: its thumbnail's gone, and it's left out for good.
+    gone: bool,
 }
 
 pub struct Overview {
@@ -135,6 +143,8 @@ pub struct Overview {
     drag: Option<isize>,
     /// Open Windows' Task View once closed: the Desktops button.
     task_view: bool,
+    /// What's typed, to find a window by its title or its program's name.
+    query: String,
 }
 
 /// The overview, and the icons found so far by program path.
@@ -155,6 +165,7 @@ impl State {
             paper_version: 0,
             drag: None,
             task_view: false,
+            query: String::new(),
         };
         State(Mutex::new(o), Mutex::new(HashMap::new()))
     }
@@ -331,7 +342,7 @@ pub fn open(app: &AppHandle) {
                 flights.push(Flight { id, crop, from, to });
                 Some(flights.len() - 1)
             };
-            windows.push(Win { hwnd: raw.hwnd, pid: raw.pid, screen: s, flight, from, to });
+            windows.push(Win { hwnd: raw.hwnd, pid: raw.pid, screen: s, flight, from, to, now: to, hidden: false, gone: false });
             let icon_key = image_path(raw.pid).unwrap_or_default();
             let icon = known.get(&icon_key).cloned().flatten();
             if !known.contains_key(&icon_key) && !missing.contains(&icon_key) {
@@ -342,7 +353,7 @@ pub fn open(app: &AppHandle) {
                 let (cx, cy) = (sc.work[0] + (to.x + to.w / 2.0) as i32, sc.work[1] + (to.y + to.h / 2.0) as i32);
                 eprintln!("bay: {:?} on screen {s}, its middle at {cx},{cy}", raw.title);
             }
-            slots.push(Slot { hwnd: raw.hwnd, pid: raw.pid, title: raw.title, icon_key, icon, minimized: raw.minimized, z, x: to.x / f, y: to.y / f, w: to.w / f, h: to.h / f });
+            slots.push(Slot { hwnd: raw.hwnd, pid: raw.pid, title: raw.title, icon_key, icon, minimized: raw.minimized, hidden: false, z, x: to.x / f, y: to.y / f, w: to.w / f, h: to.h / f });
         }
         slots.reverse();
         shown.push(Shown { slots, ms: duration() });
@@ -353,6 +364,7 @@ pub fn open(app: &AppHandle) {
     o.fades = fades.clone();
     o.windows = windows;
     o.shown = shown.clone();
+    o.query.clear();
     let screens = o.screens.clone();
     drop(o);
 
@@ -439,7 +451,10 @@ pub fn close(app: &AppHandle, picked: Option<(isize, u32)>) {
             }
         }
     }
-    let (flights, fades) = (o.flights.clone(), o.fades.clone());
+    // Left out by what's typed, or closed: they stay out of sight until the overview's gone.
+    let out: Vec<usize> = o.windows.iter().filter(|w| w.hidden || w.gone).filter_map(|w| w.flight).collect();
+    let flights: Vec<Flight> = o.flights.iter().enumerate().filter(|(i, _)| !out.contains(i)).map(|(_, f)| *f).collect();
+    let fades = o.fades.clone();
     drop(o);
     let _ = app.emit("close", ());
     let app = app.clone();
@@ -729,6 +744,9 @@ fn dropped(app: &AppHandle, hwnd: isize, on: usize, at: Rect, moved: bool) {
         let _ = app.emit_to(label(s).as_str(), "moved", Moved { shown: &o.shown[s] });
     }
     let to_focus = label(on);
+    for w in o.windows.iter_mut() {
+        w.now = w.to;
+    }
     drop(o);
     if let Some(w) = app.get_webview_window(&to_focus) {
         let _ = w.set_focus();
@@ -755,7 +773,7 @@ fn dropped(app: &AppHandle, hwnd: isize, on: usize, at: Rect, moved: bool) {
 /// with its old place and its new one.
 fn relayout(o: &mut Overview, s: usize) -> Vec<(usize, Rect, Rect)> {
     let sc = o.screens[s].clone();
-    let on: Vec<usize> = (0..o.windows.len()).filter(|&i| o.windows[i].screen == s).collect();
+    let on: Vec<usize> = (0..o.windows.len()).filter(|&i| o.windows[i].screen == s && !o.windows[i].hidden && !o.windows[i].gone).collect();
     let froms: Vec<Rect> = on.iter().map(|&i| o.windows[i].from).collect();
     let tos = grid::layout(&froms, grid_area(&sc), GAP * sc.scale, LABEL * sc.scale);
     let mut out = Vec::new();
@@ -772,6 +790,165 @@ fn relayout(o: &mut Overview, s: usize) -> Vec<(usize, Rect, Rect)> {
         out.push((i, old, to));
     }
     out
+}
+
+// --- finding and closing windows ------------------------------------------------------------
+
+/// Whether a window is one of those wanted: each word typed is in its title or its program's name.
+fn matches(words: &[String], title: &str, program: &str) -> bool {
+    let title = title.to_lowercase();
+    let name = std::path::Path::new(program).file_stem().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+    words.iter().all(|w| title.contains(w.as_str()) || name.contains(w.as_str()))
+}
+
+/// Something was typed: show only the windows it finds, on every screen, each grid closing up
+/// around them. Empty, every window's back.
+pub fn filter(app: &AppHandle, query: &str) {
+    let state = app.state::<State>();
+    let mut o = state.0.lock().unwrap();
+    if o.phase != Phase::Open || o.drag.is_some() {
+        return;
+    }
+    o.query = query.to_string();
+    let words: Vec<String> = query.to_lowercase().split_whitespace().map(String::from).collect();
+    let mut changed = vec![false; o.screens.len()];
+    let mut back = Vec::new();
+    let Overview { windows, shown, .. } = &mut *o;
+    for w in windows.iter_mut().filter(|w| !w.gone) {
+        let Some(slot) = shown[w.screen].slots.iter_mut().find(|sl| sl.hwnd == w.hwnd) else { continue };
+        let hidden = !matches(&words, &slot.title, &slot.icon_key);
+        if hidden != w.hidden {
+            (w.hidden, slot.hidden) = (hidden, hidden);
+            changed[w.screen] = true;
+            if !hidden {
+                back.push(w.hwnd);
+            }
+        }
+    }
+    for s in (0..changed.len()).filter(|&s| changed[s]) {
+        relayout(&mut o, s);
+    }
+    // A window coming back shows in its new place; the others move over to make room.
+    for w in o.windows.iter_mut().filter(|w| back.contains(&w.hwnd)) {
+        w.now = w.to;
+    }
+    let _ = app.emit("query", query);
+    for s in (0..changed.len()).filter(|&s| changed[s]) {
+        let _ = app.emit_to(o.screens[s].label.as_str(), "moved", Moved { shown: &o.shown[s] });
+    }
+    drop(o);
+    regrid(app);
+}
+
+/// The × under a window, a middle click or Ctrl+W: ask it to close, as its own × would. Once it
+/// has, the others close up. Still there after a moment, it's most likely asking whether to save,
+/// out of sight under the overview: so it's picked, to come forward with its question.
+pub fn close_window(app: &AppHandle, hwnd: isize, pid: u32) -> Result<(), String> {
+    {
+        let state = app.state::<State>();
+        let o = state.0.lock().unwrap();
+        if o.phase != Phase::Open || o.drag.is_some() {
+            return Err("not now".into());
+        }
+        if !o.windows.iter().any(|w| w.hwnd == hwnd && w.pid == pid && !w.gone) {
+            return Err("not a window in the overview".into());
+        }
+    }
+    wins::close(hwnd, pid)?;
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let own = std::process::id();
+        // Gone, hidden away (to the notification area, say) or cloaked: no longer one to list.
+        let gone = || wins::read(hwnd).is_none_or(|w| !wins::listed(&w, own));
+        for _ in 0..30 {
+            std::thread::sleep(Duration::from_millis(50));
+            if gone() {
+                break;
+            }
+        }
+        let still = !gone();
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            if still {
+                let _ = pick(&handle, hwnd, pid);
+            } else {
+                closed_window(&handle, hwnd);
+            }
+        });
+    });
+    Ok(())
+}
+
+/// A window closed from the overview has gone: its screen's grid closes up.
+fn closed_window(app: &AppHandle, hwnd: isize) {
+    let state = app.state::<State>();
+    let mut o = state.0.lock().unwrap();
+    if o.phase != Phase::Open {
+        return;
+    }
+    let Some(wi) = o.windows.iter().position(|w| w.hwnd == hwnd && !w.gone) else { return };
+    o.windows[wi].gone = true;
+    if let Some(f) = o.windows[wi].flight {
+        thumbs::unregister(o.flights[f].id);
+    }
+    let s = o.windows[wi].screen;
+    o.shown[s].slots.retain(|sl| sl.hwnd != hwnd);
+    relayout(&mut o, s);
+    let _ = app.emit_to(o.screens[s].label.as_str(), "moved", Moved { shown: &o.shown[s] });
+    drop(o);
+    regrid(app);
+}
+
+/// Set while a thread moves the thumbnails to their new places.
+static REGRIDDING: AtomicBool = AtomicBool::new(false);
+
+/// Move the thumbnails to their places after a grid changed (something typed, a window closed),
+/// a little closer each frame. It heads for wherever the grid is at that frame, so one thread does
+/// it however often the grid changes meanwhile, and quick typing never sets two moving the same
+/// thumbnails. A drag or the overview closing takes over from it.
+fn regrid(app: &AppHandle) {
+    if REGRIDDING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let mut last = Instant::now();
+        loop {
+            {
+                let state = app.state::<State>();
+                let mut o = state.0.lock().unwrap();
+                let mut settled = o.phase != Phase::Open || o.drag.is_some();
+                if !settled {
+                    // About 95% of the way in 150 ms, at any refresh rate.
+                    let k = 1.0 - (-last.elapsed().as_secs_f64() * 1000.0 / 50.0).exp();
+                    last = Instant::now();
+                    settled = true;
+                    let Overview { windows, flights, .. } = &mut *o;
+                    for w in windows.iter_mut().filter(|w| !w.gone) {
+                        let Some(f) = w.flight.map(|f| flights[f]) else { continue };
+                        if w.hidden {
+                            thumbs::place(f.id, f.crop, flight::rect(w.now), 0);
+                            continue;
+                        }
+                        w.now = Rect::lerp(w.now, w.to, k);
+                        if (w.now.x - w.to.x).abs() + (w.now.y - w.to.y).abs() + (w.now.w - w.to.w).abs() < 1.0 {
+                            w.now = w.to;
+                        } else {
+                            settled = false;
+                        }
+                        thumbs::place(f.id, f.crop, flight::rect(w.now), 255);
+                    }
+                }
+                // Let go with the overview still locked, so a change made after this frame starts
+                // a new thread rather than being missed by this one.
+                if settled {
+                    REGRIDDING.store(false, Ordering::SeqCst);
+                    return;
+                }
+            }
+            thumbs::next_frame();
+        }
+    });
 }
 
 // --- what the pages need ---------------------------------------------------------------------
@@ -878,6 +1055,19 @@ pub fn warm_icons(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typing_finds_windows_by_title_or_program() {
+        let words = |q: &str| q.to_lowercase().split_whitespace().map(String::from).collect::<Vec<_>>();
+        let code = ("main.rs - Mullion - Visual Studio Code", r"C:\Program Files\Microsoft VS Code\Code.exe");
+        assert!(matches(&words(""), code.0, code.1));
+        assert!(matches(&words("MAIN"), code.0, code.1));
+        assert!(matches(&words("code mullion"), code.0, code.1));
+        assert!(!matches(&words("code oriel"), code.0, code.1));
+        // By the program's name when the title doesn't say it, but not by the rest of its path.
+        assert!(matches(&words("firefox"), "Mozilla support", r"C:\Program Files\Mozilla Firefox\firefox.exe"));
+        assert!(!matches(&words("windows"), "Notes", r"C:\Windows\notepad.exe"));
+    }
 
     #[test]
     fn rects_on_a_screen_are_from_its_work_area() {

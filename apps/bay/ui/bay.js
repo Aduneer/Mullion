@@ -25,6 +25,7 @@ document.addEventListener("keydown", e => {
 document.addEventListener("wheel", e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const CLOSE_GLYPH = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>`;
 const WINDOW_GLYPH = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17"/></svg>`;
 
 // --- look ----------------------------------------------------------------------------------
@@ -92,19 +93,24 @@ function paint(img, b) {
 
 // --- the windows ---------------------------------------------------------------------------------
 let slots = [], selected = -1, open = false;
+/** What's typed: the backend shows only the windows it finds, on every screen. */
+let query = "";
 
 const pic = s => (s.icon ? `<img src="${esc(s.icon)}" alt="">` : WINDOW_GLYPH);
 
 function draw(shown, settling = false) {
-  slots = shown.slots;
+  slots = shown.slots.filter(s => !s.hidden);
   selected = -1;
   grid.innerHTML = slots.map((s, i) => {
     // A little wider than the window, into the gap, so a narrow one's title still reads.
     const lw = s.w + 32;
     return `<div class="slot${s.minimized ? " card" : ""}" data-i="${i}" style="left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.h}px">${s.minimized ? `${pic(s)}<span>Minimized</span>` : ""}</div>`
-      + `<div class="label" data-i="${i}" style="left:${s.x + s.w / 2 - lw / 2}px;top:${s.y + s.h}px;width:${lw}px"><span class="name">${pic(s)}<span>${esc(s.title)}</span></span></div>`;
+      + `<div class="label" data-i="${i}" style="left:${s.x + s.w / 2 - lw / 2}px;top:${s.y + s.h}px;width:${lw}px"><span class="name">${pic(s)}<span>${esc(s.title)}</span></span><button class="x" title="Close ${esc(s.title)}">${CLOSE_GLYPH}</button></div>`;
   }).join("");
+  $("empty").textContent = query ? `No windows match “${query}”` : "No open windows";
   $("empty").hidden = slots.length > 0;
+  // What's typed picks the first window it finds, so Enter goes there.
+  if (query && slots.length) select(front());
   open = true;
   document.body.classList.remove("closing");
   // The windows fly to their new places: their labels wait for them.
@@ -161,6 +167,25 @@ function pick(i) {
   open = false;
   document.body.classList.add("closing");
   invoke("pick", { hwnd: s.hwnd, pid: s.pid }).catch(() => invoke("dismiss"));
+}
+
+/** Ask a window to close, as its own × would. The backend closes the grid up once it has. */
+function closeWindow(i) {
+  const s = slots[i];
+  if (!s || !open) return;
+  invoke("close_window", { hwnd: s.hwnd, pid: s.pid }).catch(e => { if (e !== "not now") note(String(e)); });
+}
+
+function showQuery() {
+  $("query").textContent = query;
+  $("query").hidden = !query;
+  $("desktops").hidden = !!query;
+}
+
+function type(q) {
+  query = q;
+  showQuery();
+  invoke("filter", { query });
 }
 
 function dismiss() {
@@ -221,12 +246,29 @@ document.addEventListener("click", e => {
     return;
   }
   const t = e.target.closest("[data-i]");
-  if (t) pick(Number(t.dataset.i));
+  if (t && e.target.closest(".x")) closeWindow(Number(t.dataset.i));
+  else if (t) pick(Number(t.dataset.i));
   else dismiss();
 });
+// A middle click closes a window, as it closes a tab.
+grid.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+grid.addEventListener("auxclick", e => {
+  const t = e.target.closest("[data-i]");
+  if (e.button === 1 && t) closeWindow(Number(t.dataset.i));
+});
 document.addEventListener("keydown", e => {
+  if ((e.ctrlKey && e.key.toLowerCase() === "w") || e.key === "Delete") {
+    e.preventDefault();
+    return closeWindow(selected >= 0 ? selected : front());
+  }
+  // Typing finds windows; a space only once something's typed, as it picks a window otherwise.
+  if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && (e.key !== " " || query)) {
+    e.preventDefault();
+    return type(query + e.key);
+  }
   switch (e.key) {
-    case "Escape": e.preventDefault(); return dismiss();
+    case "Backspace": e.preventDefault(); return query && type(e.ctrlKey ? "" : query.slice(0, -1));
+    case "Escape": e.preventDefault(); return query ? type("") : dismiss();
     case "Enter": case " ": e.preventDefault(); return pick(selected >= 0 ? selected : front());
     case "Tab": e.preventDefault(); return step(e.shiftKey ? -1 : 1);
     case "ArrowRight": e.preventDefault(); return move(1, 0);
@@ -237,13 +279,16 @@ document.addEventListener("keydown", e => {
 });
 
 // --- from the backend ---------------------------------------------------------------------------
-listen("open", shown => draw(shown));
+listen("open", shown => { query = ""; showQuery(); draw(shown); });
+listen("query", q => { query = q; showQuery(); });
 listen("moved", ({ shown }) => { dragged = false; draw(shown, true); });
 listen("note", note);
 listen("close", () => { open = false; document.body.classList.add("closing"); });
 listen("closed", () => {
   open = false;
   $("note").hidden = true;
+  query = "";
+  showQuery();
   slots = [];
   selected = -1;
   grid.innerHTML = "";

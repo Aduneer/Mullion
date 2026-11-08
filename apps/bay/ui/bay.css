@@ -52,6 +52,16 @@ body.plain #tint { background: var(--page); }
 .label img, .label .ic { width: 20px; height: 20px; flex: none; }
 .label span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .selected + .label .name { background: color-mix(in srgb, var(--surface-hi) 80%, transparent); text-shadow: none; }
+/* Close, at the end of the window's title: the window's own corner is under its thumbnail, which
+   DWM draws over the page, so nothing on the page can go there. Shown for the window you're on. */
+.label .x {
+  display: none; place-items: center; flex: none; width: 24px; height: 24px; margin-left: -4px;
+  border: 0; border-radius: 12px; background: color-mix(in srgb, var(--surface-hi) 80%, transparent);
+  color: var(--ink-2); cursor: default;
+}
+.label .x .ic { width: 14px; height: 14px; stroke-width: 2; }
+.selected + .label .x { display: grid; }
+.label .x:hover { background: var(--accent); color: var(--page); }
 .ic { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 body.closing .label, body.closing .card { opacity: 0; transition: opacity 100ms; }
@@ -74,6 +84,16 @@ body.closing .label, body.closing .card { opacity: 0; transition: opacity 100ms;
 #desktops:hover { background: color-mix(in srgb, var(--surface-hi) 85%, transparent); color: var(--ink); }
 #desktops .ic { width: 17px; height: 17px; }
 body.closing #desktops { opacity: 0; }
+
+/* What's typed, in the Desktops button's place while there's something. */
+#query {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 32px); height: 30px; padding: 0 14px; border-radius: 15px;
+  display: flex; align-items: center;
+  background: color-mix(in srgb, var(--surface-hi) 90%, transparent); border: 1px solid var(--accent);
+  color: var(--ink); white-space: pre; overflow: hidden; text-overflow: ellipsis;
+}
+body.closing #query { opacity: 0; }
 
 /* Why a dragged window didn't move: at the foot of the screen, under the grid. */
 #note {
