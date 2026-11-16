@@ -16,12 +16,19 @@ pub struct Settings {
     /// Ask GitHub once a day whether there's a newer Mullion (`updates`). On unless turned off.
     #[serde(default = "yes")]
     pub check_updates: bool,
+    /// Apps an update brought, left off and marked new until they're first turned on.
+    pub new: Vec<String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { off: Vec::new(), welcomed: false, check_updates: true }
+        Settings { off: Vec::new(), welcomed: false, check_updates: true, new: Vec::new() }
     }
+}
+
+/// Where Mullion's installer lists the apps an update brought (installer/mullion.nsi).
+pub fn new_apps_path() -> PathBuf {
+    dir("Mullion").join("new-apps.txt")
 }
 
 fn yes() -> bool {
@@ -45,7 +52,23 @@ impl Settings {
         !self.off.iter().any(|a| a == app)
     }
 
+    /// The apps an update brought (`list`, one name per line): off, and new, so trying one is a
+    /// choice (Apron takes the taskbar's place). Someone still to be welcomed picks them there.
+    pub fn arrived(&mut self, list: &str) {
+        if !self.welcomed {
+            return;
+        }
+        for name in list.lines().map(str::trim) {
+            let Some(a) = mullion_core::suite::APPS.iter().find(|a| a.name == name) else { continue };
+            if !self.new.iter().any(|n| n == a.name) {
+                self.set(a.name, false);
+                self.new.push(a.name.to_string());
+            }
+        }
+    }
+
     pub fn set(&mut self, app: &str, on: bool) {
+        self.new.retain(|a| a != app || !on);
         self.off.retain(|a| a != app);
         if !on {
             self.off.push(app.to_string());
@@ -70,6 +93,26 @@ mod tests {
         assert!(s.is_on("Lintel") && s.off.is_empty());
         let old: Settings = serde_json::from_str(r#"{"off":["Oriel"],"gone":1}"#).unwrap();
         assert!(!old.is_on("Oriel"));
+    }
+
+    #[test]
+    fn apps_an_update_brings_arrive_off_until_turned_on() {
+        let mut s = Settings { welcomed: true, ..Default::default() };
+        s.arrived("Apron
+Not an app
+
+");
+        assert_eq!((s.off.clone(), s.new.clone()), (vec!["Apron".to_string()], vec!["Apron".to_string()]));
+        // Listed again by a second update: still the once.
+        s.arrived("Apron
+");
+        assert_eq!(s.new, ["Apron"]);
+        s.set("Apron", true);
+        assert!(s.is_on("Apron") && s.new.is_empty());
+        // Before the welcome, it's for the welcome to say.
+        let mut fresh = Settings::default();
+        fresh.arrived("Apron");
+        assert!(fresh.is_on("Apron") && fresh.new.is_empty());
     }
 
     #[test]

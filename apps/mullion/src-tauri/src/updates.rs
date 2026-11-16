@@ -32,6 +32,8 @@ pub const EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 pub struct Status {
     pub checking: bool,
     pub installing: bool,
+    /// How much of the installer has arrived while installing, 0 to 1, once its size is known.
+    pub downloaded: Option<f64>,
     /// When the last check came back, in seconds since 1970.
     pub checked: Option<u64>,
     /// A newer release than this Mullion, if there is one.
@@ -52,6 +54,9 @@ pub struct Release {
     setup: Option<String>,
     #[serde(skip)]
     sums: Option<String>,
+    /// The installer's size, as the release lists it, for the download's progress.
+    #[serde(skip)]
+    size: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -72,6 +77,8 @@ struct Reply {
 struct Asset {
     name: String,
     browser_download_url: String,
+    #[serde(default)]
+    size: u64,
 }
 
 /// "v1.2.3" or "1.2.3" as numbers to compare. Anything else (a suffix, a fourth part) isn't a
@@ -90,9 +97,12 @@ fn newer(reply: &[u8], current: &str) -> Result<Option<Release>, String> {
         return Ok(None);
     }
     let v = format!("{}.{}.{}", latest.0, latest.1, latest.2);
-    let file = |name: &str| r.assets.iter().find(|a| a.name == name && a.browser_download_url.starts_with(FILES)).map(|a| a.browser_download_url.clone());
+    let asset = |name: &str| r.assets.iter().find(|a| a.name == name && a.browser_download_url.starts_with(FILES));
+    let file = |name: &str| asset(name).map(|a| a.browser_download_url.clone());
+    let setup = format!("Mullion-{v}-setup.exe");
     Ok(Some(Release {
-        setup: file(&format!("Mullion-{v}-setup.exe")),
+        size: asset(&setup).map(|a| a.size).filter(|&n| n > 0),
+        setup: file(&setup),
         sums: file("SHA256SUMS.txt"),
         version: v,
         page: r.html_url,
@@ -135,10 +145,11 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Download the release's installer, check it, and start it. Blocks while it downloads.
-/// Err says why it couldn't, and the page then offers the release page.
-pub fn install(r: &Release) -> Result<(), String> {
-    let path = download(r)?;
+/// Download the release's installer, check it, and start it. Blocks while it downloads, telling
+/// `progress` how much has arrived (0 to 1) when the release says how big it is. Err says why it
+/// couldn't, and the page then offers the release page.
+pub fn install(r: &Release, progress: &mut dyn FnMut(f64)) -> Result<(), String> {
+    let path = download(r, progress)?;
     // Silent, keeping the apps that are installed; /update starts Mullion again at the end.
     std::process::Command::new(&path).args(["/S", "/update"]).spawn().map(|_| ()).map_err(|e| {
         if e.raw_os_error() == Some(4551) {
@@ -151,12 +162,18 @@ pub fn install(r: &Release) -> Result<(), String> {
 
 /// The release's installer, downloaded into %TEMP%\Mullion and checked against the release's
 /// SHA256SUMS.txt.
-fn download(r: &Release) -> Result<PathBuf, String> {
+fn download(r: &Release, progress: &mut dyn FnMut(f64)) -> Result<PathBuf, String> {
     let (setup, sums) = r.setup.as_deref().zip(r.sums.as_deref()).ok_or("This release has no installer to download")?;
     let name = format!("Mullion-{}-setup.exe", r.version);
     let sums = net::get(sums, "text/plain, */*", MAX_REPLY, TIMEOUT).map_err(|e| e.text())?;
     let want = listed_sum(&String::from_utf8_lossy(&sums), &name).ok_or("The release doesn't list the installer's checksum")?;
-    let body = net::get(setup, "application/octet-stream", MAX_SETUP, DOWNLOAD_TIMEOUT).map_err(|e| e.text())?;
+    let size = r.size;
+    let body = net::get_with(setup, "application/octet-stream", MAX_SETUP, DOWNLOAD_TIMEOUT, &mut |got| {
+        if let Some(size) = size {
+            progress((got as f64 / size as f64).min(1.0));
+        }
+    })
+    .map_err(|e| e.text())?;
     if hex(&Sha256::digest(&body)) != want {
         return Err("The download didn't match the release's checksum".into());
     }
@@ -246,7 +263,7 @@ mod tests {
         println!("latest: {} ({})", r.version, r.page);
         assert!(check().is_ok());
         // Update's download (about 8 MB), checked against the release's list; not run.
-        let path = download(&r).expect("the installer downloaded and matched its checksum");
+        let path = download(&r, &mut |_| {}).expect("the installer downloaded and matched its checksum");
         println!("downloaded: {} ({} bytes)", path.display(), std::fs::metadata(&path).unwrap().len());
         let _ = std::fs::remove_file(path);
     }

@@ -71,6 +71,7 @@ const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} 
 function state(a) {
   if (!a.installed) return "Not installed";
   if (a.blocked) return "Blocked by Windows";
+  if (a.new && !a.on) return "New in this update: turn it on to try it";
   if (a.running) return a.on ? "Running" : "Running on its own";
   return a.on ? "Not running" : "Off";
 }
@@ -97,9 +98,19 @@ const autostartSet = () => `
 // --- updates ---------------------------------------------------------------------------------
 const clock = secs => new Date(secs * 1000).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
 
+// How far Update has got: the download, then the installer starting.
+function progressText(u) {
+  const k = u.downloaded;
+  if (k >= 1) return "Starting the installer…";
+  return `Downloading Mullion ${esc(u.newer?.version)}…${k == null ? "" : ` ${Math.round(k * 100)}%`}`;
+}
+
+// The Update button, in the banner and beside Check for updates.
+const updateBtn = u => `<button class="btn primary" data-do="update" ${u.installing ? "disabled" : ""}>${u.installing ? "Updating…" : "Update"}${u.can_install ? "" : OUT}</button>`;
+
 // What the check last found, under its switch.
 function updateLine(u) {
-  if (u.installing) return `Downloading Mullion ${esc(u.newer?.version)}… Mullion closes, updates and opens again`;
+  if (u.installing) return progressText(u);
   if (u.checking) return "Checking…";
   if (u.error) return `<span class="bad">${esc(u.error)}</span>`;
   if (u.newer) return `Mullion ${esc(u.newer.version)} is out`;
@@ -109,7 +120,8 @@ function updateLine(u) {
 
 const updatesSet = () => `
   <div class="set"><div class="label"><span>Check for updates</span><small>${updateLine(hello.updates)}</small></div>
-    <div class="side">${hello.welcomed && !hello.updates.checking && !hello.updates.installing ? `<button class="btn" data-do="check">Check now</button>` : ""}
+    <div class="side">${hello.updates.newer ? updateBtn(hello.updates)
+      : hello.welcomed && !hello.updates.checking ? `<button class="btn" data-do="check">Check now</button>` : ""}
     ${sw(`data-do="updates"`, hello.check_updates, "Check for updates")}</div></div>`;
 
 // The release notes' first line, which says what the release is, without Markdown's marks.
@@ -124,14 +136,15 @@ function drawUpdate() {
       <span class="name">Mullion ${esc(r.version)} is out</span>
       <span class="sub">${esc(gist(r.notes)) || "A newer version of Mullion and its apps"}</span>
       ${u.can_install ? "" : `<span class="sub">This copy isn’t from Mullion’s installer, so Update opens the release page in your browser</span>`}
+      ${u.installing ? `<span class="progress"><span class="bar"><i style="width:${Math.round((u.downloaded ?? 0) * 100)}%"></i></span>${progressText(u)}</span>
+        <span class="sub">Mullion closes, updates every app and opens again by itself</span>` : ""}
     </div>
-    <div class="side">${web(`data-do="notes"`, "What’s new")}
-      <button class="btn primary" data-do="update" ${u.installing ? "disabled" : ""}>${u.installing ? "Updating…" : "Update"}${u.can_install ? "" : OUT}</button></div>`;
+    <div class="side">${web(`data-do="notes"`, "What’s new")}${updateBtn(u)}</div>`;
 }
 
 function drawApps() {
   appsEl.innerHTML = apps.map(a => card(a,
-    `<span class="state${a.running ? " up" : a.blocked ? " blocked" : ""}">${state(a)}</span>`,
+    `<span class="state${a.running ? " up" : a.blocked ? " blocked" : a.new && !a.on ? " new" : ""}">${state(a)}</span>`,
     !a.installed ? getIt(a)
       : `${a.blocked ? web(`data-page="install:${esc(a.name)}"`, "What to do") : ""}
          ${a.shows && a.on && !a.blocked ? `<button class="btn" data-settings="${esc(a.name)}">Settings</button>` : ""}

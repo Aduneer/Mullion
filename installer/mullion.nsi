@@ -11,6 +11,7 @@ Unicode true
 !include "LogicLib.nsh"
 !include "Sections.nsh"
 !include "FileFunc.nsh"
+!include "WordFunc.nsh"
 
 !define UNINST "Software\Microsoft\Windows\CurrentVersion\Uninstall"
 !define RUN "Software\Microsoft\Windows\CurrentVersion\Run"
@@ -20,6 +21,9 @@ Unicode true
 
 Name "Mullion"
 OutFile "${OUTFILE}"
+
+; The apps an update brings that the installed Mullion didn't have yet, one per line.
+Var NewApps
 InstallDir "$LOCALAPPDATA\Mullion"
 ; Everything installs per user, so it needs no admin rights.
 RequestExecutionLevel user
@@ -154,6 +158,19 @@ Section "-Tidy"
     Delete "$INSTDIR\apron.exe"
     Delete "$INSTDIR\apron-guard.exe"
   ${EndIf}
+  ; New apps an update brings: Mullion leaves them off until they're turned on (one may take the
+  ; taskbar's place), and says they're new. Ticked by hand in the installer, they just run.
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/update" $1
+  ${IfNot} ${Errors}
+  ${AndIf} $NewApps != ""
+    CreateDirectory "$APPDATA\Mullion"
+    FileOpen $0 "$APPDATA\Mullion\new-apps.txt" a
+    FileSeek $0 0 END
+    FileWrite $0 $NewApps
+    FileClose $0
+  ${EndIf}
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${UNINST}\Mullion" "EstimatedSize" "$0"
@@ -171,6 +188,23 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecSignIn} "Start Mullion, and the apps you picked, each time you sign in to Windows."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
+; Changing an install, an app that isn't in its folder: left out if the installed Mullion (version
+; $R9) already had it, so it was unticked, but ticked if it's new since then (SINCE, the first
+; release with it), as an update should bring it.
+!macro Missing NAME EXE SINCE
+  ${IfNot} ${FileExists} "$INSTDIR\${EXE}.exe"
+    StrCpy $R8 0
+    ${If} $R9 != ""
+      ${VersionCompare} $R9 "${SINCE}" $R8
+    ${EndIf}
+    ${If} $R8 == 2
+      StrCpy $NewApps "$NewApps${NAME}$\r$\n"
+    ${Else}
+      !insertmacro UnselectSection ${Sec${NAME}}
+    ${EndIf}
+  ${EndIf}
+!macroend
+
 Function .onInit
   ; Changing an install: start from what's there.
   ReadRegStr $0 HKCU "${UNINST}\Mullion" "InstallLocation"
@@ -180,27 +214,14 @@ Function .onInit
     StrCpy $0 $0 "" 1
     StrCpy $0 $0 -1
     StrCpy $INSTDIR $0
-    ${IfNot} ${FileExists} "$INSTDIR\oriel.exe"
-      !insertmacro UnselectSection ${SecOriel}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\lintel.exe"
-      !insertmacro UnselectSection ${SecLintel}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\fanlight.exe"
-      !insertmacro UnselectSection ${SecFanlight}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\bay.exe"
-      !insertmacro UnselectSection ${SecBay}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\sash.exe"
-      !insertmacro UnselectSection ${SecSash}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\mitre.exe"
-      !insertmacro UnselectSection ${SecMitre}
-    ${EndIf}
-    ${IfNot} ${FileExists} "$INSTDIR\apron.exe"
-      !insertmacro UnselectSection ${SecApron}
-    ${EndIf}
+    ReadRegStr $R9 HKCU "${UNINST}\Mullion" "DisplayVersion"
+    !insertmacro Missing "Oriel" "oriel" "0.3.0"
+    !insertmacro Missing "Lintel" "lintel" "0.3.0"
+    !insertmacro Missing "Fanlight" "fanlight" "0.3.0"
+    !insertmacro Missing "Bay" "bay" "0.4.0"
+    !insertmacro Missing "Sash" "sash" "0.5.0"
+    !insertmacro Missing "Mitre" "mitre" "0.5.0"
+    !insertmacro Missing "Apron" "apron" "0.6.0"
     ReadRegStr $0 HKCU "${RUN}" "Mullion"
     ${If} $0 == ""
       !insertmacro UnselectSection ${SecSignIn}

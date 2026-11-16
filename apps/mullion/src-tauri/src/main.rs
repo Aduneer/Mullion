@@ -49,6 +49,8 @@ struct AppInfo {
     /// Windows wouldn't start it (Smart App Control) the last time Mullion tried, and it isn't
     /// running.
     blocked: bool,
+    /// An update brought it, and it hasn't been turned on yet.
+    new: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     icon: Option<String>,
 }
@@ -86,7 +88,13 @@ fn main() {
             if suite::ask(&args) == Ask::Quit {
                 std::process::exit(0);
             }
-            let settings = Settings::load();
+            let mut settings = Settings::load();
+            // Apps an update just brought arrive off, before anything's started.
+            if let Ok(list) = std::fs::read_to_string(settings::new_apps_path()) {
+                settings.arrived(&list);
+                let _ = settings.save();
+                let _ = std::fs::remove_file(settings::new_apps_path());
+            }
             // Someone new picks their apps in the welcome first; it starts them.
             let welcomed = settings.welcomed;
             if welcomed {
@@ -142,6 +150,7 @@ fn list(settings: &Settings, with_icons: bool) -> Vec<AppInfo> {
                 running,
                 version: exe.as_ref().and_then(|e| ffi::file_version(&e.to_string_lossy())),
                 blocked: !running && BLOCKED.lock().unwrap().contains(&a.name),
+                new: settings.new.iter().any(|n| n == a.name),
                 icon: exe.filter(|_| with_icons).and_then(|_| icon_of(a.name)),
             }
         })
@@ -498,6 +507,7 @@ fn update(app: AppHandle, state: State<UpdateState>) -> Result<(), String> {
             return Ok(());
         }
         s.installing = s.can_install;
+        s.downloaded = None;
         s.error = None;
         (release, s.can_install)
     };
@@ -506,7 +516,17 @@ fn update(app: AppHandle, state: State<UpdateState>) -> Result<(), String> {
     }
     tell_update(&app);
     std::thread::spawn(move || {
-        if let Err(e) = updates::install(&release) {
+        // Told to the page each whole percent, not for every chunk that arrives.
+        let mut shown = -1.0;
+        let mut progress = |k: f64| {
+            let k = (k * 100.0).floor() / 100.0;
+            if k > shown {
+                shown = k;
+                app.state::<UpdateState>().0.lock().unwrap().downloaded = Some(k);
+                tell_update(&app);
+            }
+        };
+        if let Err(e) = updates::install(&release, &mut progress) {
             {
                 let state = app.state::<UpdateState>();
                 let mut s = state.0.lock().unwrap();

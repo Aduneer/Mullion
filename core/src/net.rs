@@ -123,6 +123,11 @@ macro_rules! wait {
 /// GET `url` (https:// or webcal://) and return the body, if it's under `max` bytes and arrives
 /// within `timeout`. `accept` is what the request says it wants, e.g. "application/json".
 pub fn get(url: &str, accept: &str, max: usize, timeout: Duration) -> Result<Vec<u8>, Fail> {
+    get_with(url, accept, max, timeout, &mut |_| {})
+}
+
+/// `get`, telling `progress` how many bytes have arrived each time more do.
+pub fn get_with(url: &str, accept: &str, max: usize, timeout: Duration, progress: &mut dyn FnMut(usize)) -> Result<Vec<u8>, Fail> {
     init_thread();
     let deadline = Instant::now() + timeout;
     let mut url = https_url(url).ok_or(Fail::NotHttps)?;
@@ -160,6 +165,7 @@ pub fn get(url: &str, accept: &str, max: usize, timeout: Duration) -> Result<Vec
             let at = body.len();
             body.resize(at + n, 0);
             reader.ReadBytes(&mut body[at..]).map_err(classify)?;
+            progress(body.len());
         }
     }
     Err(Fail::Other)

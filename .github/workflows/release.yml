@@ -201,6 +201,35 @@ jobs:
           }
           Write-Host "Mullion installed $($apps.Count) apps to $dir, ran them, quit them and uninstalled."
 
+      # Update as someone on an older release does: from 0.5.0, before Apron, with every app it had.
+      # The update has to bring Apron, and Mullion has to leave it off and say it's new rather than
+      # start it (it takes the taskbar's place).
+      - name: Update from an older release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.5.0 --repo "${{ github.repository }}" --pattern "Mullion-0.5.0-setup.exe" --dir old
+          Start-Process (Resolve-Path old/Mullion-0.5.0-setup.exe).Path -ArgumentList "/S" -Wait
+          $dir = Join-Path $env:LOCALAPPDATA "Mullion"
+          $settings = Join-Path $env:APPDATA "Mullion"
+          New-Item -ItemType Directory -Force $settings | Out-Null
+          Set-Content (Join-Path $settings "settings.json") '{"off": [], "welcomed": true}'
+          if (Test-Path "$dir/apron.exe") { throw "0.5.0 shouldn't have Apron" }
+          (Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S", "/update" -PassThru).WaitForExit()
+          Start-Sleep -Seconds 15
+          foreach ($f in "apron.exe", "apron-guard.exe") { if (-not (Test-Path "$dir/$f")) { throw "The update didn't bring $f" } }
+          if (-not (Get-Process mullion -ErrorAction SilentlyContinue)) { throw "Mullion didn't start again after the update" }
+          if (Get-Process apron -ErrorAction SilentlyContinue) { throw "Mullion started Apron, new in the update, without being asked" }
+          if (Test-Path (Join-Path $settings "new-apps.txt")) { throw "Mullion didn't take in new-apps.txt" }
+          $s = Get-Content (Join-Path $settings "settings.json") -Raw | ConvertFrom-Json
+          if ($s.off -notcontains "Apron" -or $s.new -notcontains "Apron") { throw "Apron isn't off and new in Mullion's settings: $($s | ConvertTo-Json -Compress)" }
+          Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 5
+          $entry = Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion
+          Start-Process cmd -ArgumentList "/c", $entry.QuietUninstallString -Wait
+          Write-Host "0.5.0 updated: Apron arrived, off and marked new."
+
       - name: Checksums
         shell: pwsh
         run: |
