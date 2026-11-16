@@ -40,4 +40,4 @@ Windows versions you tried.
   name, so a malicious DLL dropped next to it could be loaded. Keep the portable copy in a folder
   of its own, not in Downloads.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
-  its files in `SHA256SUMS.txt`. They aren't code-signed yet.
+  its files in `SHA256SUMS.txt`. They aren't code-signed: see the README's FAQ for why.

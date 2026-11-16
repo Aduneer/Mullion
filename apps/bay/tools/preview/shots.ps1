@@ -46,6 +46,7 @@ try {
     Shot "$base&sel=5&theme=light" (Join-Path $images "overview-light.png") 1600 948
     Shot "$base&sel=0&backdrop=plain&palette=nord" (Join-Path $images "plain.png") 1600 948
     Shot "$base&state=flight" (Join-Path $images "flight.png") 1600 948
+    Shot "$base&query=no&palette=catppuccin" (Join-Path $images "find.png") 1600 948
     Shot "http://127.0.0.1:$port/ui/settings.html?mode=dark" (Join-Path $images "settings-dark.png") 560 720
     Shot "http://127.0.0.1:$port/ui/settings.html?mode=light&palette=catppuccin" (Join-Path $images "settings-light.png") 560 720
 

@@ -66,4 +66,4 @@ and Windows versions you tried.
   - Plugins can't take over a built-in widget's id.
 - It runs as you, without admin rights, and installs per user.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
-  its files in `SHA256SUMS.txt`. They aren't code-signed yet.
+  its files in `SHA256SUMS.txt`. They aren't code-signed: see the README's FAQ for why.

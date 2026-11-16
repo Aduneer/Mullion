@@ -5,7 +5,7 @@
 // URL options, all optional:
 //   theme=auto|dark|light  palette=nord  backdrop=plain  minimized=0 (leave them out)
 //   state=open (the default) | closed | flight (part way, k=0.5)  sel=2 (→ that many times)
-//   ms=250 (how long it flies)
+//   ms=250 (how long it flies)  query=mu (typed in, to find a window)
 "use strict";
 (() => {
   const q = new URLSearchParams(location.search);
@@ -128,9 +128,29 @@
     requestAnimationFrame(step);
   }
 
+  const area = () => ({ x: MARGIN, y: MARGIN, w: overview.clientWidth - 2 * MARGIN, h: overview.clientHeight - 2 * MARGIN });
+  const slot = (w, at, hidden = false) => ({ hwnd: w.hwnd, pid: w.pid, title: w.title, icon_key: w.path, icon: ICONS[w.icon], minimized: w.minimized, z: w.z, hidden, ...at });
+
+  // As overview.rs's filter: the windows whose title or program has every word typed stay, laid
+  // out afresh; the others leave the grid.
+  function filter(query) {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const program = w => w.path.split("\\").pop().replace(/\.exe$/i, "").toLowerCase();
+    const keep = shown.filter(w => words.every(x => w.title.toLowerCase().includes(x) || program(w).includes(x)));
+    const to = layout(keep, area());
+    const slots = shown.map(w => keep.includes(w) ? slot(w, to[keep.indexOf(w)]) : slot(w, { x: 0, y: 0, w: 0, h: 0 }, true));
+    for (const f of flights) {
+      const i = keep.indexOf(f.win);
+      f.el.style.display = i < 0 ? "none" : "";
+      if (i >= 0) f.to = to[i];
+    }
+    place(1);
+    emit("query", query);
+    emit("moved", { shown: { slots, ms: MS } });
+  }
+
   function open() {
-    const area = { x: MARGIN, y: MARGIN, w: overview.clientWidth - 2 * MARGIN, h: overview.clientHeight - 2 * MARGIN };
-    const to = layout(shown, area);
+    const to = layout(shown, area());
     thumbs.innerHTML = "";
     desk = document.createElement("div");
     desk.className = "desk";
@@ -138,7 +158,7 @@
     // Bottom-most first, as Bay registers them, so the stack stays as it was.
     flights = shown.map((win, i) => ({ win, to: to[i], from: win, fade: win.minimized })).reverse().filter(f => !f.win.minimized);
     for (const f of flights) { f.el = makeWindow(f.win); thumbs.append(f.el); }
-    const slots = shown.map((w, i) => ({ hwnd: w.hwnd, pid: w.pid, title: w.title, icon_key: w.path, icon: ICONS[w.icon], minimized: w.minimized, z: w.z, ...to[i] }));
+    const slots = shown.map((w, i) => slot(w, to[i]));
     phase = "open";
     overview.classList.add("on");
     place(0);
@@ -180,6 +200,7 @@
         case "page": return Promise.resolve({ ...look(), backdrop: backdrop(), shown: null });
         case "pick": close(args.hwnd); return Promise.resolve();
         case "dismiss": close(null); return Promise.resolve();
+        case "filter": filter(args.query); return Promise.resolve();
         case "next_screen": log("on to the next screen (this preview has one, so back to this one)"); emit("enter", args.dir); return Promise.resolve();
         case "desktops": close(null); log("then Windows' Task View would open"); return Promise.resolve();
         // Bay carries a dragged window to another screen; this preview has one, so it stays.
@@ -202,6 +223,10 @@
       frame.contentWindow.focus();
       const sel = Number(q.get("sel") || 0);
       for (let i = 0; i < sel; i++) frame.contentDocument.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      // Typed once the windows have landed.
+      setTimeout(() => {
+        for (const key of q.get("query") || "") frame.contentDocument.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+      }, MS + 50);
     }, 100);
   });
   frame.src = "/ui/index.html";

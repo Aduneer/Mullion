@@ -12,7 +12,7 @@ Windows versions you tried.
 - It never connects to the internet. There's no update check, account or telemetry, and the
   content security policy keeps its pages from loading anything that isn't part of the app, apart
   from the wallpaper Bay itself serves them.
-- What it reads stays on your PC, and only while the overview opens:
+- What it reads stays on your PC, and only while the overview is open:
   - the list of open windows Alt+Tab would show: each one's title, which program it belongs to,
     where it is and whether it's minimized;
   - each of those programs' path, for its icon, and the icon, from Windows' shell;
@@ -30,9 +30,17 @@ Windows versions you tried.
   - move one you drag onto another screen there, the way dragging its title bar would, making it
     smaller only if it's bigger than that screen. The same check applies. Windows doesn't let it
     move the windows of programs running as administrator; such a window stays where it was;
-  - nothing else: it never closes a window or types into one.
+  - close one you ask it to (its ×, a middle click, <kbd>Ctrl</kbd> + <kbd>W</kbd> or
+    <kbd>Delete</kbd>) by sending it `WM_CLOSE`, the request its own × button sends, so it can
+    still ask whether to save. The same check applies, and Windows doesn't let it close an
+    administrator's window;
+  - nothing else: it never types into a window.
 - The **Desktops** button presses <kbd>Win</kbd> + <kbd>Tab</kbd> with `SendInput` once the
   overview has closed, to open Windows' Task View.
+- To keep the overview up to date as windows come and go, Bay asks Windows to tell it when a
+  window opens, closes, hides, is minimized, renamed or cloaked (`SetWinEventHook`, out of
+  context, so nothing is loaded into other programs; `src-tauri/src/watch.rs`). Each event says
+  only which window changed, and Bay acts on them only while the overview is open.
 - The shortcut is registered with `RegisterHotKey`. Bay has no keyboard or mouse hook, so it never
   sees any other key you press. While you drag a window it reads the pointer's position and
   whether the button is still down, and stops when you let go.
@@ -42,4 +50,4 @@ Windows versions you tried.
   name, so a malicious DLL dropped next to it could be loaded. Keep the portable copy in a folder
   of its own, not in Downloads.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
-  its files in `SHA256SUMS.txt`. They aren't code-signed yet.
+  its files in `SHA256SUMS.txt`. They aren't code-signed: see the README's FAQ for why.

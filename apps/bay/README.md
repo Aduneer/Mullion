@@ -61,6 +61,8 @@ back as it was.
 app has it stay, on every screen, the grid closing up around them. <kbd>Enter</kbd> brings the
 first one forward; <kbd>Backspace</kbd> or <kbd>Esc</kbd> brings the others back.
 
+<img alt="Bay in the Catppuccin palette with no typed: only Weekend away, Notes, and Now playing, Music, are left in the grid, with no shown at the top and a × after the selected window's title" src="docs/images/find.png">
+
 **Close a window** with the × at the end of its title, a middle click or <kbd>Ctrl</kbd> +
 <kbd>W</kbd>, and the others move up to fill its place. If it asks whether to save first, Bay
 brings it forward so you can answer.
