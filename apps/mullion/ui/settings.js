@@ -69,14 +69,28 @@ const FIRST = {
 const sw = (attrs, on, label) => `<button class="switch" role="switch" ${attrs} aria-checked="${on}" aria-label="${esc(label)}"></button>`;
 
 function state(a) {
-  if (!a.installed) return "Not installed";
+  if (!a.installed) return missingLine(a);
   if (a.blocked) return "Blocked by Windows";
   if (a.new && !a.on) return "New in this update: turn it on to try it";
   if (a.running) return a.on ? "Running" : "Running on its own";
   return a.on ? "Not running" : "Off";
 }
 
-const getIt = a => `<button class="btn" data-get="${esc(a.name)}">Get it</button>`;
+// Get it runs Mullion's installer to add the app, or opens the release page for a copy that isn't
+// from the installer.
+function getIt(a) {
+  const u = hello.updates, g = u.getting;
+  if (g?.app === a.name && !g.error) return `<button class="btn" disabled>${g.downloaded >= 1 ? "Starting…" : `Getting…${g.downloaded == null ? "" : ` ${Math.round(g.downloaded * 100)}%`}`}</button>`;
+  const busy = u.installing || (g && !g.error);
+  return `<button class="btn" data-get="${esc(a.name)}" ${busy ? "disabled" : ""}>Get it${u.can_install ? "" : OUT}</button>`;
+}
+
+// Under a missing app: what Get it will do, or is doing.
+function missingLine(a) {
+  const g = hello.updates.getting;
+  if (g?.app === a.name) return g.error ? `<span class="bad">${esc(g.error)}</span>` : "Mullion closes, adds it and opens again by itself";
+  return "Not installed";
+}
 
 // An app on its card: icon, name, what it is, a line under that, and its buttons.
 const card = (a, line, side) => `<div class="app${a.installed ? "" : " missing"}">
@@ -154,7 +168,7 @@ function drawApps() {
 
 function drawWelcome() {
   $("picks").innerHTML = apps.map(a => card(a,
-    `<span class="hint">${a.installed ? esc(FIRST[a.name] ?? "") : "Not installed"}</span>`,
+    `<span class="hint">${a.installed ? esc(FIRST[a.name] ?? "") : missingLine(a)}</span>`,
     a.installed ? sw(`data-pick="${esc(a.name)}"`, !off.has(a.name), `Run ${a.name}`) : getIt(a))).join("")
     // Nothing's wrong when the screen hitches as Lintel starts, but it's better said beforehand.
     + (apps.some(a => a.name === "Lintel" && a.installed && !off.has(a.name))
@@ -232,7 +246,7 @@ function draw() {
 $("picks").addEventListener("click", e => {
   const t = e.target.closest("button");
   if (t?.dataset.pick) off.has(t.dataset.pick) ? off.delete(t.dataset.pick) : off.add(t.dataset.pick);
-  else if (t?.dataset.get) invoke("get_app");
+  else if (t?.dataset.get) invoke("get_app", { name: t.dataset.get });
   drawWelcome();
 });
 
@@ -258,7 +272,7 @@ appsEl.addEventListener("click", async e => {
     if (t.dataset.app) apps = await invoke("set_app", { name: t.dataset.app, on: t.getAttribute("aria-checked") !== "true" });
     else if (t.dataset.start) await invoke("set_app", { name: t.dataset.start, on: true });
     else if (t.dataset.settings) await invoke("open_app", { name: t.dataset.settings, settings: true });
-    else if (t.dataset.get) await invoke("get_app");
+    else if (t.dataset.get) await invoke("get_app", { name: t.dataset.get });
   } catch (err) {
     error = String(err);
   }

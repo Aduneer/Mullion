@@ -126,10 +126,13 @@ When there's a newer version, Mullion's icon and its settings say so, and **Upda
 for you: Mullion closes, updates every app you have and opens again. **About**, at the end of
 Mullion Settings, has the version of Mullion and of each app.
 
-Want just one app? The same release has each app's own installer and a portable zip. None of it
-is code-signed yet, so SmartScreen may warn you and Smart App Control may block it; each app's
-README says what to do. If Windows blocks one of the apps, Mullion Settings says so on its row,
-with **What to do**.
+Want just one app? The same release has each app's own installer and a portable zip.
+
+None of it is code-signed, as signing costs money every month and Mullion is free and earns
+nothing. So SmartScreen may warn you and Smart App Control may block it; each app's README says
+what to do, and if Windows blocks one of the apps, Mullion Settings says so on its row, with
+**What to do**. Each release is built from its source by GitHub Actions, in public, and
+`SHA256SUMS.txt` lists every file's SHA-256.
 
 ## One icon for all of them
 

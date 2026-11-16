@@ -19,7 +19,7 @@
   const HOME = String.raw`C:\Users\you`;
 
   let settings = {
-    theme: q.get("theme") || "dark", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", hotkey: "alt+space", engine: "google",
+    theme: q.get("theme") || "dark", palette: q.get("palette") || "oriel", glass: q.get("glass") === "on", hotkey: "alt+space", apps_hotkey: "", engine: "google",
     files: true, folders: [], windows: true, apps_view: q.get("apps") || "grid", clipboard: true, clipboard_size: 100, keep_clipboard: false,
   };
   let autostart = true;
@@ -390,6 +390,7 @@
   const commands = {
     hello: () => ({
       settings, hotkey_error: null, hotkeys: ["alt+space", "ctrl+space", "ctrl+alt+space", "alt+shift+space", "win+alt+space", "ctrl+shift+space"],
+      apps_hotkey_error: null, apps_hotkeys: ["", "ctrl+alt+a", "alt+shift+a", "ctrl+shift+a", "win+alt+a"],
       engines: ENGINES.map(([id, name]) => [id, name]), autostart, mullion: q.has("mullion"), files: 48213, version: "0.1.0",
       settings_path: String.raw`C:\Users\you\AppData\Roaming\Fanlight\settings.json`,
     }),

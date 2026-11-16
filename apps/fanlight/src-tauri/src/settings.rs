@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 pub use mullion_core::settings::{read_json, write_json};
 pub const HOTKEYS: &[&str] = &["alt+space", "ctrl+space", "ctrl+alt+space", "alt+shift+space", "win+alt+space", "ctrl+shift+space"];
+/// The shortcuts that can open the Apps grid; "" is none, as it starts.
+pub const APPS_HOTKEYS: &[&str] = &["", "ctrl+alt+a", "alt+shift+a", "ctrl+shift+a", "win+alt+a"];
 pub const ENGINES: &[&str] = &["google", "bing", "duckduckgo", "brave", "ecosia", "startpage", "kagi"];
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -19,6 +21,8 @@ pub struct Settings {
     pub glass: bool,
     /// The shortcut that opens the panel, one of `HOTKEYS`.
     pub hotkey: String,
+    /// The shortcut that opens the panel on the Apps grid, one of `APPS_HOTKEYS`.
+    pub apps_hotkey: String,
     /// Where "Search the web" goes, one of `ENGINES`.
     pub engine: String,
     /// Files and folders in the results.
@@ -46,6 +50,7 @@ impl Default for Settings {
             palette: "oriel".into(),
             glass: false,
             hotkey: "alt+space".into(),
+            apps_hotkey: String::new(),
             engine: "google".into(),
             files: true,
             folders: Vec::new(),
@@ -107,6 +112,10 @@ impl Settings {
         if !HOTKEYS.contains(&self.hotkey.as_str()) {
             self.hotkey = d.hotkey;
         }
+        self.apps_hotkey = self.apps_hotkey.to_lowercase();
+        if !APPS_HOTKEYS.contains(&self.apps_hotkey.as_str()) || self.apps_hotkey == self.hotkey {
+            self.apps_hotkey = d.apps_hotkey;
+        }
         if !ENGINES.contains(&self.engine.as_str()) {
             self.engine = d.engine;
         }
@@ -136,13 +145,13 @@ mod tests {
         let s: Settings = serde_json::from_str(r#"{"palette":"nord","clipboard_size":5000,"theme":"neon","hotkey":"Ctrl+Space"}"#).unwrap();
         let s = s.clamp();
         assert_eq!((s.palette.as_str(), s.clipboard_size, s.theme.as_str(), s.hotkey.as_str()), ("nord", 1000, "auto", "ctrl+space"));
-        let s: Settings = serde_json::from_str(r#"{"palette":"<script>","engine":"evil.example","hotkey":"f13","apps_view":"tiles"}"#).unwrap();
+        let s: Settings = serde_json::from_str(r#"{"palette":"<script>","engine":"evil.example","hotkey":"f13","apps_hotkey":"alt+space","apps_view":"tiles"}"#).unwrap();
         assert_eq!(s.clamp(), Settings::default());
     }
 
     #[test]
     fn every_shortcut_offered_is_one_windows_takes() {
-        for h in HOTKEYS {
+        for h in HOTKEYS.iter().chain(APPS_HOTKEYS.iter().filter(|h| !h.is_empty())) {
             assert!(mullion_core::hotkey::parse(h).is_some(), "{h}");
         }
     }

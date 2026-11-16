@@ -24,6 +24,9 @@
     ? { checking: false, installing: q.get("update") === "2", downloaded: q.get("update") === "2" ? 0.42 : null, checked: Date.now() / 1000 - 600, can_install: true,
         newer: { version: "0.5.0", page: "#", notes: "**Sash**: windows snap to halves, thirds and quarters.\n\nMore below." } }
     : { checking: false, installing: false, checked: Date.now() / 1000 - 600, can_install: true, newer: null };
+  // getting=Apron: Get it partway through downloading; portable=1: not from the installer.
+  if (q.get("getting")) updates.getting = { app: q.get("getting"), downloaded: 0.42, error: null };
+  if (q.get("portable")) updates.can_install = false;
   const APPS = [
     ["Oriel", "A command centre for your second screen", true],
     ["Lintel", "A menu bar along the top of the screen", false],

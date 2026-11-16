@@ -41,6 +41,17 @@ pub struct Status {
     pub error: Option<String>,
     /// Update can download and run the installer, rather than open the release page.
     pub can_install: bool,
+    /// An app Get it is adding with the installer.
+    pub getting: Option<Getting>,
+}
+
+/// Get it, for an app that isn't installed: the latest installer, run to add it.
+#[derive(Debug, Clone, Serialize)]
+pub struct Getting {
+    pub app: String,
+    /// As `Status.downloaded`.
+    pub downloaded: Option<f64>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -91,9 +102,15 @@ fn version(v: &str) -> Option<(u32, u32, u32)> {
 
 /// The latest release from the API's reply, if it's newer than `current`.
 fn newer(reply: &[u8], current: &str) -> Result<Option<Release>, String> {
+    let current = version(current);
+    Ok(release(reply)?.filter(|r| current.is_some_and(|c| version(&r.version).is_some_and(|l| l > c))))
+}
+
+/// The latest release from the API's reply, if it's a release of ours.
+fn release(reply: &[u8]) -> Result<Option<Release>, String> {
     let r: Reply = serde_json::from_slice(reply).map_err(|_| "GitHub's reply didn't make sense".to_string())?;
     let latest = version(&r.tag_name).ok_or("GitHub's latest release has an odd version")?;
-    if r.draft || r.prerelease || !r.html_url.starts_with(PAGES) || version(current).is_none_or(|c| latest <= c) {
+    if r.draft || r.prerelease || !r.html_url.starts_with(PAGES) {
         return Ok(None);
     }
     let v = format!("{}.{}.{}", latest.0, latest.1, latest.2);
@@ -114,6 +131,17 @@ fn newer(reply: &[u8], current: &str) -> Result<Option<Release>, String> {
 pub fn check() -> Result<Option<Release>, String> {
     let reply = net::get(LATEST, "application/vnd.github+json", MAX_REPLY, TIMEOUT).map_err(|e| e.text())?;
     newer(&reply, env!("CARGO_PKG_VERSION"))
+}
+
+/// The latest release, whether or not it's newer, for Get it to add an app with. One older than
+/// this Mullion (a build of what's next) isn't, as it would take every app back.
+pub fn latest() -> Result<Release, String> {
+    let reply = net::get(LATEST, "application/vnd.github+json", MAX_REPLY, TIMEOUT).map_err(|e| e.text())?;
+    let r = release(&reply)?.ok_or("GitHub has no release to get it from")?;
+    if version(&r.version) < version(env!("CARGO_PKG_VERSION")) {
+        return Err("This Mullion is newer than the latest release".into());
+    }
+    Ok(r)
 }
 
 pub fn now() -> u64 {
@@ -147,11 +175,14 @@ fn hex(bytes: &[u8]) -> String {
 
 /// Download the release's installer, check it, and start it. Blocks while it downloads, telling
 /// `progress` how much has arrived (0 to 1) when the release says how big it is. Err says why it
-/// couldn't, and the page then offers the release page.
-pub fn install(r: &Release, progress: &mut dyn FnMut(f64)) -> Result<(), String> {
+/// couldn't, and the page then offers the release page. `add` is an app that isn't installed, to
+/// install too.
+pub fn install(r: &Release, add: Option<&str>, progress: &mut dyn FnMut(f64)) -> Result<(), String> {
     let path = download(r, progress)?;
     // Silent, keeping the apps that are installed; /update starts Mullion again at the end.
-    std::process::Command::new(&path).args(["/S", "/update"]).spawn().map(|_| ()).map_err(|e| {
+    let mut args = vec!["/S".to_string(), "/update".to_string()];
+    args.extend(add.map(|a| format!("/add={a}")));
+    std::process::Command::new(&path).args(&args).spawn().map(|_| ()).map_err(|e| {
         if e.raw_os_error() == Some(4551) {
             "Windows blocked the installer (Smart App Control)".to_string()
         } else {
@@ -219,6 +250,8 @@ mod tests {
         assert_eq!(newer(reply("v0.4.0").as_bytes(), "0.4.1").unwrap(), None);
         assert!(newer(b"not json", "0.4.1").is_err());
         assert!(newer(reply("nightly").as_bytes(), "0.4.1").is_err());
+        // Get it takes the latest release, newer or not.
+        assert_eq!(release(reply("v0.5.0").as_bytes()).unwrap().unwrap().version, "0.5.0");
     }
 
     #[test]

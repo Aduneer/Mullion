@@ -285,8 +285,12 @@ See [Sensors](#sensors): Windows doesn't give normal programs the real CPU senso
 LibreHardwareMonitor fills that gap.
 
 **Why isn't it signed?**
-Code signing needs a paid certificate and an identity check. It's planned; until then, see the
-note under [Install](#install).
+Honestly, because it costs money. Signing takes a certificate paid for every month, or a track
+record before a free one for open source will sign it, and Mullion is free and earns nothing. So
+it isn't, for now. What you can check instead: each release is built from its tagged source by
+GitHub Actions, in public, `SHA256SUMS.txt` lists every file's SHA-256, and you can
+[build it yourself](CONTRIBUTING.md#building-from-source). It'll be signed once one of those
+becomes possible.
 
 ## Roadmap
 

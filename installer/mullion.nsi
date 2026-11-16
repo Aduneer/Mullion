@@ -24,6 +24,8 @@ OutFile "${OUTFILE}"
 
 ; The apps an update brings that the installed Mullion didn't have yet, one per line.
 Var NewApps
+; An app Mullion's Get it asked for (/add=<App>): ticked, whatever the installed Mullion had.
+Var AddApp
 InstallDir "$LOCALAPPDATA\Mullion"
 ; Everything installs per user, so it needs no admin rights.
 RequestExecutionLevel user
@@ -193,6 +195,7 @@ SectionEnd
 ; release with it), as an update should bring it.
 !macro Missing NAME EXE SINCE
   ${IfNot} ${FileExists} "$INSTDIR\${EXE}.exe"
+  ${AndIf} $AddApp != "${NAME}"
     StrCpy $R8 0
     ${If} $R9 != ""
       ${VersionCompare} $R9 "${SINCE}" $R8
@@ -215,6 +218,8 @@ Function .onInit
     StrCpy $0 $0 -1
     StrCpy $INSTDIR $0
     ReadRegStr $R9 HKCU "${UNINST}\Mullion" "DisplayVersion"
+    ${GetParameters} $1
+    ${GetOptions} $1 "/add=" $AddApp
     !insertmacro Missing "Oriel" "oriel" "0.3.0"
     !insertmacro Missing "Lintel" "lintel" "0.3.0"
     !insertmacro Missing "Fanlight" "fanlight" "0.3.0"

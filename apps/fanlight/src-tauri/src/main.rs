@@ -18,7 +18,7 @@ use clipboard::Clipboard;
 use files::Files;
 use history::History;
 use mullion_core::suite::{self, Ask};
-use mullion_core::hotkey::{self, Hotkey};
+use mullion_core::hotkey::{self, Hotkeys};
 use mullion_core::{look, power};
 use serde::Serialize;
 use settings::Settings;
@@ -46,7 +46,12 @@ const DROP: f64 = 0.16;
 const INTERNATIONAL: &str = r"Control Panel\International";
 
 struct SettingsState(Mutex<Settings>);
-struct HotkeyState(Hotkey, Mutex<Option<String>>);
+/// The shortcuts, and why each isn't working, if it isn't: the panel's and the Apps grid's.
+struct HotkeyState(Hotkeys, Mutex<Option<String>>, Mutex<Option<String>>);
+
+/// The shortcuts' ids.
+const OPEN: i32 = 1;
+const APPS: i32 = 2;
 struct AutostartItem(CheckMenuItem<Wry>);
 /// When the panel last opened, so the focus wobbling as it does isn't taken for a click elsewhere.
 struct Shown(Mutex<Option<Instant>>);
@@ -60,6 +65,9 @@ struct Hello {
     /// Why the shortcut isn't working, if it isn't.
     hotkey_error: Option<String>,
     hotkeys: &'static [&'static str],
+    /// Why the Apps grid's shortcut isn't working, if it isn't.
+    apps_hotkey_error: Option<String>,
+    apps_hotkeys: &'static [&'static str],
     engines: Vec<(&'static str, &'static str)>,
     autostart: bool,
     /// Mullion started Fanlight, and has its tray icon and sign-in entry.
@@ -119,11 +127,12 @@ fn main() {
                 build_tray(app.handle(), &settings.hotkey)?;
             }
             let handle = app.handle().clone();
-            let (hk, first) = Hotkey::start(&settings.hotkey, move || {
+            let (hk, taken) = Hotkeys::start(&[(OPEN, &settings.hotkey), (APPS, &settings.apps_hotkey)], move |id| {
                 let app = handle.clone();
-                let _ = handle.run_on_main_thread(move || toggle(&app));
+                let _ = handle.run_on_main_thread(move || if id == APPS { toggle_apps(&app) } else { toggle(&app) });
             });
-            app.manage(HotkeyState(hk, Mutex::new(first.err())));
+            let err = |id| taken.iter().find(|(i, _)| *i == id).and_then(|(_, r)| r.clone().err());
+            app.manage(HotkeyState(hk, Mutex::new(err(OPEN)), Mutex::new(err(APPS))));
             apply_look(app.handle(), &settings.shown());
             app.manage(SettingsState(Mutex::new(settings)));
             match suite::ask(&args) {
@@ -164,6 +173,15 @@ fn toggle(app: &AppHandle) {
         hide_panel(app, true);
     } else {
         show(app);
+    }
+}
+
+/// The Apps grid's shortcut: open the panel on it, or close it.
+fn toggle_apps(app: &AppHandle) {
+    if panel(app).is_some_and(|w| w.is_visible().unwrap_or(false)) {
+        hide_panel(app, true);
+    } else {
+        show_for(app, &[suite::APPS_GRID.to_string()]);
     }
 }
 
@@ -334,6 +352,8 @@ fn hello(app: AppHandle, settings: State<SettingsState>, hotkey: State<HotkeySta
         settings: settings.0.lock().unwrap().shown(),
         hotkey_error: hotkey.1.lock().unwrap().clone(),
         hotkeys: settings::HOTKEYS,
+        apps_hotkey_error: hotkey.2.lock().unwrap().clone(),
+        apps_hotkeys: settings::APPS_HOTKEYS,
         engines: search::ENGINE_NAMES.iter().map(|(id, name, _)| (*id, *name)).collect(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         mullion: suite::is_run_by_mullion(),
@@ -652,7 +672,7 @@ fn save_settings(
     let mut settings = settings.clamp().keep_look(&previous);
     if previous.hotkey != settings.hotkey {
         // Only keep the new shortcut if Windows took it.
-        match hotkey.0.set(&settings.hotkey) {
+        match hotkey.0.set(OPEN, &settings.hotkey) {
             Ok(()) => {
                 *hotkey.1.lock().unwrap() = None;
                 let _ = app.state::<OpenItem>().0.set_text(format!("Open Fanlight\t{}", hotkey::label(&settings.hotkey)));
@@ -660,6 +680,16 @@ fn save_settings(
             Err(e) => {
                 settings.hotkey = previous.hotkey.clone();
                 return Err(format!("{}: {e}", hotkey::label(&settings.hotkey)));
+            }
+        }
+    }
+    if previous.apps_hotkey != settings.apps_hotkey {
+        match hotkey.0.set(APPS, &settings.apps_hotkey) {
+            Ok(()) => *hotkey.2.lock().unwrap() = None,
+            Err(e) => {
+                let label = hotkey::label(&settings.apps_hotkey);
+                settings.apps_hotkey = previous.apps_hotkey.clone();
+                return Err(format!("{label}: {e}"));
             }
         }
     }

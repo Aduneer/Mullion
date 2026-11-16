@@ -106,6 +106,10 @@ Launchpad does on a Mac: every app in the Start menu, in alphabetical order, wit
 under them. Type to narrow it down, move with the arrow keys and press <kbd>Enter</kbd>. Prefer a
 list? Settings → **Apps** → List.
 
+To open straight onto the grid, give it a shortcut of its own in Settings (**Open the Apps grid
+with**, none at first), or a hot corner in [Mitre](../mitre/README.md). Apron's first button opens
+it too.
+
 <img alt="The Apps category in the Nord palette with nothing typed: every app as an icon in a grid of six across, Calculator selected, and the open windows below" src="docs/images/launchpad.png">
 
 <img alt="The Clipboard category as glass in the Catppuccin palette: six things copied, with where from and when, and a code snippet previewed in full" src="docs/images/clipboard.png">
@@ -166,7 +170,7 @@ To uninstall, go to **Settings → Apps → Installed apps → Fanlight**. Tick
 *settings*. Changes apply and save as you make them, to `%APPDATA%\Fanlight\settings.json`:
 
 - **Shortcut**: <kbd>Alt</kbd> + <kbd>Space</kbd>, <kbd>Ctrl</kbd> + <kbd>Space</kbd>, and a
-  few more
+  few more, and one for the **Apps grid** if you like
 - **Theme**: Auto, dark or light; a **palette**; and **glass**
 - **Files and folders**, on or off, and more folders to search
 - **Open windows**, on or off
@@ -228,7 +232,12 @@ No admin rights, drivers or services.
 No. A web search, or a web address you type, opens in your browser when you pick it.
 
 **Why isn't it signed?**
-Code signing needs a paid certificate and an identity check. It's planned.
+Honestly, because it costs money. Signing takes a certificate paid for every month, or a track
+record before a free one for open source will sign it, and Mullion is free and earns nothing. So
+it isn't, for now. What you can check instead: each release is built from its tagged source by
+GitHub Actions, in public, `SHA256SUMS.txt` lists every file's SHA-256, and you can
+[build it yourself](CONTRIBUTING.md#building-from-source). It'll be signed once one of those
+becomes possible.
 
 ## Roadmap
 

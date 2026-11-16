@@ -224,11 +224,23 @@ jobs:
           if (Test-Path (Join-Path $settings "new-apps.txt")) { throw "Mullion didn't take in new-apps.txt" }
           $s = Get-Content (Join-Path $settings "settings.json") -Raw | ConvertFrom-Json
           if ($s.off -notcontains "Apron" -or $s.new -notcontains "Apron") { throw "Apron isn't off and new in Mullion's settings: $($s | ConvertTo-Json -Compress)" }
+          # Get it, for an app this version already offered and that was left out: /add=Apron
+          # ticks it, as nothing else would. Mullion turned it on before running the installer.
+          Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 5
+          Remove-Item "$dir/apron.exe", "$dir/apron-guard.exe"
+          Set-Content (Join-Path $settings "settings.json") '{"off": [], "welcomed": true}'
+          (Start-Process (Get-ChildItem dist/Mullion-*-setup.exe).FullName -ArgumentList "/S", "/update", "/add=Apron" -PassThru).WaitForExit()
+          Start-Sleep -Seconds 15
+          foreach ($f in "apron.exe", "apron-guard.exe") { if (-not (Test-Path "$dir/$f")) { throw "Get it didn't bring $f" } }
+          if (-not (Get-Process apron -ErrorAction SilentlyContinue)) { throw "Mullion didn't start Apron after Get it" }
+          $s = Get-Content (Join-Path $settings "settings.json") -Raw | ConvertFrom-Json
+          if ($s.new -contains "Apron") { throw "Apron, asked for, is marked new: $($s | ConvertTo-Json -Compress)" }
           Start-Process "$dir/mullion.exe" -ArgumentList "--quit" -Wait
           Start-Sleep -Seconds 5
           $entry = Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mullion
           Start-Process cmd -ArgumentList "/c", $entry.QuietUninstallString -Wait
-          Write-Host "0.5.0 updated: Apron arrived, off and marked new."
+          Write-Host "0.5.0 updated: Apron arrived, off and marked new. Get it added it back."
 
       - name: Checksums
         shell: pwsh

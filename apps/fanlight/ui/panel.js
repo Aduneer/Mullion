@@ -550,13 +550,15 @@ const sw = (id, on) => `<button class="switch" role="switch" data-set="${id}" ar
 const opt = (value, text, current) => `<option value="${esc(value)}"${value === current ? " selected" : ""}>${esc(text)}</option>`;
 const setRow = (title, sub, control) => `<div class="set"><div class="label"><span>${title}</span>${sub ? `<small>${sub}</small>` : ""}</div>${control}</div>`;
 
-function drawSettings(error = hello.hotkey_error) {
+function drawSettings(error = hello.hotkey_error, appsError = hello.apps_hotkey_error) {
   const s = settings;
   setv.innerHTML = `
     <h2>Fanlight Settings <button class="btn primary" data-do="done">Done</button></h2>
     <h3>SHORTCUT</h3>
     ${setRow("Open Fanlight with", error ? `<span class="err">${esc(error)}</span>` : hello.mullion ? "Or from Mullion’s icon in the notification area" : "Or click its icon in the notification area",
       `<select data-set="hotkey">${hello.hotkeys.map(h => opt(h, label(h), s.hotkey)).join("")}</select>`)}
+    ${setRow("Open the Apps grid with", appsError ? `<span class="err">${esc(appsError)}</span>` : "Straight to your apps, as icons",
+      `<select data-set="apps_hotkey">${hello.apps_hotkeys.filter(h => h !== s.hotkey).map(h => opt(h, h ? label(h) : "No shortcut", s.apps_hotkey)).join("")}</select>`)}
     <h3>LOOK</h3>
     ${hello.shared_look
       ? setRow("Theme, palette and glass", "Mullion Settings sets the look for every app", "")
@@ -592,11 +594,13 @@ async function save(change) {
   const next = { ...settings, ...change };
   try {
     settings = await invoke("save_settings", { settings: next });
-    hello.hotkey_error = null;
+    if ("apps_hotkey" in change) hello.apps_hotkey_error = null;
+    else hello.hotkey_error = null;
     applyTheme();
-    drawSettings(null);
+    drawSettings();
   } catch (e) {
-    drawSettings(String(e));
+    if ("apps_hotkey" in change) drawSettings(hello.hotkey_error, String(e));
+    else drawSettings(String(e));
   }
 }
 

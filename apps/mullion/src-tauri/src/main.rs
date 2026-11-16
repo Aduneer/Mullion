@@ -419,10 +419,50 @@ fn open_app(name: String, settings: bool) -> Result<(), String> {
     send(a, &exe, if settings { Ask::Settings } else { Ask::Show })
 }
 
-/// The release page, for an app that isn't installed.
+/// An app that isn't installed. Installed with Mullion's installer, Mullion downloads the latest
+/// one and runs it to add the app (and update the rest, if it's newer): Mullion closes, and opens
+/// again with the app on. Anywhere else, the release page.
 #[tauri::command]
-fn get_app() -> Result<(), String> {
-    ffi::shell_open(RELEASES, None, "open")
+fn get_app(app: AppHandle, state: State<UpdateState>, settings: State<SettingsState>, name: String) -> Result<(), String> {
+    let a = app_named(&name)?;
+    {
+        let mut s = state.0.lock().unwrap();
+        if !s.can_install {
+            return ffi::shell_open(RELEASES, None, "open");
+        }
+        if s.installing || s.getting.as_ref().is_some_and(|g| g.error.is_none()) {
+            return Ok(());
+        }
+        s.getting = Some(updates::Getting { app: a.name.into(), downloaded: None, error: None });
+    }
+    // Asked for, so on when Mullion opens again.
+    {
+        let mut s = settings.0.lock().unwrap();
+        s.set(a.name, true);
+        s.save().map_err(|e| e.to_string())?;
+    }
+    tell_update(&app);
+    std::thread::spawn(move || {
+        let mut shown = -1.0;
+        let mut progress = |k: f64| {
+            let k = (k * 100.0).floor() / 100.0;
+            if k > shown {
+                shown = k;
+                if let Some(g) = app.state::<UpdateState>().0.lock().unwrap().getting.as_mut() {
+                    g.downloaded = Some(k);
+                }
+                tell_update(&app);
+            }
+        };
+        if let Err(e) = updates::latest().and_then(|r| updates::install(&r, Some(a.name), &mut progress)) {
+            if let Some(g) = app.state::<UpdateState>().0.lock().unwrap().getting.as_mut() {
+                g.error = Some(format!("{e}. The release page has the installer."));
+            }
+            let _ = ffi::shell_open(RELEASES, None, "open");
+            tell_update(&app);
+        }
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -526,7 +566,7 @@ fn update(app: AppHandle, state: State<UpdateState>) -> Result<(), String> {
                 tell_update(&app);
             }
         };
-        if let Err(e) = updates::install(&release, &mut progress) {
+        if let Err(e) = updates::install(&release, None, &mut progress) {
             {
                 let state = app.state::<UpdateState>();
                 let mut s = state.0.lock().unwrap();
